@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Playwright e2e artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Node / frontend build
+node_modules/
+frontend/dist/
+.vite/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude
+CLAUDE.local.md
+.claude/scheduled_tasks.lock

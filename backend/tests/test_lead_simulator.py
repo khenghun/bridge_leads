@@ -1,0 +1,221 @@
+"""
+Regression tests for engine.lead_simulator.
+
+The simulator is randomised and leans on the endplay double-dummy solver, so we
+keep deal counts tiny and assert structural invariants rather than exact numbers.
+"""
+
+import random
+
+import pytest
+
+from engine.lead_simulator import (
+    simulate_opening_lead,
+    hand_to_cards,
+    _hand_list_to_str,
+)
+
+# A fixed 13-card leader hand (PBN: spades.hearts.diamonds.clubs).
+LEADER = "AK872.Q95.J98.Q4"
+
+
+# --------------------------------------------------------------------------
+# PBN <-> card-list helpers
+# --------------------------------------------------------------------------
+def test_hand_to_cards_parses_pbn():
+    cards = hand_to_cards(LEADER)
+    assert len(cards) == 13
+    assert 'SA' in cards and 'SK' in cards
+    assert 'HQ' in cards
+    assert 'CQ' in cards and 'C4' in cards
+
+
+def test_hand_to_cards_empty():
+    assert hand_to_cards("") == []
+
+
+def test_hand_list_to_str_sorts_high_to_low():
+    cards = ['S2', 'SA', 'SK', 'H5']
+    # spades sorted A,K,2; only hearts has the 5
+    assert _hand_list_to_str(cards) == "AK2.5.."
+
+
+def test_pbn_roundtrip():
+    assert _hand_list_to_str(hand_to_cards(LEADER)) == LEADER
+
+
+# --------------------------------------------------------------------------
+# simulate_opening_lead
+# --------------------------------------------------------------------------
+def test_rejects_wrong_hand_size():
+    with pytest.raises(ValueError):
+        simulate_opening_lead("AKQ.123..", level=3, strain='N', declarer='S')
+
+
+def test_result_shape_and_invariants():
+    random.seed(2024)
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        num_simulations=5,
+    )
+    assert result['num_simulations'] == 5
+
+    leads = result['leads']
+    # One candidate lead per card in the leader's hand.
+    assert len(leads) == 13
+
+    cards = {lead['card'] for lead in leads}
+    assert len(cards) == 13                      # all distinct
+
+    for lead in leads:
+        assert 0 <= lead['declarer_tricks'] <= 13
+        assert 0 <= lead['defense_tricks'] <= 13
+        # tricks split between the two sides
+        assert lead['declarer_tricks'] + lead['defense_tricks'] == pytest.approx(13)
+        assert 0.0 <= lead['defeat_rate'] <= 1.0
+        assert 0.0 <= lead['matchpoints'] <= 100.0
+
+    assert result['best_mp'] in cards
+    assert result['best_imp'] in cards
+
+
+def test_leads_sorted_best_first_by_imps():
+    random.seed(5)
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=4, strain='S', declarer='S',
+        num_simulations=5,
+    )
+    imps = [lead['imps'] for lead in result['leads']]
+    assert imps == sorted(imps, reverse=True)
+
+
+def test_constraints_are_honoured_in_simulation():
+    # Force declarer (South) to a strong NT range; the sim must still produce deals.
+    random.seed(9)
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        constraints={'hcp': {'S': (15, 17)}},
+        num_simulations=3,
+    )
+    assert result['num_simulations'] == 3
+    assert len(result['leads']) == 13
+
+
+def test_seed_makes_results_reproducible():
+    # Same inputs + same seed -> identical leads/metrics (what makes the app's
+    # cached wrapper sound).
+    kw = dict(leader_hand=LEADER, level=3, strain='N', declarer='S',
+              num_simulations=20, seed=7)
+    r1 = simulate_opening_lead(**kw)
+    r2 = simulate_opening_lead(**kw)
+    assert [l['card'] for l in r1['leads']] == [l['card'] for l in r2['leads']]
+    for a, b in zip(r1['leads'], r2['leads']):
+        assert a['imps'] == pytest.approx(b['imps'])
+        assert a['matchpoints'] == pytest.approx(b['matchpoints'])
+
+
+def test_dds_batching_crosses_chunk_boundary(monkeypatch):
+    # Shrink the DDS batch size so a handful of deals span several chunks; the
+    # result must be identical in shape to a single-batch run (guards the
+    # MAXNOOFBOARDS chunking path against regressing to the slow fallback).
+    import engine.lead_simulator as ls
+    monkeypatch.setattr(ls, '_DDS_BATCH', 2)
+    random.seed(123)
+    result = ls.simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        num_simulations=5,
+    )
+    assert result['num_simulations'] == 5
+    assert len(result['leads']) == 13
+
+
+def test_shapes_constraint_runs_end_to_end():
+    # The South 15-17 1NT shape disjunction (balanced / 5-card major / 6m) plus
+    # an HCP range. The sim must produce deals and a full lead table.
+    south_1nt = [
+        {'S': (2, 4), 'H': (2, 4), 'D': (2, 5), 'C': (2, 5)},
+        {'H': (5, 5), 'S': (2, 3), 'D': (2, 4), 'C': (2, 4)},
+        {'S': (5, 5), 'H': (2, 3), 'D': (2, 4), 'C': (2, 4)},
+        {'C': (6, 6), 'S': (2, 3), 'H': (2, 3), 'D': (2, 3)},
+        {'D': (6, 6), 'S': (2, 3), 'H': (2, 3), 'C': (2, 3)},
+    ]
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        constraints={'hcp': {'S': (15, 17)}, 'shapes': {'S': south_1nt}},
+        num_simulations=5, seed=11,
+    )
+    assert result['num_simulations'] == 5
+    assert len(result['leads']) == 13
+
+
+def test_shapes_constraint_actually_filters_shapes():
+    # Force South to a 6-card-club shape; verify the generated South hands obey
+    # it. We reach into _build_known_and_constraints + generate_deal directly so
+    # we can inspect the dealt hands (the public sim only returns leads).
+    from engine.lead_simulator import _build_known_and_constraints
+    from engine.deal_generator import generate_deal
+
+    six_clubs = [{'C': (6, 6), 'S': (2, 3), 'H': (2, 3), 'D': (2, 3)}]
+    leader_cards = hand_to_cards(LEADER)
+    # leader for declarer S is W; constrain S (declarer).
+    known, hcp, suit_length, acceptors = _build_known_and_constraints(
+        'W', leader_cards, {'shapes': {'S': six_clubs}})
+    assert 'S' in acceptors
+
+    rng = random.Random(3)
+    seen = 0
+    for _ in range(40):
+        hands = generate_deal(known, hcp, suit_length, rng=rng,
+                              acceptors=acceptors)
+        if hands is None:
+            continue
+        seen += 1
+        clubs = sum(1 for c in hands['S'] if c[0] == 'C')
+        assert clubs == 6
+    assert seen > 0
+
+
+def test_samples_capped_and_consistent():
+    # Every sample under a lead must be a deal that lead actually defeats, the
+    # leader's hand must match LEADER, and no card exceeds max_samples.
+    random.seed(31)
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        num_simulations=30, max_samples=4,
+    )
+    samples = result['samples']
+    assert isinstance(samples, dict)
+    contract_tricks = 6 + 3
+    for card, deals in samples.items():
+        assert len(deals) <= 4                       # capped
+        for s in deals:
+            assert s['declarer_tricks'] < contract_tricks   # truly defeated
+            assert s['declarer_tricks'] + s['defense_tricks'] == 13
+            # leader sits West (LHO of South); their hand is the fixed leader hand
+            assert s['layout']['W'] == LEADER
+            assert set(s['layout']) == {'N', 'E', 'S', 'W'}
+
+
+def test_samples_present_for_defeating_leads():
+    # A lead with a non-zero defeat rate must have at least one sample deal.
+    random.seed(7)
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        num_simulations=25,
+    )
+    for lead in result['leads']:
+        if lead['defeat_rate'] > 0:
+            assert result['samples'].get(lead['card'])
+
+
+def test_impossible_constraints_yield_no_deals():
+    # Two seats each demanding 25+ HCP needs >=50; the deck holds 40, so no deal
+    # can be generated -> zero deals, empty result.
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        constraints={'hcp': {'N': (25, 40), 'E': (25, 40)}},
+        num_simulations=3, max_attempts_factor=5,
+    )
+    assert result['num_simulations'] == 0
+    assert result['leads'] == []
+    assert result['best_mp'] is None

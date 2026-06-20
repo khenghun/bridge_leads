@@ -1,0 +1,17 @@
+# Opening Lead Simulator — full stack.
+#   docker compose up --build   →  http://localhost
+services:
+  backend:
+    build: ./backend
+    environment:
+      # DDS worker-thread cap (0 = all cores). Tune to the host / container limits.
+      BRIDGE_DDS_THREADS: "4"
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend

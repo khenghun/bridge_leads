@@ -1,0 +1,90 @@
+# v4 detailed plan — Streamlit → FastAPI + React/Vite + Docker
+
+High-level status lives in `../ROADMAP.md`. This migration keeps the simulation
+`engine/` **unchanged** and rebuilds the app around it as a client/server stack.
+
+Status: **implemented.** Backend + API tested (pytest, 113 passing); frontend
+scaffolded to parity; Docker files in place.
+
+---
+
+## Motivation
+
+v1–v3 were a single Streamlit script (`app.py`) on top of a clean,
+framework-agnostic `engine/` package. Streamlit coupled UI, orchestration,
+caching, and HTML deal-rendering into one process — blocking a real client/server
+split and containerised deployment. v4 separates concerns and dockerises.
+
+Decisions: **FastAPI** (Pydantic validation mirrors the typed constraint dict,
+auto OpenAPI docs), **synchronous `POST /simulate`** (Starlette runs sync handlers
+in a threadpool, so the multi-second DDS solve doesn't block the loop; React shows
+a spinner), **TypeScript**, and a **clean cut** of Streamlit at the start of v4.
+
+## Repo layout
+
+```
+backend/
+  engine/            # moved verbatim from top-level engine/ (no code changes)
+  app/
+    main.py          # FastAPI instance + CORS
+    routes.py        # /api endpoints
+    schemas.py       # Pydantic request/response models
+    service.py       # orchestration + deterministic cache (ports app.py glue)
+  tests/             # engine tests + test_api.py
+  requirements.txt   # fastapi, uvicorn[standard], endplay
+  Dockerfile         # python:3.12-slim + libgomp1
+frontend/
+  src/
+    api/             # typed client + types mirroring schemas
+    lib/bridge.ts    # pure helpers ported from app.py
+    components/      # one per old UI block
+    App.tsx          # state + sidebar
+  Dockerfile         # node build → nginx
+  nginx.conf         # static + /api reverse proxy
+docker-compose.yml
+```
+
+## Backend
+
+- **`engine/`** moved under `backend/` unchanged; `pytest.ini` (`pythonpath = .`)
+  runs from `backend/`.
+- **`app/service.py`** ports the glue from `app.py`: `validate_leader_hand`,
+  `build_constraints` (parses shape *text* via `engine.shape_parser`), and
+  `run_simulation` — `simulate_opening_lead(..., seed=0, max_samples=100)` behind
+  an in-process LRU+TTL cache (256 entries / 3600 s) keyed on the canonical
+  request, reproducing `@st.cache_data`.
+- **`app/schemas.py`** — Pydantic models: seat/strain/vul enums, HCP 0–40, suit
+  lengths 0–13, level 1–7, deals 100–1000; shapes carried as text per seat.
+- **`app/routes.py`** — `/api/health`, `/api/auctions` (drives demo auto-fill),
+  `/api/validate/shape` (live ✓/⚠ feedback), `/api/simulate` (plain `def`).
+- **`app/main.py`** — FastAPI + permissive CORS (dev only; prod same-origin).
+
+## Frontend
+
+Vite dev proxies `/api` → `:8000` (no CORS). `src/api/types.ts` mirrors the
+Pydantic schemas; `src/lib/bridge.ts` ports the pure helpers (suit colours/symbols,
+`parseContract`, PBN parse + validation, `randomHand`, `leaderSeat`). Components,
+one per old UI block: sidebar (demo/contract/scoring/sim), `HandEntry`,
+`ConstraintsEditor` (with debounced `/api/validate/shape`), `ResultsTable`,
+`SampleDeals` + `DealDiagram`. The scoring toggle re-ranks the stored response
+client-side (no re-fetch), matching the v3 aggregation-only behaviour.
+
+## Docker
+
+- **backend** — `python:3.12-slim`; `apt-get install libgomp1` (endplay's DDS `.so`
+  needs the OpenMP runtime — the key non-obvious gotcha); `uvicorn app.main:app`.
+  `BRIDGE_DDS_THREADS` set per container.
+- **frontend** — multi-stage: `node:20` (`npm ci && npm run build`) → `nginx:alpine`
+  serving `dist/` and reverse-proxying `/api` → `backend:8000`.
+- **compose** — `backend` (expose 8000) + `frontend` (`80:80`, depends_on backend).
+
+## Verification
+
+- Engine unchanged: `cd backend && pytest` (all prior tests pass).
+- API: `test_api.py` — `/api/simulate` returns a ranked non-empty `leads[]` with
+  `best_mp`/`best_imp`/`samples`; shape validation; determinism (same request →
+  same result). `uvicorn ... --reload` + `/docs` for manual.
+- Frontend: `npm run build` (typecheck), `npm run test` (vitest on `lib/bridge.ts`),
+  `npm run dev` for an end-to-end parity check vs. the old Streamlit UI.
+- Docker: `docker compose up --build`, browse `http://localhost`, run a simulation
+  (verifies `libgomp1` lets DDS load and nginx proxies `/api`).
