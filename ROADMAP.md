@@ -124,5 +124,8 @@ files and a one-time VPS provisioning procedure.
   public app ports), `Caddyfile`, `.github/workflows/deploy.yml`, and a VPS
   provisioning checklist ([`deploy/provision.md`](deploy/provision.md): `deploy`
   user, `ufw`/`fail2ban`, Docker, GHCR access).
-- **Remaining** — user provisions the domain + VPS per the checklist, adds the
-  `VPS_*` GitHub secrets, then first `workflow_dispatch` deploy + verification.
+- **Done so far** — all infra files committed; CI build job verified green,
+  images live at `ghcr.io/khenghun/bridge_leads-{backend,frontend}`.
+- **Remaining** — user provisions the domain + VPS per the checklist, sets GHCR
+  package visibility, adds the `VPS_*` GitHub secrets, then first
+  `workflow_dispatch` deploy + verification.

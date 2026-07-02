@@ -6,10 +6,14 @@ push-button deploy pipeline. **No application code changes** — only new infra
 files (`docker-compose.prod.yml`, `Caddyfile`, a GitHub Actions workflow) and a
 one-time VPS provisioning procedure.
 
-Status: **infra files written** (`docker-compose.prod.yml`, `Caddyfile`,
-`.github/workflows/deploy.yml`, `deploy/provision.md`, `deploy/.env.example`);
-awaiting domain + VPS provisioning. Repo is `github.com/khenghun/bridge_leads`,
-so images are `ghcr.io/khenghun/bridge_leads-{backend,frontend}`.
+Status: **infra written; CI green.** All infra files are in place
+(`docker-compose.prod.yml`, `Caddyfile`, `.github/workflows/deploy.yml`,
+`deploy/provision.md`, `deploy/.env.example`) and the build job has pushed
+working images to `ghcr.io/khenghun/bridge_leads-{backend,frontend}` (repo:
+`github.com/khenghun/bridge_leads`). Remaining, per `deploy/provision.md`:
+user provisions domain + VPS, decides GHCR package visibility (public vs
+read-only PAT), adds the `VPS_*` secrets, then first `workflow_dispatch`
+deploy + verification.
 
 Deviations from the sketch below, decided at implementation time:
 - The deploy job also **scp-syncs `docker-compose.prod.yml` + `Caddyfile`** to
