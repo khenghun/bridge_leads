@@ -1,0 +1,15 @@
+# Production edge: auto-TLS via Let's Encrypt once DNS points at the VPS.
+# DOMAIN comes from the caddy container's environment (set in .env).
+{$DOMAIN} {
+	encode gzip
+
+	# Caddy owns all routing: /api goes straight to FastAPI, everything
+	# else to the nginx static server (its own /api proxy is then unused).
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:80
+	}
+}

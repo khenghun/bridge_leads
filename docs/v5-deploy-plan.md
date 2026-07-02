@@ -6,7 +6,18 @@ push-button deploy pipeline. **No application code changes** — only new infra
 files (`docker-compose.prod.yml`, `Caddyfile`, a GitHub Actions workflow) and a
 one-time VPS provisioning procedure.
 
-Status: **planned.**
+Status: **infra files written** (`docker-compose.prod.yml`, `Caddyfile`,
+`.github/workflows/deploy.yml`, `deploy/provision.md`, `deploy/.env.example`);
+awaiting domain + VPS provisioning. Repo is `github.com/khenghun/bridge_leads`,
+so images are `ghcr.io/khenghun/bridge_leads-{backend,frontend}`.
+
+Deviations from the sketch below, decided at implementation time:
+- The deploy job also **scp-syncs `docker-compose.prod.yml` + `Caddyfile`** to
+  the VPS before restarting, so the box never drifts from the repo.
+- Rollback is a `workflow_dispatch` **`image_tag` input** (a commit SHA),
+  passed as `IMAGE_TAG` to compose; the VPS `.env` can pin it persistently.
+- `BRIDGE_DDS_THREADS=2` in prod (2-vCPU box), not 4.
+- Caddy also publishes `443/udp` (HTTP/3).
 
 ---
 
@@ -64,7 +75,7 @@ Production compose, used with `-f docker-compose.prod.yml`. Differs from the dev
   `./Caddyfile:/etc/caddy/Caddyfile:ro` and named volumes `caddy_data` (certs)
   and `caddy_config`; `restart: unless-stopped`; `depends_on: [frontend, backend]`.
 - **`frontend` / `backend`** — replace `build:` with
-  `image: ghcr.io/<owner>/bridge_lead-frontend:latest` /
+  `image: ghcr.io/khenghun/bridge_leads-frontend:latest` /
   `...-backend:latest`; **remove** the public `ports:` mapping (Caddy fronts
   them); keep `backend`'s `BRIDGE_DDS_THREADS`; add `restart: unless-stopped` to
   both. `expose:` internal ports only.
@@ -103,7 +114,7 @@ Two jobs:
   `docker/login-action` (registry `ghcr.io`, `GITHUB_TOKEN`),
   `docker/build-push-action` for `./backend` and `./frontend`. Tags each image
   `latest` **and** `${{ github.sha }}` (immutable tag = rollback handle). Push to
-  `ghcr.io/<owner>/bridge_lead-{backend,frontend}`.
+  `ghcr.io/khenghun/bridge_leads-{backend,frontend}`.
 - **deploy** — trigger: `workflow_dispatch` **only**. `appleboy/ssh-action` into
   the VPS runs, in the app dir:
   ```

@@ -1,0 +1,44 @@
+# Opening Lead Simulator — production stack (Vultr VPS).
+#   Requires a .env next to this file with DOMAIN=<yourdomain> (see deploy/.env.example).
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Only Caddy publishes ports; frontend/backend live on the internal network.
+# Images are built by CI (.github/workflows/deploy.yml) — the VPS only pulls.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # Let's Encrypt certs — must persist across restarts
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  backend:
+    image: ghcr.io/khenghun/bridge_leads-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      # DDS worker-thread cap (0 = all cores). 2-vCPU VPS: let DDS use both.
+      BRIDGE_DDS_THREADS: "2"
+    expose:
+      - "8000"
+
+  frontend:
+    image: ghcr.io/khenghun/bridge_leads-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+
+volumes:
+  caddy_data:
+  caddy_config:

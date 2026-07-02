@@ -100,7 +100,7 @@ simulation `engine/` **unchanged**:
 - **Cut** — `app.py`, `.streamlit/`, and the `streamlit` dependency removed;
   `engine/` + `tests/` moved under `backend/`.
 
-## v5 — Production deployment: Vultr VPS + Caddy + GHCR CI/CD 📋
+## v5 — Production deployment: Vultr VPS + Caddy + GHCR CI/CD 🚧
 
 Detailed design: [`docs/v5-deploy-plan.md`](docs/v5-deploy-plan.md).
 
@@ -120,6 +120,9 @@ files and a one-time VPS provisioning procedure.
   with a **manual (`workflow_dispatch`) deploy** job that SSHes to the VPS and
   runs `docker compose -f docker-compose.prod.yml pull && up -d`. SHA image tags
   give one-step rollback.
-- **Cut-in files** — `docker-compose.prod.yml` (image refs, Caddy, no public app
-  ports), `Caddyfile`, `.github/workflows/deploy.yml`, and a VPS provisioning
-  checklist (`deploy` user, `ufw`/`fail2ban`, Docker, GHCR login).
+- **Cut-in files** (written) — `docker-compose.prod.yml` (image refs, Caddy, no
+  public app ports), `Caddyfile`, `.github/workflows/deploy.yml`, and a VPS
+  provisioning checklist ([`deploy/provision.md`](deploy/provision.md): `deploy`
+  user, `ufw`/`fail2ban`, Docker, GHCR access).
+- **Remaining** — user provisions the domain + VPS per the checklist, adds the
+  `VPS_*` GitHub secrets, then first `workflow_dispatch` deploy + verification.
