@@ -6,14 +6,25 @@ push-button deploy pipeline. **No application code changes** — only new infra
 files (`docker-compose.prod.yml`, `Caddyfile`, a GitHub Actions workflow) and a
 one-time VPS provisioning procedure.
 
-Status: **infra written; CI green.** All infra files are in place
-(`docker-compose.prod.yml`, `Caddyfile`, `.github/workflows/deploy.yml`,
-`deploy/provision.md`, `deploy/.env.example`) and the build job has pushed
-working images to `ghcr.io/khenghun/bridge_leads-{backend,frontend}` (repo:
-`github.com/khenghun/bridge_leads`). Remaining, per `deploy/provision.md`:
-user provisions domain + VPS, decides GHCR package visibility (public vs
-read-only PAT), adds the `VPS_*` secrets, then first `workflow_dispatch`
-deploy + verification.
+Status: **deployed — live at <https://bridge-leads.icycookie.xyz>**
+(2026-07-06). All infra files are in place (`docker-compose.prod.yml`,
+`Caddyfile`, `.github/workflows/deploy.yml`, `deploy/provision.md`,
+`deploy/.env.example`); the build job pushes images to
+`ghcr.io/khenghun/bridge_leads-{backend,frontend}` (repo:
+`github.com/khenghun/bridge_leads`, packages set **public** so the VPS pulls
+anonymously). VPS provisioned per `deploy/provision.md`; every step of the
+§Verify checklist passed, including a reboot-resilience test and a green
+`workflow_dispatch` deploy.
+
+As-built notes (where reality differs from or refines the sketch):
+- Plan is Vultr **High Performance `vhp-2c-4gb`** (AMD, 2 vCPU / 4 GB) — same
+  size as planned, `vhp` line instead of `vhf` (newer CPU gen, same price).
+- Domain: **`icycookie.xyz`** (Porkbun); the app lives on the
+  **`bridge-leads.` subdomain** (`DOMAIN=bridge-leads.icycookie.xyz` in the
+  VPS `.env`), leaving the apex free for future apps on the same box. The
+  apex `A` record also points at the VPS but Caddy doesn't serve it.
+- The `deploy` user has passwordless sudo (`/etc/sudoers.d/deploy`) — it was
+  created with `--disabled-password`, so `sudo` would otherwise be unusable.
 
 Deviations from the sketch below, decided at implementation time:
 - The deploy job also **scp-syncs `docker-compose.prod.yml` + `Caddyfile`** to

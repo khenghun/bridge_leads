@@ -100,7 +100,7 @@ simulation `engine/` **unchanged**:
 - **Cut** — `app.py`, `.streamlit/`, and the `streamlit` dependency removed;
   `engine/` + `tests/` moved under `backend/`.
 
-## v5 — Production deployment: Vultr VPS + Caddy + GHCR CI/CD 🚧
+## v5 — Production deployment: Vultr VPS + Caddy + GHCR CI/CD ✅
 
 Detailed design: [`docs/v5-deploy-plan.md`](docs/v5-deploy-plan.md).
 
@@ -108,8 +108,10 @@ Stand the **unchanged** v4 container stack up on a public host with automatic
 TLS and a push-button deploy. **No application code changes** — only new infra
 files and a one-time VPS provisioning procedure.
 
-- **Host** — a **Vultr High Frequency VPS** (2 vCPU / 4 GB; DDS is CPU- and
-  single-thread-sensitive) running Docker + the compose plugin.
+**Live at <https://bridge-leads.icycookie.xyz>** (deployed 2026-07-06).
+
+- **Host** — a **Vultr High Performance (`vhp-2c-4gb`) VPS** (2 vCPU / 4 GB;
+  DDS is CPU- and single-thread-sensitive) running Docker + the compose plugin.
 - **Edge / TLS** — a **Caddy** container terminates HTTPS with auto-issued /
   renewed Let's Encrypt certs and routes `/api/*` → `backend`, everything else →
   the static `frontend`. Only Caddy publishes 80/443; the app services stay on
@@ -124,8 +126,10 @@ files and a one-time VPS provisioning procedure.
   public app ports), `Caddyfile`, `.github/workflows/deploy.yml`, and a VPS
   provisioning checklist ([`deploy/provision.md`](deploy/provision.md): `deploy`
   user, `ufw`/`fail2ban`, Docker, GHCR access).
-- **Done so far** — all infra files committed; CI build job verified green,
-  images live at `ghcr.io/khenghun/bridge_leads-{backend,frontend}`.
-- **Remaining** — user provisions the domain + VPS per the checklist, sets GHCR
-  package visibility, adds the `VPS_*` GitHub secrets, then first
-  `workflow_dispatch` deploy + verification.
+- **Deployed & verified (2026-07-06)** — VPS provisioned per the checklist
+  (deploy user, hardened sshd, `ufw`/`fail2ban`, Docker); GHCR images public
+  (anonymous pull, no registry login on the box); domain `icycookie.xyz`
+  (Porkbun) with the app on the **`bridge-leads` subdomain** via `DOMAIN` in
+  the VPS `.env`. Verified end to end: Let's Encrypt cert issued, `/api/health`
+  ok, a real simulation solved over the public API, stack self-restarts after
+  reboot (~55 s), and a green `workflow_dispatch` CI deploy.

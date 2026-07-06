@@ -8,9 +8,12 @@ Prereqs (user accounts):
 
 - Vultr **High Frequency** instance, 2 vCPU / 4 GB, **Ubuntu 24.04 LTS**.
 - A domain with an `A` record `<yourdomain>` → the VPS IP (add `www` too if
-  wanted — but the Caddyfile currently serves the apex only). Let DNS
+  wanted — but the Caddyfile serves exactly the one host in `DOMAIN`; a
+  subdomain like `bridge-leads.<domain>` works the same way). Let DNS
   propagate before first boot of the stack, or Caddy's cert issuance will
-  retry until it does.
+  retry until it does. Registrar gotchas (Porkbun): leave the Host field
+  **blank** for the apex (don't type `@`), and delete the pre-created parking
+  `ALIAS` + wildcard `CNAME` records or they mask yours.
 
 All commands below run on the VPS as root (Vultr's default login) unless noted.
 
@@ -19,6 +22,10 @@ All commands below run on the VPS as root (Vultr's default login) unless noted.
 ```bash
 adduser --disabled-password --gecos "" deploy
 usermod -aG sudo deploy          # optional: sudo for maintenance
+# --disabled-password means sudo could never prompt successfully; if deploy
+# should sudo (recommended — root SSH gets disabled below), make it
+# passwordless:
+echo 'deploy ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/deploy && chmod 440 /etc/sudoers.d/deploy
 mkdir -p /home/deploy/.ssh
 cp ~/.ssh/authorized_keys /home/deploy/.ssh/   # or paste your pubkey
 chown -R deploy:deploy /home/deploy/.ssh
@@ -111,6 +118,12 @@ Repo → Settings → Secrets and variables → Actions:
 | `VPS_HOST`    | VPS public IP (or hostname) |
 | `VPS_USER`    | `deploy` |
 | `VPS_SSH_KEY` | contents of `gha_deploy_key` (the private key from step 1) |
+
+`VPS_SSH_KEY` gotcha: paste the **whole file** — `-----BEGIN/END OPENSSH
+PRIVATE KEY-----` lines included — **with a trailing newline** after the END
+line. A missing final newline (or a clipboard tool mangling line endings —
+open the key in Notepad and Ctrl+A/Ctrl+C rather than piping to `clip`) makes
+the deploy job fail with `ssh.ParsePrivateKey: ssh: no key found`.
 
 ## 7. First launch
 
