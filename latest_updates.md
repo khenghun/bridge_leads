@@ -3,8 +3,8 @@
 Session goal: two issues. (1) Backend crashed/hung on infeasible HCP
 constraints — fixed. (2) Performance investigation of simulation timing —
 profiled, then implemented the two chosen improvements (deal-generation
-speedup, culminating in an exact-distribution sampler). **All work is on
-`main` but UNCOMMITTED as of session end** — see "State" below.
+speedup, culminating in an exact-distribution sampler). **Committed on `main`
+as `158856b`, but NOT pushed or deployed** — see "State" below.
 
 ## 1. Graceful handling of infeasible HCP constraints ✅
 
@@ -76,14 +76,14 @@ uniform by construction):
 
 ## State at session end
 
-- **Uncommitted changes**: `CLAUDE.md`, `engine/deal_generator.py`,
-  `engine/lead_simulator.py`, `tests/test_api.py`,
-  `tests/test_lead_simulator.py`; new files `engine/honor_sampler.py`,
-  `tests/test_honor_sampler.py`. Suggested: commit as two commits (issue-1
-  fix; exact sampler) or one.
+- All of the above committed on `main` as **`158856b`** (CLAUDE.md,
+  `engine/deal_generator.py`, `engine/lead_simulator.py`, new
+  `engine/honor_sampler.py`, tests, ROADMAP, this file). **Not pushed** —
+  pushing `main` triggers the GHCR image build; deploying is a separate
+  manual `workflow_dispatch`.
 - **All 126 backend tests pass.** CLAUDE.md architecture/performance sections
   updated.
-- Production (https://bridge-leads.icycookie.xyz) still runs the old code.
+- Production (https://bridge-leads.icycookie.xyz) still runs the v5 code.
 
 ## Next session
 
@@ -92,7 +92,7 @@ uniform by construction):
    `-O3 -march=x86-64-v3` in the backend Dockerfile and replace endplay's
    bundled generic `.so`. Expected 10–25% DDS speedup; DDS is now ~95%+ of
    runtime. Remember `libgomp1` (OpenMP) is already required by the image.
-2. Commit, push, deploy via GitHub Actions workflow_dispatch; verify prod
+2. Push, deploy via GitHub Actions workflow_dispatch; verify prod
    timing with the profiling scripts (recipe: 1NT preset, hands
    `T.KT932.Q2.T9843` / `AK872.Q95.J98.Q4` / `Q84.A72.T653.K92` /
    `J9743.86.AQ2.J85`, 500+1000 deals).
