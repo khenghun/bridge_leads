@@ -208,14 +208,55 @@ def test_samples_present_for_defeating_leads():
             assert result['samples'].get(lead['card'])
 
 
-def test_impossible_constraints_yield_no_deals():
-    # Two seats each demanding 25+ HCP needs >=50; the deck holds 40, so no deal
-    # can be generated -> zero deals, empty result.
+def test_impossible_hcp_minimums_raise():
+    # Two seats each demanding 25+ HCP needs >=50; the deck holds 40, so the
+    # feasibility shortcut raises before any generation is attempted.
+    with pytest.raises(ValueError, match="No way to meet the HCP constraints"):
+        simulate_opening_lead(
+            leader_hand=LEADER, level=3, strain='N', declarer='S',
+            constraints={'hcp': {'N': (25, 40), 'E': (25, 40)}},
+            num_simulations=3,
+        )
+
+
+def test_leader_hcp_counts_toward_minimums():
+    # LEADER holds 12 HCP; seat minimums of 15+15 push the total to 42 > 40.
+    # (Each seat alone is satisfiable — only the sum is impossible.)
+    with pytest.raises(ValueError, match="total 42 HCP"):
+        simulate_opening_lead(
+            leader_hand=LEADER, level=3, strain='N', declarer='S',
+            constraints={'hcp': {'N': (15, 40), 'S': (15, 40)}},
+            num_simulations=3,
+        )
+
+
+def test_impossible_hcp_maximums_raise():
+    # LEADER holds 12 HCP; capping all other seats at 5 allows at most 27 of
+    # the deck's 40 HCP to be dealt.
+    with pytest.raises(ValueError, match="No way to meet the HCP constraints"):
+        simulate_opening_lead(
+            leader_hand=LEADER, level=3, strain='N', declarer='S',
+            constraints={'hcp': {'N': (0, 5), 'E': (0, 5), 'S': (0, 5)}},
+            num_simulations=3,
+        )
+
+
+def test_fixed_cards_over_seat_max_raise():
+    # North is fixed with 7 HCP of cards but capped at 4.
+    with pytest.raises(ValueError, match="No way to meet the HCP constraints"):
+        simulate_opening_lead(
+            leader_hand=LEADER, level=3, strain='N', declarer='S',
+            constraints={'hcp': {'N': (0, 4)},
+                         'fixed_cards': {'N': ['DA', 'CK']}},
+            num_simulations=3,
+        )
+
+
+def test_tight_but_feasible_hcp_still_runs():
+    # Minimums total exactly 40 (12 leader + 28 spread) — feasible, must not raise.
     result = simulate_opening_lead(
         leader_hand=LEADER, level=3, strain='N', declarer='S',
-        constraints={'hcp': {'N': (25, 40), 'E': (25, 40)}},
-        num_simulations=3, max_attempts_factor=5,
+        constraints={'hcp': {'N': (10, 10), 'E': (8, 8), 'S': (10, 10)}},
+        num_simulations=2, seed=0,
     )
-    assert result['num_simulations'] == 0
-    assert result['leads'] == []
-    assert result['best_mp'] is None
+    assert result['num_simulations'] > 0

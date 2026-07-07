@@ -99,6 +99,18 @@ def test_simulate_rejects_short_hand():
     assert r.status_code == 422
 
 
+def test_simulate_rejects_impossible_hcp():
+    # LEADER holds 5 HCP; N>=20 and S>=20 pushes the minimum total past the
+    # deck's 40 HCP -> 422 with a human-readable message, not a hang.
+    r = client.post('/api/simulate', json={
+        'leader_hand': LEADER, 'level': 3, 'strain': 'N', 'declarer': 'S',
+        'num_simulations': 100,
+        'constraints': {'hcp': {'N': [20, 40], 'S': [20, 40]}},
+    })
+    assert r.status_code == 422
+    assert 'No way to meet the HCP constraints' in r.json()['detail']
+
+
 def test_simulate_rejects_bad_shape():
     r = client.post('/api/simulate', json={
         'leader_hand': LEADER, 'level': 3, 'strain': 'N', 'declarer': 'S',

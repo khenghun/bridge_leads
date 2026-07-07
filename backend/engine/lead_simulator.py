@@ -30,8 +30,15 @@ if _DDS_THREADS > 0:
     _dds.SetMaxThreads(_DDS_THREADS)
 
 from .deal_generator import generate_deal, PLAYERS as DG_PLAYERS, calculate_hcp
+from .honor_sampler import ExactDealSampler
 from .shapes import compile_shapes
 from . import scoring
+
+# If the exact sampler's shape-rejection step throws away this many draws
+# without producing a single deal, the shape constraints are pathologically
+# tight for plain rejection; switch to the legacy steered generator (its
+# distribution is approximate, but it fills suit minimums during placement).
+_EXACT_FALLBACK_ATTEMPTS = 3000
 
 SUIT_ORDER = ['S', 'H', 'D', 'C']
 SORT_RANK = {r: i for i, r in enumerate('AKQJT98765432')}
@@ -122,6 +129,36 @@ def _build_known_and_constraints(leader_letter, leader_cards, constraints):
     return known, hcp, suit_length, acceptors
 
 
+def _check_hcp_feasibility(known, hcp):
+    """The deck holds exactly 40 HCP. Raise ValueError when the per-seat HCP
+    bounds (combined with each seat's known cards) can never sum to 40 —
+    otherwise generation would grind through every attempt and find nothing."""
+    min_total = 0
+    max_total = 0
+    for p in DG_PLAYERS:
+        fixed_cards = known.get(p, [])
+        fixed = calculate_hcp(fixed_cards)
+        lo, hi = hcp.get(p, (None, None))
+        lo = 0 if lo is None else lo
+        hi = 40 if hi is None else hi
+        if fixed > hi:
+            raise ValueError(
+                f"No way to meet the HCP constraints: {p}'s known cards already "
+                f"hold {fixed} HCP, above the {hi} HCP maximum.")
+        if len(fixed_cards) == 13:
+            hi = fixed          # a fully-known hand contributes exactly its HCP
+        min_total += max(lo, fixed)
+        max_total += hi
+    if min_total > 40:
+        raise ValueError(
+            f"No way to meet the HCP constraints: the seat minimums (including "
+            f"known cards) total {min_total} HCP, but the deck holds only 40.")
+    if max_total < 40:
+        raise ValueError(
+            f"No way to meet the HCP constraints: the seat maximums allow only "
+            f"{max_total} HCP in total, but all 40 HCP in the deck must be dealt.")
+
+
 def simulate_opening_lead(leader_hand, level, strain, declarer,
                           vul='none', penalty='none', constraints=None,
                           num_simulations=50, max_attempts_factor=1000, seed=None,
@@ -171,17 +208,32 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
 
     known, hcp, suit_length, acceptors = _build_known_and_constraints(
         leader_letter, leader_cards, constraints)
+    _check_hcp_feasibility(known, hcp)
 
     # --- Phase 1: generate deals ---
+    # Exact sampler: uniform over all HCP-consistent deals (DP over honor
+    # value classes), with suit/shape constraints applied by rejection. Falls
+    # back to the legacy steered generator if shapes reject everything.
     rng = random.Random(seed) if seed is not None else random
+    sampler = ExactDealSampler(known, hcp, suit_length, acceptors or None)
+    if sampler.total == 0:
+        raise ValueError(
+            "No way to meet the HCP constraints: no arrangement of the unseen "
+            "honor cards satisfies every seat's HCP range.")
+    use_exact = True
     deals = []
     deal_layouts = []            # parallel to `deals`: {seat: 'S.H.D.C'} per deal
     attempts = 0
     max_attempts = num_simulations * max_attempts_factor
     while len(deals) < num_simulations and attempts < max_attempts:
         attempts += 1
-        hands = generate_deal(known, hcp, suit_length, max_attempts=1000, rng=rng,
-                              acceptors=acceptors or None)
+        if use_exact:
+            hands = sampler.sample(rng)
+            if hands is None and not deals and attempts >= _EXACT_FALLBACK_ATTEMPTS:
+                use_exact = False
+        else:
+            hands = generate_deal(known, hcp, suit_length, max_attempts=1000, rng=rng,
+                                  acceptors=acceptors or None)
         if hands is None:
             continue
         layout = {p: _hand_list_to_str(hands[p]) for p in DG_PLAYERS}

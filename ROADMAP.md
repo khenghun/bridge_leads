@@ -2,6 +2,10 @@
 
 Version history and planned work for the Opening Lead Simulator.
 
+> **Session handoff:** the latest work-in-progress state (what changed, what's
+> uncommitted, and the agreed next steps) is documented in
+> [`latest_updates.md`](latest_updates.md).
+
 ## v1 — Opening lead Monte-Carlo simulator ✅
 
 The initial Streamlit app.
@@ -133,3 +137,21 @@ files and a one-time VPS provisioning procedure.
   the VPS `.env`. Verified end to end: Let's Encrypt cert issued, `/api/health`
   ok, a real simulation solved over the public API, stack self-restarts after
   reboot (~55 s), and a green `workflow_dispatch` CI deploy.
+
+## v6 — Engine robustness & performance: exact dealing 🚧
+
+Work log / handoff: [`latest_updates.md`](latest_updates.md).
+
+- **Infeasible-constraint handling ✅** — HCP constraint sets that can't sum
+  to the deck's 40 HCP now return a clear 422 ("No way to meet the HCP
+  constraints…") instead of hanging the solver; static per-suit
+  infeasibility pre-checks in the deal generator.
+- **Exact deal sampling ✅** — new `engine/honor_sampler.py`
+  (`ExactDealSampler`): exactly-uniform deals under HCP constraints via an
+  integer-count DP over honor value classes; shapes by rejection; legacy
+  steered sampler kept as fallback. Generation up to 24.7× faster on tight
+  HCP presets and now distribution-correct (verified vs shuffle-and-reject
+  ground truth at N=20k).
+- **Native libdds build ⏳** — compile DDS with `-O3 -march=x86-64-v3` in the
+  backend image to replace endplay's generic bundled `.so` (expected 10–25%;
+  DDS is ~95%+ of runtime). Not started.

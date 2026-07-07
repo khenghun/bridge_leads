@@ -43,10 +43,11 @@ docker compose up --build     # frontend on http://localhost, backend proxied at
 
 ## Architecture
 
-The **engine** is framework-agnostic and unchanged from v3 — it has no HTTP/UI imports.
+The **engine** is framework-agnostic — it has no HTTP/UI imports.
 
-- `backend/engine/deal_generator.py` — `generate_deal(known_hands, hcp_constraints, suit_constraints, acceptors=None)` builds constrained random deals (known cards + per-player HCP and per-suit length bounds; `acceptors` reject finished hands, used for disjunctive shapes). Vendored from `bridge_ai/solver/deal_generator_v2.py`. **Keyed by player letter** `'N'/'E'/'S'/'W'`.
-- `backend/engine/lead_simulator.py` — `simulate_opening_lead(leader_hand, level, strain, declarer, vul, penalty, constraints, num_simulations, seed=None, max_samples=10)` is the entry point. Generates deals (leader's hand fixed, others constrained), batch-DDS solves, scores each candidate lead, returns leads ranked by IMPs with MP%/defeat-rate + contract-setting sample deals. Adapted from `bridge_ai/solver/mce_defense_sim.py`.
+- `backend/engine/honor_sampler.py` — `ExactDealSampler`: the primary deal source. Samples **exactly uniformly** over deals consistent with known cards + per-seat HCP bounds via an integer-count DP over honor value classes (A/K/Q/J), then enforces suit-length/shape constraints by rejection. Tight HCP bands cost nothing (no HCP rejection at all). `.total` is the exact count of HCP-consistent deals (0 = infeasible). Build once per constraint set (~10–30 ms), then `sample(rng)` per draw.
+- `backend/engine/deal_generator.py` — `generate_deal(known_hands, hcp_constraints, suit_constraints, acceptors=None)` is the legacy rejection sampler (steered placement, *approximately* uniform), kept as the fallback for pathologically tight shape constraints where the exact sampler's rejection step starves. Vendored from `bridge_ai/solver/deal_generator_v2.py`. **Keyed by player letter** `'N'/'E'/'S'/'W'`.
+- `backend/engine/lead_simulator.py` — `simulate_opening_lead(leader_hand, level, strain, declarer, vul, penalty, constraints, num_simulations, seed=None, max_samples=10)` is the entry point. Generates deals (leader's hand fixed, others constrained; `ExactDealSampler` first, legacy fallback after 3000 rejected draws with zero accepts), batch-DDS solves, scores each candidate lead, returns leads ranked by IMPs with MP%/defeat-rate + contract-setting sample deals. Raises `ValueError` on infeasible HCP constraints (pre-checked: seat minimums vs the deck's 40 HCP, and the sampler's exact count). Adapted from `bridge_ai/solver/mce_defense_sim.py`.
 - `backend/engine/scoring.py` — `declarer_score()` wraps `endplay`'s `Contract.score()`; `aggregate()` does the MP/IMP rollup; `imps()` is the standard IMP scale. **Don't hand-roll the score tables** — `endplay` computes the duplicate-bridge score; we only aggregate.
 - `backend/engine/shapes.py` / `shape_parser.py` — disjunctive `(A or B or C)` shape constraints: text mini-language → terms → (envelope box + acceptor predicate).
 - `backend/engine/auctions.py` — predefined demo auctions (contract + constraint presets).
@@ -75,7 +76,7 @@ Source material lives at `C:\kh\bridge_ai\solver\` — reuse the v2 modules (`de
 
 ## Performance & determinism (easy to get wrong)
 
-DDS is ~99% of runtime; deal generation is negligible (~0.06s / 500 deals). Don't try to parallelize the Python generator — optimize/seed it instead.
+DDS is ~95-99% of runtime; deal generation via `ExactDealSampler` is ~0.1-0.3s / 500 deals even under tight auction constraints (the legacy rejection sampler was up to 10x that). Don't try to parallelize the Python generator — optimize/seed it instead.
 
 - **Batch the DDS solve in chunks of `_dds.MAXNOOFBOARDS` (200).** `solve_all_boards` multithreads internally (`SolveAllBoardsBin`), but its board array caps at 200 — passing more **raises**, which previously fell back to a single-threaded `solve_board` loop (~5× slower). `lead_simulator._solve_all()` chunks to keep the parallel path; don't call `solve_all_boards` on >200 deals directly.
 - **DDS thread cap:** `lead_simulator` calls `_dds.SetMaxThreads(min(cpu, 4))` at import. DDS otherwise grabs every core and allocates memory per thread — bad under concurrent public load. Override with env var `BRIDGE_DDS_THREADS` (`0` = auto-detect all cores); `docker-compose.yml` sets it per container.
