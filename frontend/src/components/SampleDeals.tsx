@@ -17,6 +17,13 @@ export default function SampleDeals({ result, mode }: Props) {
   const sortKey = mode === 'matchpoints' ? 'matchpoints' : 'imps'
   const leadOrder = [...result.leads].sort((a, b) => b[sortKey] - a[sortKey]).map((r) => r.card)
   const recommended = mode === 'matchpoints' ? result.best_mp : result.best_imp
+  // Star every lead tied for best, using the same rounding as the banner in
+  // ResultsTable so the starred set matches its "(n tied)" count.
+  const ndp = mode === 'matchpoints' ? 1 : 2
+  const round = (v: number) => Number(v.toFixed(ndp))
+  const bestValue = Math.max(...result.leads.map((r) => round(r[sortKey])))
+  const starred = new Set(
+    result.leads.filter((r) => round(r[sortKey]) === bestValue).map((r) => r.card))
   const defeatByCard: Record<string, number> = Object.fromEntries(
     result.leads.map((r) => [r.card, r.defeat_rate]),
   )
@@ -52,7 +59,7 @@ export default function SampleDeals({ result, mode }: Props) {
               onClick={() => setPicked(card)}
               title={`defeats ${Math.round(defeatByCard[card] * 100)}%`}
             >
-              {card === recommended ? '★ ' : ''}{card}
+              {starred.has(card) ? '★ ' : ''}{card}
             </button>
           )
         })}

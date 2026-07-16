@@ -152,6 +152,20 @@ Work log / handoff: [`latest_updates.md`](latest_updates.md).
   steered sampler kept as fallback. Generation up to 24.7× faster on tight
   HCP presets and now distribution-correct (verified vs shuffle-and-reject
   ground truth at N=20k).
+- **Deployed 2026-07-16** — the two items above are live in production
+  (pushed to `main`, images built by CI, manual `workflow_dispatch` deploy,
+  verified on the live site).
+- **Concurrency hardening ✅** (2026-07-16) — libdds's multi-board functions
+  are not re-entrant, so `_solve_all()` now serializes the DDS solve behind a
+  global lock (concurrent requests queue; each solve keeps its full thread
+  allowance). The service result cache gained a lock + dogpile protection:
+  simultaneous identical requests simulate once and share the result. Covered
+  by `backend/tests/test_service_concurrency.py`.
+- **UI polish ✅** (2026-07-16) — results table sorts by the active scoring
+  metric, best first (MP% desc in Matchpoints, IMPs desc in IMPs mode);
+  Defeat %/MP%/IMPs columns show one more decimal (1/2/3 dp); the sample-deal
+  ★ marks *all* leads tied for best (matching the banner's "(n tied)" count);
+  default deal count is now 300.
 - **Native libdds build ⏳** — compile DDS with `-O3 -march=x86-64-v3` in the
   backend image to replace endplay's generic bundled `.so` (expected 10–25%;
   DDS is ~95%+ of runtime). Not started.

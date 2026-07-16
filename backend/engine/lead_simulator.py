@@ -11,6 +11,7 @@ Adapted from bridge_ai/solver/mce_defense_sim.py, trimmed to the opening-lead ca
 
 import os
 import random
+import threading
 from collections import defaultdict
 
 import endplay._dds as _dds
@@ -49,6 +50,13 @@ STRAIN_DENOM = {'C': Denom.clubs, 'D': Denom.diamonds, 'H': Denom.hearts,
                 'S': Denom.spades, 'N': Denom.nt}
 
 
+# libdds is not re-entrant: its multi-threaded functions (SolveAllBoards etc.)
+# manage a global internal thread pool and must only be entered by one caller
+# at a time. Concurrent /api/simulate requests run in Starlette's threadpool,
+# so serialize the solve step here (each solve still uses all its DDS threads).
+_DDS_LOCK = threading.Lock()
+
+
 def _solve_all(deals):
     """Double-dummy solve every deal, in MAXNOOFBOARDS-sized batches.
 
@@ -57,12 +65,13 @@ def _solve_all(deals):
     deal can't sink the whole run.
     """
     results = []
-    for i in range(0, len(deals), _DDS_BATCH):
-        batch = deals[i:i + _DDS_BATCH]
-        try:
-            results.extend(solve_all_boards(batch))
-        except Exception:
-            results.extend(solve_board(d) for d in batch)
+    with _DDS_LOCK:
+        for i in range(0, len(deals), _DDS_BATCH):
+            batch = deals[i:i + _DDS_BATCH]
+            try:
+                results.extend(solve_all_boards(batch))
+            except Exception:
+                results.extend(solve_board(d) for d in batch)
     return results
 
 

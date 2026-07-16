@@ -11,6 +11,7 @@ output — which is exactly what makes the result cacheable (the old code relied
 """
 
 import json
+import threading
 import time
 from collections import OrderedDict
 
@@ -27,6 +28,11 @@ SEATS = ['N', 'E', 'S', 'W']
 _CACHE_MAX = 256
 _CACHE_TTL = 3600           # seconds
 _cache: "OrderedDict[str, tuple[float, dict]]" = OrderedDict()
+# Requests run in Starlette's threadpool, so the cache needs a lock. _inflight
+# adds dogpile protection: the first thread to miss on a key computes it while
+# identical concurrent requests wait on its Event instead of re-simulating.
+_cache_lock = threading.Lock()
+_inflight: "dict[str, threading.Event]" = {}
 
 
 class SimulationError(ValueError):
@@ -88,6 +94,49 @@ def validate_shape(text: str) -> dict:
             'warnings': feasibility_warnings(terms)}
 
 
+def _cache_get(key: str):
+    """Return a fresh cached result for `key`, or None. Caller holds _cache_lock."""
+    hit = _cache.get(key)
+    if hit is not None and time.monotonic() - hit[0] < _CACHE_TTL:
+        _cache.move_to_end(key)
+        return hit[1]
+    return None
+
+
+def _cached_simulation(key: str, req, constraints: dict) -> dict:
+    """Serve from cache, or simulate exactly once per key even under
+    concurrent identical requests (followers wait on the leader's Event)."""
+    while True:
+        with _cache_lock:
+            result = _cache_get(key)
+            if result is not None:
+                return result
+            event = _inflight.get(key)
+            if event is None:
+                _inflight[key] = threading.Event()
+                break                       # we are the leader; go compute
+        # A leader is already simulating this key: wait, then re-check the
+        # cache. If the leader failed, the loop makes us the next leader.
+        event.wait()
+
+    try:
+        result = simulate_opening_lead(
+            leader_hand=req.leader_hand, level=req.level, strain=req.strain,
+            declarer=req.declarer, vul=req.vul, penalty=req.penalty,
+            constraints=constraints, num_simulations=req.num_simulations,
+            seed=0, max_samples=SAMPLE_CAP,
+        )
+        with _cache_lock:
+            _cache[key] = (time.monotonic(), result)
+            _cache.move_to_end(key)
+            while len(_cache) > _CACHE_MAX:
+                _cache.popitem(last=False)
+        return result
+    finally:
+        with _cache_lock:
+            _inflight.pop(key, None).set()
+
+
 def run_simulation(req) -> dict:
     """Run (or serve from cache) an opening-lead simulation for a SimulateRequest.
 
@@ -101,22 +150,7 @@ def run_simulation(req) -> dict:
         'v': req.vul, 'p': req.penalty, 'n': req.num_simulations, 'c': constraints,
     }, sort_keys=True, default=list)
 
-    now = time.monotonic()
-    hit = _cache.get(key)
-    if hit is not None and now - hit[0] < _CACHE_TTL:
-        _cache.move_to_end(key)
-        result = hit[1]
-    else:
-        result = simulate_opening_lead(
-            leader_hand=req.leader_hand, level=req.level, strain=req.strain,
-            declarer=req.declarer, vul=req.vul, penalty=req.penalty,
-            constraints=constraints, num_simulations=req.num_simulations,
-            seed=0, max_samples=SAMPLE_CAP,
-        )
-        _cache[key] = (now, result)
-        _cache.move_to_end(key)
-        while len(_cache) > _CACHE_MAX:
-            _cache.popitem(last=False)
+    result = _cached_simulation(key, req, constraints)
 
     return {
         **result,

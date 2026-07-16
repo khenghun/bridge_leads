@@ -51,7 +51,7 @@ export default function App() {
   const [penalty, setPenalty] = useState('none')
   const [vul, setVul] = useState(false)
   const [mode, setMode] = useState<Mode>('imps')
-  const [numSims, setNumSims] = useState(500)
+  const [numSims, setNumSims] = useState(300)
   const [holdings, setHoldings] = useState<Holdings>(emptyHoldings)
   const [constraints, setConstraints] = useState<Record<Seat, SeatConstraint>>(defaultConstraints)
   const [result, setResult] = useState<SimulateResponse | null>(null)

@@ -28,7 +28,10 @@ export default function ResultsTable({ result, mode }: Props) {
   const cardsStr = tied.map((r) => r.card).join(' / ')
   const label = tied.length === 1 ? 'Recommended lead' : `Recommended leads (${tied.length} tied)`
 
-  const rows = [...result.leads].sort((a, b) => a.declarer_tricks - b.declarer_tricks)
+  // Rank by the active scoring metric (best lead first); fewer declarer
+  // tricks breaks ties.
+  const rows = [...result.leads].sort(
+    (a, b) => b[sortKey] - a[sortKey] || a.declarer_tricks - b.declarer_tricks)
 
   return (
     <section>
@@ -52,9 +55,9 @@ export default function ResultsTable({ result, mode }: Props) {
             <tr key={r.card} className={bestCards.has(r.card) ? 'row-best' : ''}>
               <td style={{ color: SYMBOL_COLOR[r.card[0]], fontWeight: 600 }}>{r.card}</td>
               <td>{r.declarer_tricks.toFixed(2)}</td>
-              <td>{Math.round(r.defeat_rate * 100)}%</td>
-              <td>{r.matchpoints.toFixed(1)}</td>
-              <td>{r.imps >= 0 ? '+' : ''}{r.imps.toFixed(2)}</td>
+              <td>{(r.defeat_rate * 100).toFixed(1)}%</td>
+              <td>{r.matchpoints.toFixed(2)}</td>
+              <td>{r.imps >= 0 ? '+' : ''}{r.imps.toFixed(3)}</td>
             </tr>
           ))}
         </tbody>
