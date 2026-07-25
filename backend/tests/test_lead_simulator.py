@@ -208,6 +208,90 @@ def test_samples_present_for_defeating_leads():
             assert result['samples'].get(lead['card'])
 
 
+# --------------------------------------------------------------------------
+# per-deal matrix (result['deals'])
+# --------------------------------------------------------------------------
+def test_deals_matrix_shape_and_alignment():
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        num_simulations=5, seed=0,
+    )
+    deals = result['deals']
+    # Same candidate leads as the aggregate table, one record per deal.
+    assert set(deals['cards']) == {l['card'] for l in result['leads']}
+    assert len(deals['records']) == result['num_simulations']
+    for rec in deals['records']:
+        assert len(rec['tricks']) == len(deals['cards'])
+        assert len(rec['scores']) == len(deals['cards'])
+        assert set(rec['layout']) == {'N', 'E', 'S', 'W'}
+        # leader sits West (LHO of South); their hand is the fixed leader hand
+        assert rec['layout']['W'] == LEADER
+
+
+def test_deals_matrix_consistent_with_aggregates():
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        num_simulations=8, seed=1,
+    )
+    deals = result['deals']
+    n = result['num_simulations']
+    contract_tricks = 6 + 3
+    for lead in result['leads']:
+        k = deals['cards'].index(lead['card'])
+        col = [rec['tricks'][k] for rec in deals['records']]
+        assert sum(col) / n == pytest.approx(lead['declarer_tricks'])
+        defeats = sum(1 for t in col if t < contract_tricks)
+        assert defeats / n == pytest.approx(lead['defeat_rate'])
+
+
+def test_deals_matrix_scores_match_scoring_oracle():
+    from engine import scoring
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=4, strain='H', declarer='N',
+        vul='both', penalty='doubled', num_simulations=3, seed=2,
+    )
+    deals = result['deals']
+    for rec in deals['records']:
+        for k in range(len(deals['cards'])):
+            expected = -scoring.declarer_score(
+                4, 'H', 'N', rec['tricks'][k], vul='both', penalty='doubled')
+            assert rec['scores'][k] == expected
+
+
+def test_deals_matrix_score_monotonic_in_tricks():
+    # Within one deal, fewer declarer tricks must mean a strictly better
+    # (higher) leader score.
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        num_simulations=5, seed=3,
+    )
+    for rec in result['deals']['records']:
+        pairs = sorted(zip(rec['tricks'], rec['scores']))
+        for (t1, s1), (t2, s2) in zip(pairs, pairs[1:]):
+            if t1 < t2:
+                assert s1 > s2
+            else:
+                assert s1 == s2
+
+
+def test_samples_are_subset_of_deals_matrix():
+    # Every sample deal must appear in the matrix with the same layout and the
+    # same (contract-defeating) trick count for its lead.
+    result = simulate_opening_lead(
+        leader_hand=LEADER, level=3, strain='N', declarer='S',
+        num_simulations=20, seed=4, max_samples=5,
+    )
+    deals = result['deals']
+    contract_tricks = 6 + 3
+    for card, samples in result['samples'].items():
+        k = deals['cards'].index(card)
+        for s in samples:
+            assert s['declarer_tricks'] < contract_tricks
+            assert any(rec['layout'] == s['layout']
+                       and rec['tricks'][k] == s['declarer_tricks']
+                       for rec in deals['records'])
+
+
 def test_impossible_hcp_minimums_raise():
     # Two seats each demanding 25+ HCP needs >=50; the deck holds 40, so the
     # feasibility shortcut raises before any generation is attempted.

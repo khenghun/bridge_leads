@@ -1,6 +1,6 @@
 // Pure bridge helpers ported from the old Streamlit app.py.
 
-import type { Seat, Suit } from '../api/types'
+import type { DealsMatrix, Seat, Suit } from '../api/types'
 
 export const SEATS: Seat[] = ['N', 'E', 'S', 'W']
 export const SEAT_NAME: Record<Seat, string> = {
@@ -122,4 +122,73 @@ export function randomHand(rng: () => number = Math.random): Holdings {
 /** Join per-suit holdings into a PBN string 'S.H.D.C'. */
 export function holdingsToPbn(h: Holdings): string {
   return SUITS.map((s) => h[s]).join('.')
+}
+
+// Standard IMP scale, ported from backend/engine/scoring.py (keep identical).
+const IMP_THRESHOLDS = [
+  20, 50, 90, 130, 170, 220, 270, 320, 370, 430, 500, 600, 750, 900,
+  1100, 1300, 1500, 1750, 2000, 2250, 2500, 3000, 3500, 4000,
+]
+
+/** Convert a raw score difference (points) to IMPs on the standard scale. */
+export function imps(diff: number): number {
+  const sign = diff >= 0 ? 1 : -1
+  const abs = Math.abs(diff)
+  let awarded = 0
+  for (let i = 0; i < IMP_THRESHOLDS.length; i++) {
+    if (abs < IMP_THRESHOLDS[i]) break
+    awarded = i + 1
+  }
+  return sign * awarded
+}
+
+export type CompareOutcome = 'win' | 'draw' | 'lose'
+
+export interface DealComparison {
+  index: number // into deals.records
+  outcome: CompareOutcome // for lead A vs lead B on this deal
+  impSwing: number // imps(scoreA - scoreB), signed for A
+  tricksA: number // declarer tricks when A is led
+  tricksB: number
+}
+
+export interface CompareSummary {
+  n: number
+  win: number
+  draw: number
+  lose: number
+  avgImpSwing: number // mean IMP swing per deal, signed for A
+  mpPct: number // head-to-head MP% for A = 100 * (win + draw/2) / n
+}
+
+/** Compare two candidate leads deal-by-deal from the per-deal matrix.
+ * Win/draw/lose comes from the leader-perspective scores (equivalent to
+ * comparing defense tricks — score is monotonic in tricks for a fixed
+ * contract), so the counts are the same in both scoring modes. */
+export function compareLeads(
+  deals: DealsMatrix, cardA: string, cardB: string,
+): { rows: DealComparison[]; summary: CompareSummary } {
+  const ia = deals.cards.indexOf(cardA)
+  const ib = deals.cards.indexOf(cardB)
+  if (ia < 0 || ib < 0) {
+    return { rows: [], summary: { n: 0, win: 0, draw: 0, lose: 0, avgImpSwing: 0, mpPct: 0 } }
+  }
+  const rows = deals.records.map((r, index): DealComparison => {
+    const scoreA = r.scores[ia]
+    const scoreB = r.scores[ib]
+    return {
+      index,
+      outcome: scoreA > scoreB ? 'win' : scoreA === scoreB ? 'draw' : 'lose',
+      impSwing: imps(scoreA - scoreB),
+      tricksA: r.tricks[ia],
+      tricksB: r.tricks[ib],
+    }
+  })
+  const n = rows.length
+  const win = rows.filter((r) => r.outcome === 'win').length
+  const draw = rows.filter((r) => r.outcome === 'draw').length
+  const lose = n - win - draw
+  const avgImpSwing = n ? rows.reduce((sum, r) => sum + r.impSwing, 0) / n : 0
+  const mpPct = n ? (100 * (win + draw / 2)) / n : 0
+  return { rows, summary: { n, win, draw, lose, avgImpSwing, mpPct } }
 }

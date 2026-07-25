@@ -65,6 +65,14 @@ def test_simulate_basic():
     # Leads are sorted best-first by IMPs.
     imps = [ld['imps'] for ld in body['leads']]
     assert imps == sorted(imps, reverse=True)
+    # Per-deal matrix: one record per deal, columns aligned to `cards`.
+    deals = body['deals']
+    assert set(deals['cards']) == {ld['card'] for ld in body['leads']}
+    assert len(deals['records']) == body['num_simulations']
+    first = deals['records'][0]
+    assert set(first) == {'layout', 'tricks', 'scores'}
+    assert len(first['tricks']) == len(deals['cards'])
+    assert len(first['scores']) == len(deals['cards'])
 
 
 def test_simulate_with_shape_constraint():

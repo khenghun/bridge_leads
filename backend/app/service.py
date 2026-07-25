@@ -6,8 +6,7 @@ stays in `engine.lead_simulator.simulate_opening_lead`.
 
 Determinism: every run uses `seed=0`, so identical inputs produce identical
 output — which is exactly what makes the result cacheable (the old code relied on
-`@st.cache_data`; here we keep a small in-process LRU+TTL, matching its
-`max_entries=256, ttl=3600`).
+`@st.cache_data`; here we keep a small in-process LRU+TTL).
 """
 
 import json
@@ -25,7 +24,9 @@ SAMPLE_CAP = 100
 RANKS = 'AKQJT98765432'
 SEATS = ['N', 'E', 'S', 'W']
 
-_CACHE_MAX = 256
+# Each cached result now carries the full per-deal matrix (~1-2 MB of Python
+# objects at 1000 deals), so keep the entry count modest.
+_CACHE_MAX = 64
 _CACHE_TTL = 3600           # seconds
 _cache: "OrderedDict[str, tuple[float, dict]]" = OrderedDict()
 # Requests run in Starlette's threadpool, so the cache needs a lock. _inflight

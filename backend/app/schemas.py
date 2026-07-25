@@ -61,6 +61,17 @@ class SampleDeal(BaseModel):
     defense_tricks: int
 
 
+class DealRecord(BaseModel):
+    layout: dict[str, str]          # {seat: 'S.H.D.C'}
+    tricks: list[int]               # declarer tricks per lead, aligned to DealsMatrix.cards
+    scores: list[int]               # leader-perspective score per lead, aligned
+
+
+class DealsMatrix(BaseModel):
+    cards: list[str]                # candidate leads in symbol form ('♥Q'), fixed order
+    records: list[DealRecord]       # one per simulated deal, in generation order
+
+
 class SimulateMeta(BaseModel):
     level: int
     strain: str
@@ -73,6 +84,7 @@ class SimulateResponse(BaseModel):
     best_mp: Optional[str]
     best_imp: Optional[str]
     samples: dict[str, list[SampleDeal]]
+    deals: DealsMatrix
     leader: str
     meta: SimulateMeta
 

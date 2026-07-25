@@ -202,6 +202,11 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
           'best_imp': card,
           'samples': { card: [ {layout: {seat: 'S.H.D.C'}, declarer_tricks,
                                 defense_tricks}, ... up to max_samples ] },
+          'deals': { 'cards': [card, ...],   # fixed candidate-lead order
+                     'records': [ {layout: {seat: 'S.H.D.C'},
+                                   tricks: [declarer_tricks per card],
+                                   scores: [leader score per card]},
+                                  ... one per simulated deal ] },
         }
     """
     strain = strain.upper()
@@ -255,7 +260,8 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
 
     if not deals:
         return {'num_simulations': 0, 'leads': [], 'best_mp': None,
-                'best_imp': None, 'samples': {}}
+                'best_imp': None, 'samples': {},
+                'deals': {'cards': [], 'records': []}}
 
     # --- Phase 2: batch DDS solve (multithreaded, in <=200-board chunks) ---
     board_results = _solve_all(deals)
@@ -263,6 +269,7 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
     # --- Phase 3: collect leader-side scores per candidate lead ---
     # leader_scores[card] = [leader_score_per_deal, ...]
     leader_scores = defaultdict(list)
+    tricks_by_card = defaultdict(list)   # card -> declarer tricks per deal, aligned
     declarer_tricks_sum = defaultdict(int)
     defeat_count = defaultdict(int)
     deal_count = defaultdict(int)
@@ -276,6 +283,7 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
             dscore = scoring.declarer_score(
                 level, strain, declarer, declarer_tricks, vul=vul, penalty=penalty)
             leader_scores[card_str].append(-dscore)  # leader = defender perspective
+            tricks_by_card[card_str].append(declarer_tricks)
             declarer_tricks_sum[card_str] += declarer_tricks
             deal_count[card_str] += 1
             if declarer_tricks < contract_tricks_needed:
@@ -286,6 +294,25 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
                         'declarer_tricks': declarer_tricks,
                         'defense_tricks': defense_tricks,
                     })
+
+    # Per-deal matrix for the frontend's pairwise lead comparison. Every
+    # candidate lead must have been solved on every deal or the columns
+    # below would silently misalign — fail loudly instead.
+    cards = list(leader_scores)
+    for c in cards:
+        if len(leader_scores[c]) != len(deals) or len(tricks_by_card[c]) != len(deals):
+            raise RuntimeError(
+                f"DDS returned {len(leader_scores[c])} results for lead {c}, "
+                f"expected one per deal ({len(deals)})")
+    deals_out = {
+        'cards': cards,
+        'records': [
+            {'layout': deal_layouts[i],
+             'tricks': [tricks_by_card[c][i] for c in cards],
+             'scores': [leader_scores[c][i] for c in cards]}
+            for i in range(len(deals))
+        ],
+    }
 
     mp = scoring.aggregate(leader_scores, mode='matchpoints')
     imp = scoring.aggregate(leader_scores, mode='imps')
@@ -312,4 +339,5 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
         'best_mp': best_mp,
         'best_imp': best_imp,
         'samples': dict(samples),
+        'deals': deals_out,
     }

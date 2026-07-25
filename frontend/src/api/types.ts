@@ -19,12 +19,24 @@ export interface SampleDeal {
   defense_tricks: number
 }
 
+export interface DealRecord {
+  layout: Record<string, string> // {seat: 'S.H.D.C'}
+  tricks: number[] // declarer tricks per lead, aligned to DealsMatrix.cards
+  scores: number[] // leader-perspective score per lead, aligned
+}
+
+export interface DealsMatrix {
+  cards: string[] // candidate leads in symbol form ('♥Q'), fixed order
+  records: DealRecord[] // one per simulated deal, in generation order
+}
+
 export interface SimulateResponse {
   num_simulations: number
   leads: LeadResult[]
   best_mp: string | null
   best_imp: string | null
   samples: Record<string, SampleDeal[]>
+  deals: DealsMatrix
   leader: Seat
   meta: { level: number; strain: string; declarer: string }
 }

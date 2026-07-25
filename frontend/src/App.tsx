@@ -11,6 +11,7 @@ import ConstraintsEditor, {
   defaultSeatConstraint, type SeatConstraint,
 } from './components/ConstraintsEditor'
 import ResultsTable from './components/ResultsTable'
+import CompareLeads from './components/CompareLeads'
 import SampleDeals from './components/SampleDeals'
 
 const MANUAL = '(manual entry)'
@@ -215,6 +216,7 @@ export default function App() {
         {result && result.num_simulations > 0 && (
           <>
             <ResultsTable result={result} mode={mode} />
+            <CompareLeads result={result} mode={mode} />
             <SampleDeals result={result} mode={mode} />
           </>
         )}
