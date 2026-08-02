@@ -88,6 +88,52 @@ def test_simulate_with_shape_constraint():
     assert r.json()['num_simulations'] > 0
 
 
+def test_simulate_with_suit_quality():
+    """The weak-two shape this feature exists for: partner shows 6 good hearts."""
+    r = client.post('/api/simulate', json={
+        'leader_hand': LEADER, 'level': 3, 'strain': 'N', 'declarer': 'S',
+        'num_simulations': 100,
+        'constraints': {
+            'hcp': {'N': [5, 10]},
+            'suit_length': {'N': {'H': [6, 6]}},
+            'quality': {'N': {'H': 'good'}},
+        },
+    })
+    assert r.status_code == 200
+    assert r.json()['num_simulations'] == 100
+
+
+def test_simulate_rejects_two_quality_constraints():
+    r = client.post('/api/simulate', json={
+        'leader_hand': LEADER, 'level': 3, 'strain': 'N', 'declarer': 'S',
+        'num_simulations': 100,
+        'constraints': {'quality': {'N': {'H': 'good'}, 'E': {'S': 'good'}}},
+    })
+    assert r.status_code == 422
+    assert 'Only one suit-quality' in r.json()['detail']
+
+
+def test_simulate_rejects_bad_quality_value():
+    r = client.post('/api/simulate', json={
+        'leader_hand': LEADER, 'level': 3, 'strain': 'N', 'declarer': 'S',
+        'num_simulations': 100,
+        'constraints': {'quality': {'N': {'H': 'solid'}}},
+    })
+    assert r.status_code == 422
+
+
+def test_simulate_rejects_unreachable_quality():
+    # The leader holds AK of spades and N is capped at 2 HCP, so N can never
+    # hold a good spade suit -> a clear 422 rather than an empty result.
+    r = client.post('/api/simulate', json={
+        'leader_hand': LEADER, 'level': 3, 'strain': 'N', 'declarer': 'S',
+        'num_simulations': 100,
+        'constraints': {'hcp': {'N': [0, 2]}, 'quality': {'N': {'S': 'good'}}},
+    })
+    assert r.status_code == 422
+    assert 'good S suit' in r.json()['detail']
+
+
 def test_simulate_deterministic():
     payload = {
         'leader_hand': LEADER, 'level': 3, 'strain': 'N', 'declarer': 'S',

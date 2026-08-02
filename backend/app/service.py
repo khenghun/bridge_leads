@@ -84,6 +84,13 @@ def build_constraints(c: dict) -> dict:
             shapes[seat] = parse_shapes(text)
     if shapes:
         out['shapes'] = shapes
+    quality = {
+        seat: {s: level for s, level in q.items() if level}
+        for seat, q in (c.get('quality') or {}).items() if q
+    }
+    quality = {seat: q for seat, q in quality.items() if q}
+    if quality:
+        out['quality'] = quality
     return out
 
 

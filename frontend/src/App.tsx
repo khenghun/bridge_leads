@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Auction, Constraints, Mode, Seat, SimulateResponse } from './api/types'
+import type {
+  Auction, Constraints, Mode, Quality, Seat, SimulateResponse, Suit,
+} from './api/types'
 import { fetchAuctions, simulate } from './api/client'
 import {
   SEATS, SEAT_NAME, SUITS,
-  dummySeat, holdingError, holdingsToPbn, leaderSeat, parseContract, partnerSeat,
+  applyQuality, dummySeat, holdingError, holdingsToPbn, leaderSeat,
+  parseContract, partnerSeat,
   type Holdings,
 } from './lib/bridge'
 import HandEntry from './components/HandEntry'
@@ -29,7 +32,7 @@ function defaultConstraints(): Record<Seat, SeatConstraint> {
 function buildConstraints(declarer: Seat, constraints: Record<Seat, SeatConstraint>): Constraints {
   const leader = leaderSeat(declarer)
   const seats: Seat[] = [declarer, dummySeat(declarer), partnerSeat(leader)]
-  const out: Constraints = { hcp: {}, suit_length: {}, shapes: {} }
+  const out: Constraints = { hcp: {}, suit_length: {}, shapes: {}, quality: {} }
   for (const seat of seats) {
     const c = constraints[seat]
     if (c.hcp[0] !== 0 || c.hcp[1] !== 40) out.hcp[seat] = c.hcp
@@ -40,6 +43,8 @@ function buildConstraints(declarer: Seat, constraints: Record<Seat, SeatConstrai
     }
     if (Object.keys(sl).length) out.suit_length[seat] = sl
     if (c.shape.trim()) out.shapes[seat] = c.shape
+    const q = Object.entries(c.quality).filter(([, level]) => level)
+    if (q.length) out.quality[seat] = Object.fromEntries(q)
   }
   return out
 }
@@ -71,7 +76,9 @@ export default function App() {
     setConstraints((prev) => {
       const next = { ...prev }
       if (name === MANUAL) {
-        for (const s of SEATS) next[s] = { ...next[s], hcp: [0, 40], shape: '' }
+        for (const s of SEATS) {
+          next[s] = { ...next[s], hcp: [0, 40], shape: '', quality: {} }
+        }
         return next
       }
       const a = auctions.find((x) => x.name === name)
@@ -84,6 +91,7 @@ export default function App() {
           ...next[s],
           hcp: rng ? [rng[0], rng[1]] : [0, 40],
           shape: a.shapes_text[s] ?? '',
+          quality: {},
         }
       }
       return next
@@ -92,6 +100,9 @@ export default function App() {
 
   const setConstraint = (seat: Seat, v: SeatConstraint) =>
     setConstraints((prev) => ({ ...prev, [seat]: v }))
+
+  const setQuality = (seat: Seat, suit: Suit, level: Quality | '') =>
+    setConstraints((prev) => applyQuality(prev, seat, suit, level))
 
   const cardCount = SUITS.reduce((n, s) => n + holdings[s].length, 0)
   const handValid = useMemo(
@@ -200,7 +211,8 @@ export default function App() {
         )}
 
         <HandEntry leader={leader} holdings={holdings} setHoldings={setHoldings} />
-        <ConstraintsEditor declarer={declarer} constraints={constraints} setConstraint={setConstraint} />
+        <ConstraintsEditor declarer={declarer} constraints={constraints}
+          setConstraint={setConstraint} setQuality={setQuality} />
 
         <button className="btn btn-primary" disabled={!canSimulate || loading} onClick={onSimulate}>
           {loading ? `Simulating ${numSims} deals…` : 'Simulate'}

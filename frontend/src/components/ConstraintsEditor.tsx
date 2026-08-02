@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { Seat, Suit } from '../api/types'
+import type { Quality, Seat, Suit } from '../api/types'
 import { validateShape } from '../api/client'
 import {
-  ERR_RED, OK_GREEN, SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL, SUITS,
+  ERR_RED, OK_GREEN, QUALITY_HINT, SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL, SUITS,
   dummySeat, leaderSeat, partnerSeat,
 } from '../lib/bridge'
 
@@ -10,6 +10,8 @@ export interface SeatConstraint {
   hcp: [number, number]
   suits: Record<Suit, [number, number]>
   shape: string
+  /** At most one suit graded, and only for one seat across the whole table. */
+  quality: Partial<Record<Suit, Quality>>
 }
 
 export function defaultSeatConstraint(): SeatConstraint {
@@ -17,6 +19,7 @@ export function defaultSeatConstraint(): SeatConstraint {
     hcp: [0, 40],
     suits: { S: [0, 13], H: [0, 13], D: [0, 13], C: [0, 13] },
     shape: '',
+    quality: {},
   }
 }
 
@@ -25,11 +28,12 @@ interface ShapeFeedback {
   message: string
 }
 
-function SeatPanel({ seat, tag, value, onChange }: {
+function SeatPanel({ seat, tag, value, onChange, setQuality }: {
   seat: Seat
   tag: string
   value: SeatConstraint
   onChange: (v: SeatConstraint) => void
+  setQuality: (seat: Seat, suit: Suit, level: Quality | '') => void
 }) {
   const [feedback, setFeedback] = useState<ShapeFeedback | null>(null)
   const [showShape, setShowShape] = useState(false)
@@ -81,6 +85,15 @@ function SeatPanel({ seat, tag, value, onChange }: {
             onChange={(e) => onChange({
               ...value, suits: { ...value.suits, [s]: [value.suits[s][0], Number(e.target.value)] },
             })} />
+          {/* Picking a quality anywhere clears every other one — the engine
+              accepts exactly one across the whole table. */}
+          <select className="quality-select" title={QUALITY_HINT}
+            value={value.quality[s] ?? ''}
+            onChange={(e) => setQuality(seat, s, e.target.value as Quality | '')}>
+            <option value="">—</option>
+            <option value="good">good</option>
+            <option value="poor">poor</option>
+          </select>
         </div>
       ))}
 
@@ -115,10 +128,13 @@ interface Props {
   declarer: Seat
   constraints: Record<Seat, SeatConstraint>
   setConstraint: (seat: Seat, v: SeatConstraint) => void
+  setQuality: (seat: Seat, suit: Suit, level: Quality | '') => void
 }
 
 /** Constraint panels for the three unseen hands (declarer / dummy / partner). */
-export default function ConstraintsEditor({ declarer, constraints, setConstraint }: Props) {
+export default function ConstraintsEditor({
+  declarer, constraints, setConstraint, setQuality,
+}: Props) {
   const leader = leaderSeat(declarer)
   const dummy = dummySeat(declarer)
   const partner = partnerSeat(leader)
@@ -132,6 +148,12 @@ export default function ConstraintsEditor({ declarer, constraints, setConstraint
     <section>
       <h2>Constraints on the unseen hands (optional)</h2>
       <p className="caption">Leave HCP at 0–40 and suit lengths at 0–13 for no constraint.</p>
+      <p className="caption tiny">
+        The last column grades one suit's <strong>quality</strong> —{' '}
+        <em>good</em> = 2 of AKQ or 3 of AKQJT (what a preempt or overcall
+        promises), <em>poor</em> = anything worse. Only one suit in the whole
+        table can be graded, so picking a new one clears the previous.
+      </p>
       <div className="constraint-grid">
         {seats.map(([seat, tag]) => (
           <SeatPanel
@@ -140,6 +162,7 @@ export default function ConstraintsEditor({ declarer, constraints, setConstraint
             tag={tag}
             value={constraints[seat]}
             onChange={(v) => setConstraint(seat, v)}
+            setQuality={setQuality}
           />
         ))}
       </div>

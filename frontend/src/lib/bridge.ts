@@ -1,6 +1,6 @@
 // Pure bridge helpers ported from the old Streamlit app.py.
 
-import type { DealsMatrix, Seat, Suit } from '../api/types'
+import type { DealsMatrix, Quality, Seat, Suit } from '../api/types'
 
 export const SEATS: Seat[] = ['N', 'E', 'S', 'W']
 export const SEAT_NAME: Record<Seat, string> = {
@@ -20,6 +20,26 @@ export const SYMBOL_COLOR: Record<string, string> = Object.fromEntries(
 export const SYMBOL_LETTER: Record<string, Suit> = Object.fromEntries(
   SUITS.map((s) => [SUIT_SYMBOL[s], s]),
 ) as Record<string, Suit>
+
+// Suit quality (see backend/engine/suit_quality.py — keep the wording in sync).
+export const QUALITY_HINT =
+  'Suit quality — good: 2 of AKQ, or 3 of AKQJT (the suit a preempt or overcall'
+  + ' promises). poor: anything worse. Only one suit in the whole table can be'
+  + ' graded, since it comes from the one player who described a suit.'
+
+/** Set the one table-wide suit-quality constraint, clearing any previous one.
+ *
+ * The engine accepts exactly one across all seats (it models the single player
+ * who described a suit in the auction), so the selects behave as one radio
+ * group rather than as independent per-suit fields. Passing '' clears it. */
+export function applyQuality<T extends { quality: Partial<Record<Suit, Quality>> }>(
+  prev: Record<Seat, T>, seat: Seat, suit: Suit, level: Quality | '',
+): Record<Seat, T> {
+  const next = { ...prev }
+  for (const s of SEATS) next[s] = { ...prev[s], quality: {} }
+  if (level) next[seat] = { ...next[seat], quality: { [suit]: level } }
+  return next
+}
 
 export const RANKS = 'AKQJT98765432'
 const RANK_ORDER: Record<string, number> = Object.fromEntries(

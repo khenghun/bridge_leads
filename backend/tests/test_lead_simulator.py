@@ -158,7 +158,7 @@ def test_shapes_constraint_actually_filters_shapes():
     six_clubs = [{'C': (6, 6), 'S': (2, 3), 'H': (2, 3), 'D': (2, 3)}]
     leader_cards = hand_to_cards(LEADER)
     # leader for declarer S is W; constrain S (declarer).
-    known, hcp, suit_length, acceptors = _build_known_and_constraints(
+    known, hcp, suit_length, acceptors, _quality = _build_known_and_constraints(
         'W', leader_cards, {'shapes': {'S': six_clubs}})
     assert 'S' in acceptors
 

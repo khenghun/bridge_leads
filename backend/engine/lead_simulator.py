@@ -30,7 +30,10 @@ _DDS_THREADS = int(os.environ.get('BRIDGE_DDS_THREADS') or min(os.cpu_count() or
 if _DDS_THREADS > 0:
     _dds.SetMaxThreads(_DDS_THREADS)
 
-from .deal_generator import generate_deal, PLAYERS as DG_PLAYERS, calculate_hcp
+from . import suit_quality
+from .deal_generator import (
+    generate_deal, PLAYERS as DG_PLAYERS, SUITS as DG_SUITS, calculate_hcp,
+)
 from .honor_sampler import ExactDealSampler
 from .shapes import compile_shapes
 from . import scoring
@@ -109,9 +112,54 @@ def _merge_box(box, env):
     return merged
 
 
+def _all_of(preds):
+    """AND a seat's acceptor predicates into one. A seat can now attract more
+    than one (a shape *and* a suit quality), so they must compose rather than
+    overwrite."""
+    if len(preds) == 1:
+        return preds[0]
+
+    def pred(cards):
+        return all(p(cards) for p in preds)
+
+    return pred
+
+
+def _resolve_quality(spec, leader_letter):
+    """Validate the `{seat: {suit: level}}` suit-quality constraint down to a
+    single `(seat, suit, level)` tuple, or None.
+
+    Exactly one is supported: it models the one player who described a suit in
+    the auction (the preempter / overcaller), and that ceiling is what lets the
+    sampler enforce quality inside its DP instead of by rejection."""
+    items = [(p, s, level)
+             for p, suits in (spec or {}).items()
+             for s, level in (suits or {}).items() if level]
+    if not items:
+        return None
+    if len(items) > 1:
+        raise ValueError(
+            "Only one suit-quality constraint is supported (the one suit "
+            f"described in the auction), but {len(items)} were given.")
+    p, s, level = items[0]
+    if p == leader_letter:
+        raise ValueError(
+            "Suit quality can only constrain an unseen hand, not the opening "
+            "leader's own hand.")
+    if p not in DG_PLAYERS:
+        raise ValueError(f"unknown seat {p!r} in the suit-quality constraint")
+    if s not in DG_SUITS:
+        raise ValueError(f"unknown suit {s!r} in the suit-quality constraint")
+    if level not in suit_quality.LEVELS:
+        raise ValueError(
+            f"suit quality must be one of {suit_quality.LEVELS}, got {level!r}")
+    return (p, s, level)
+
+
 def _build_known_and_constraints(leader_letter, leader_cards, constraints):
     """Translate the public constraint dict (keyed by player letter) into the
-    deal_generator's format. Returns (known_hands, hcp, suit_length, acceptors).
+    deal_generator's format. Returns
+    (known_hands, hcp, suit_length, acceptors, quality).
 
     Disjunctive `shapes` are compiled into (a) an envelope merged into the
     per-suit bounds to keep generation efficient, and (b) acceptor predicates
@@ -127,15 +175,31 @@ def _build_known_and_constraints(leader_letter, leader_cards, constraints):
     hcp = dict(constraints.get('hcp') or {})
     suit_length = {p: dict(v) for p, v in (constraints.get('suit_length') or {}).items()}
 
-    acceptors = {}
+    preds = {}
     for p, terms in (constraints.get('shapes') or {}).items():
         if not terms:
             continue
         env, predicate = compile_shapes(terms)
         suit_length[p] = _merge_box(suit_length.get(p, {}), env)
-        acceptors[p] = predicate
+        preds.setdefault(p, []).append(predicate)
 
-    return known, hcp, suit_length, acceptors
+    quality = _resolve_quality(constraints.get('quality'), leader_letter)
+    if quality:
+        p, s, level = quality
+        need = suit_quality.min_length(level)
+        if need:
+            # 'good' implies at least two cards in the suit; tightening the
+            # length minimum prunes deals the DP would otherwise have to build.
+            box = dict(suit_length.get(p, {}))
+            lo, hi = box.get(s, (None, None))
+            box[s] = (need if lo is None else max(lo, need), hi)
+            suit_length[p] = box
+        # The exact sampler enforces quality natively, so this predicate only
+        # ever runs on the legacy fallback generator's path.
+        preds.setdefault(p, []).append(suit_quality.predicate(s, level))
+
+    acceptors = {p: _all_of(ps) for p, ps in preds.items()}
+    return known, hcp, suit_length, acceptors, quality
 
 
 def _check_hcp_feasibility(known, hcp):
@@ -185,6 +249,7 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
                         {'hcp': {'S': (min,max), ...},
                          'suit_length': {'S': {'H': (min,max)}, ...},
                          'shapes': {'S': [ {suit:(min,max)}, ... ]},  # OR of terms
+                        'quality': {'S': {'H': 'good'}},  # at most one, total
                          'fixed_cards': {'N': ['SA', ...]}}
         num_simulations: target number of solved deals.
         seed: if given, deals are generated from a private random.Random(seed)
@@ -220,7 +285,7 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
     if len(leader_cards) != 13:
         raise ValueError(f"Leader hand must have 13 cards, got {len(leader_cards)}")
 
-    known, hcp, suit_length, acceptors = _build_known_and_constraints(
+    known, hcp, suit_length, acceptors, quality = _build_known_and_constraints(
         leader_letter, leader_cards, constraints)
     _check_hcp_feasibility(known, hcp)
 
@@ -229,8 +294,15 @@ def simulate_opening_lead(leader_hand, level, strain, declarer,
     # value classes), with suit/shape constraints applied by rejection. Falls
     # back to the legacy steered generator if shapes reject everything.
     rng = random.Random(seed) if seed is not None else random
-    sampler = ExactDealSampler(known, hcp, suit_length, acceptors or None)
+    sampler = ExactDealSampler(known, hcp, suit_length, acceptors or None,
+                               quality)
     if sampler.total == 0:
+        if quality:
+            raise ValueError(
+                "No way to meet the constraints: no arrangement of the unseen "
+                f"honor cards gives {quality[0]} "
+                f"{suit_quality.describe(quality[1], quality[2])} while also "
+                "satisfying every seat's HCP range.")
         raise ValueError(
             "No way to meet the HCP constraints: no arrangement of the unseen "
             "honor cards satisfies every seat's HCP range.")

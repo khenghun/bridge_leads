@@ -18,13 +18,25 @@ uniformly within each class and shuffle-cuts the spots — so tight HCP bands
 (a 15-17 or 20-21 seat) cost nothing at all, where rejection sampling burns
 hundreds of attempts per accepted deal.
 
-`ExactDealSampler.total` is the exact number of HCP-consistent completions;
-0 means the constraints are infeasible.
+A **suit-quality** constraint (at most one per simulation — see
+`suit_quality`) is enforced in the same DP rather than by rejection. Honor
+classes are split by the constrained suit, so with spades constrained the
+aces become `[SA]` and `[HA, DA, CA]`; the constrained suit's ten joins as a
+zero-value class, since it is an ordinary spot card everywhere else. Two extra
+state dimensions carry the constrained seat's running top-3 and J/T counts, and
+the terminal pass filters them exactly where the HCP minimums are filtered. The
+quality honors are therefore dealt in the *same* pass that satisfies HCP, so
+the two constraints prune each other instead of one being tested after the fact
+— and the draw stays exactly uniform.
+
+`ExactDealSampler.total` is the exact number of HCP- and quality-consistent
+completions; 0 means the constraints are infeasible.
 """
 
 import random
 from math import factorial
 
+from . import suit_quality as sq
 from .deal_generator import (
     ALL_CARDS_SET, HCP_VALUES, HONORS, PLAYERS, SUITS, calculate_hcp,
 )
@@ -65,12 +77,16 @@ class ExactDealSampler:
     (player -> predicate on the finished 13-card hand). Suit constraints and
     acceptors are applied by rejection inside `sample()`.
 
+    `quality` is the optional single suit-quality constraint as a
+    `(seat, suit, level)` tuple (level 'good' / 'poor'); unlike the above it is
+    enforced natively in the DP, with no rejection.
+
     Build once per constraint set (the DP costs a few ms), then call
     `sample(rng)` per draw; it returns a hands dict or None (rejected).
     """
 
     def __init__(self, known_hands, hcp_constraints=None,
-                 suit_constraints=None, acceptors=None):
+                 suit_constraints=None, acceptors=None, quality=None):
         self.total = 0
         self._acceptors = acceptors or None
 
@@ -89,6 +105,22 @@ class ExactDealSampler:
         self._caps = [caps[p] for p in seats]
         k = len(seats)
 
+        # Resolve the suit-quality constraint into (seat index, level, honors
+        # the seat already holds). `q_suit` stays None when there is nothing
+        # left to steer, so the honor classes are not split needlessly.
+        self._quality = None
+        q_suit = None
+        if quality:
+            q_seat, q_suit, q_level = quality
+            base3, basejt = sq.counts(known[q_seat], q_suit)
+            if q_seat in seats:
+                self._quality = (seats.index(q_seat), q_level, base3, basejt)
+            else:
+                # fully-known hand: the constraint is already decided
+                if not sq.satisfies(q_level, base3, basejt):
+                    return
+                q_suit = None
+
         hcp_constraints = hcp_constraints or {}
         lo = {}
         hi = {}
@@ -104,19 +136,41 @@ class ExactDealSampler:
             lo[p] = max(0, mn - base)
             hi[p] = mx - base
 
-        # honor value classes present in the unseen cards, high to low
+        # Honor value classes present in the unseen cards, high to low. Each
+        # entry is (value, multiplicity, quality kind), the last being 'top3' /
+        # 'jt' for the constrained suit's own honors and None otherwise. With a
+        # quality constraint every class splits in two so the DP can see *which*
+        # card is the constrained suit's, and the constrained ten is added as a
+        # zero-value class (it is a spot card to the rest of the engine).
+        q_ten = q_suit + 'T' if q_suit else None
         classes = []
         class_cards = []
         for v in (4, 3, 2, 1):
             cards = [c for c in remaining if HCP_VALUES.get(c[1], 0) == v]
-            if cards:
-                classes.append((v, len(cards)))
+            if not cards:
+                continue
+            if q_suit:
+                target = [c for c in cards if c[0] == q_suit]
+                rest = [c for c in cards if c[0] != q_suit]
+                if target:
+                    kind = 'top3' if target[0][1] in sq.TOP3 else 'jt'
+                    classes.append((v, len(target), kind))
+                    class_cards.append(target)
+                if rest:
+                    classes.append((v, len(rest), None))
+                    class_cards.append(rest)
+            else:
+                classes.append((v, len(cards), None))
                 class_cards.append(cards)
+        if q_ten and q_ten in remaining:
+            classes.append((0, 1, 'jt'))
+            class_cards.append([q_ten])
         self._classes = classes
         self._class_cards = class_cards
-        self._spots = [c for c in remaining if c[1] not in HONORS]
+        self._spots = [c for c in remaining
+                       if c[1] not in HONORS and c != q_ten]
 
-        total_pts = sum(v * m for v, m in classes)
+        total_pts = sum(v * m for v, m, _ in classes)
         # only seats whose bounds can actually bind get a points dimension
         tracked = [i for i, p in enumerate(seats)
                    if lo[p] > 0 or hi[p] < total_pts]
@@ -124,15 +178,16 @@ class ExactDealSampler:
         self._lo = [lo[seats[i]] for i in tracked]
         self._hi = [hi[seats[i]] for i in tracked]
 
-        # forward pass: reachable (honor counts, tracked points) states
-        state0 = ((0,) * k, (0,) * len(tracked))
+        # forward pass: reachable (honor counts, tracked points, quality) states
+        state0 = ((0,) * k, (0,) * len(tracked),
+                  (0, 0) if self._quality is not None else ())
         layers = [{state0}]
-        for v, m in classes:
+        for v, m, qk in classes:
             comps = _comps(m, k)
             nxt = set()
-            for a, pts in layers[-1]:
+            for state in layers[-1]:
                 for comp in comps:
-                    ns = self._step(a, pts, v, comp)
+                    ns = self._step(state, v, qk, comp)
                     if ns is not None:
                         nxt.add(ns)
             layers.append(nxt)
@@ -140,24 +195,28 @@ class ExactDealSampler:
         # backward pass: exact completion counts per state
         n_spots = len(self._spots)
         terminal = {}
-        for a, pts in layers[-1]:
+        for state in layers[-1]:
+            a, pts, q = state
             if any(pts[j] < self._lo[j] for j in range(len(tracked))):
                 continue
+            if self._quality is not None:
+                _, level, base3, basejt = self._quality
+                if not sq.satisfies(level, base3 + q[0], basejt + q[1]):
+                    continue
             w = _FACT[n_spots]
             for i in range(k):
                 w //= _FACT[self._caps[i] - a[i]]
-            terminal[(a, pts)] = w
+            terminal[state] = w
         counts = [None] * len(classes) + [terminal]
         for t in range(len(classes) - 1, -1, -1):
-            v, m = classes[t]
+            v, m, qk = classes[t]
             comps = _comps(m, k)
             nxt = counts[t + 1]
             cur = {}
             for state in layers[t]:
-                a, pts = state
                 tot = 0
                 for comp in comps:
-                    ns = self._step(a, pts, v, comp)
+                    ns = self._step(state, v, qk, comp)
                     if ns is not None:
                         c = nxt.get(ns)
                         if c:
@@ -183,8 +242,10 @@ class ExactDealSampler:
                         bounds[p] = b
         self._suit_bounds = bounds or None
 
-    def _step(self, a, pts, v, comp):
-        """Apply a class split to a state; None if capacity/max-HCP violated."""
+    def _step(self, state, v, qkind, comp):
+        """Apply a class split to a state; None if capacity, max-HCP or the
+        quality ceiling is violated."""
+        a, pts, q = state
         na = list(a)
         caps = self._caps
         for i, c in enumerate(comp):
@@ -196,11 +257,26 @@ class ExactDealSampler:
         for j, i in enumerate(self._tracked):
             c = comp[i]
             if c:
-                q = pts[j] + v * c
-                if q > self._hi[j]:
+                p = pts[j] + v * c
+                if p > self._hi[j]:
                     return None
-                npts[j] = q
-        return (tuple(na), tuple(npts))
+                npts[j] = p
+        nq = q
+        if qkind is not None and self._quality is not None:
+            qi, level, base3, basejt = self._quality
+            c = comp[qi]
+            if c:
+                top3, jt = q
+                if qkind == 'top3':
+                    top3 += c
+                else:
+                    jt += c
+                nq = (top3, jt)
+                # 'poor' is a ceiling: once the suit is good it can never go
+                # back, so prune here the way max-HCP is pruned above.
+                if level == 'poor' and sq.is_good(base3 + top3, basejt + jt):
+                    return None
+        return (tuple(na), tuple(npts), nq)
 
     def sample(self, rng=None):
         """One uniform draw. Returns {player: [13 cards]} or None if the deal
@@ -215,11 +291,11 @@ class ExactDealSampler:
         k = len(self._seats)
         state = self._state0
         splits = []
-        for t, (v, m) in enumerate(self._classes):
+        for t, (v, m, qk) in enumerate(self._classes):
             r = rng.randrange(self._counts[t][state])
             nxt = self._counts[t + 1]
             for comp in _comps(m, k):
-                ns = self._step(state[0], state[1], v, comp)
+                ns = self._step(state, v, qk, comp)
                 if ns is None:
                     continue
                 c = nxt.get(ns)

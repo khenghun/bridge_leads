@@ -3,6 +3,8 @@
 export type Mode = 'matchpoints' | 'imps'
 export type Seat = 'N' | 'E' | 'S' | 'W'
 export type Suit = 'S' | 'H' | 'D' | 'C'
+/** Suit quality: 'good' = 2 of AKQ or 3 of AKQJT; 'poor' = worse than that. */
+export type Quality = 'good' | 'poor'
 
 export interface LeadResult {
   card: string
@@ -54,6 +56,8 @@ export interface Constraints {
   hcp: Record<string, [number, number]>
   suit_length: Record<string, Record<string, [number, number]>>
   shapes: Record<string, string>
+  /** At most one entry in total — the backend rejects more with a 422. */
+  quality: Record<string, Record<string, Quality>>
 }
 
 export interface SimulateRequest {
