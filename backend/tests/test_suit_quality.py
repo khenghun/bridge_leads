@@ -15,7 +15,9 @@ import pytest
 from engine import suit_quality as sq
 from engine.deal_generator import ALL_CARDS_SET, calculate_hcp
 from engine.honor_sampler import ExactDealSampler
-from engine.lead_simulator import _build_known_and_constraints, hand_to_cards
+from engine.sampling import (
+    build_known_and_constraints as _build_known_and_constraints, hand_to_cards,
+)
 
 PLAYERS = ['N', 'E', 'S', 'W']
 LEADER = 'AK8.Q95.J982.Q43'
@@ -262,7 +264,8 @@ def test_only_one_quality_constraint_allowed():
 
 
 def test_quality_rejects_the_leader_and_bad_values():
-    with pytest.raises(ValueError, match='opening leader'):
+    # 'W' is the own seat here (the opening leader, in the lead app's terms).
+    with pytest.raises(ValueError, match='not your own hand'):
         _build({'quality': {'W': {'H': 'good'}}})
     with pytest.raises(ValueError, match='suit quality must be'):
         _build({'quality': {'N': {'H': 'solid'}}})

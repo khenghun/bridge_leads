@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { Mode, Seat, SimulateResponse } from '../api/types'
-import { SEAT_NAME, SYMBOL_COLOR, strainLabel } from '../lib/bridge'
-import DealDiagram from './DealDiagram'
+import type { Mode, Seat } from '../../api/types'
+import type { SimulateResponse } from '../../api/leadTypes'
+import { SEAT_NAME, SYMBOL_COLOR, strainLabel } from '../../lib/bridge'
+import DealDiagram from '../../components/DealDiagram'
 
 const SAMPLE_CAP = 100
 

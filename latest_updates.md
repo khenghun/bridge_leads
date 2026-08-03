@@ -1,4 +1,128 @@
-# Latest updates — session handoff (2026-08-02)
+# Latest updates — session handoff (2026-08-03)
+
+## v7: Optimal Contract Calculator ✅ backend + UI done, verified in a browser
+
+A second tool in a second tab: enter **your own** hand plus constraints on the
+unseen hands, and rank the **contracts your side could be in** (3NT, 4♠, ♠
+partscore, …). Design rationale in [`docs/v7-contract-plan.md`](docs/v7-contract-plan.md);
+what shipped, below.
+
+### The repo is now shared-core + one package per tool
+
+Nothing about the lead tool's behaviour or endpoints changed, but its code moved:
+
+```
+backend/engine/dds_runtime.py   NEW  thread cap, the one global DDS lock, solve_all + calc_tables
+backend/engine/sampling.py      NEW  constraint building + deal generation (parameterised by OWN seat)
+backend/engine/lead/            moved from engine/lead_simulator.py, engine/auctions.py
+backend/engine/contract/        NEW  candidates.py + simulator.py
+backend/app/common/             NEW  cache.py (ResultCache), constraints.py, schemas.py
+backend/app/lead/               moved from app/{routes,service,schemas}.py — same URLs
+backend/app/contract/           NEW  POST /api/contract/simulate
+frontend/src/apps/lead/         moved: LeadApp + ResultsTable/CompareLeads/SampleDeals
+frontend/src/apps/contract/     NEW  ContractApp, ContractResults, StrainGrid, CompareContracts,
+                                     ContractSampleDeals, ranking.ts
+frontend/src/api/               split into http.ts / lead.ts / contract.ts + per-tool types
+```
+
+The **DDS lock is the load-bearing part of that refactor**: libdds's multi-board
+functions are not re-entrant, and there are now two endpoints solving
+concurrently in Starlette's threadpool. `dds_runtime.DDS_LOCK` is process-global
+and both `solve_all()` and `calc_tables()` take it. A per-tool lock would
+protect nothing.
+
+Shared UI needed two small generalisations: `HandEntry` takes `seat` + `role`
+instead of hardcoding "the opening leader", and `ConstraintsEditor` takes
+`seats: [Seat, label][]` instead of deriving declarer/dummy/partner itself (the
+contract tool passes partner / LHO / RHO).
+
+### Engine: one DD table per deal prices every contract
+
+`engine/contract/simulator.py` samples deals with our hand fixed, then calls
+`calc_all_tables` once per deal (5 strains × 4 declarers, batched at
+`MAXNOOFTABLES` = 40). Given the table, scoring any level/strain/declarer is
+arithmetic (~5 µs), so **deal count is the only cost driver**: ~45–70 ms/deal on
+4 threads, ~160 ms on a 2-core box, hence the 150-deal default (50–500) and the
+per-strain checkboxes that feed `exclude=`.
+
+Two things that would silently corrupt every ranking if they broke, so both are
+pinned by tests: the DD table cross-checks against `solve_board` (the oracle the
+lead tool already trusts), and **we declare here** — the declarer score IS our
+score, no sign flip, unlike the lead simulator.
+
+The candidate set is **20, not 70** — undoubled, every partscore level in a
+strain scores the same for a given trick count and the lowest never scores less,
+so per strain the decisions are `partscore | game | 6 | 7`. Both declarers are
+evaluated and the better one is shown with a "play it from X" flag.
+
+### Ranking: pairwise against a benchmark contract
+
+Head-to-head-against-all (what the lead tool does) would make every number
+depend on which contracts are in the list, and would flatter grand slams at
+matchpoints. Instead both modes compare against **one benchmark** — the contract
+you would otherwise be in:
+
+- IMPs: mean `imps(candidate − benchmark)`; the benchmark reads 0.00.
+- MP: `win% + ½·ties`; over 50% means bid it.
+
+The backend suggests the benchmark (highest EV — best mean score of all 20
+candidates) and ships the
+per-deal score matrix; `rankVsBenchmark()` in `lib/bridge.ts` does the ranking,
+so both the mode toggle and the benchmark selector are instant and refetch-free
+— the same division of labour the lead tool's mode toggle already used.
+`compareLeads()` was generalised to `compareCandidates()` over that matrix and
+the lead tool now calls a thin alias.
+
+Beside the metric: make %, mean tricks / needed, mean score, mean score when it
+fails, and flags for a declarer-dependent contract (≥ 0.3 tricks) or a thin edge
+(≥ 0.5 IMPs concentrated in the best 15% of deals). Opponent context comes free
+from the same tables: *opponents make a game on X%* and *par is theirs or a save
+on Y%* (`endplay.dds.par`, withheld when strains were excluded since par needs a
+complete table).
+
+### Verified
+
+- **Tests:** backend 205 passed (31 new: candidates, simulator, API); frontend
+  22 passed (new: `compareCandidates`, `rankVsBenchmark`, `ranking.ts`);
+  `npm run build` clean.
+- **Browser (Playwright):** both tabs; the lead tab still simulates identically;
+  a contract run with partner 10–14 HCP — request body carried the constraint,
+  and the response's 150 layouts all had North between 10 and 14 HCP with our
+  hand fixed; matrix make-rate matched the summary; mode flip re-ranked (4♠ tops
+  at IMPs, 3NT at matchpoints — correct, since 3NT+1 beats 4♠= at MP); heatmap,
+  compare, and sample deals all render.
+- **Bridge sanity** (100 deals, seed 0): slam fit → benchmark 6♠ at 99% make,
+  with 7♠ +0.86 IMPs at 59% (right: a grand needs ~57% vs a small slam at IMPs,
+  and it is the concavity case — 7♠'s raw EV is lower); misfit → ♠ partscore
+  tops with opps-game 97% / par-competitive 100%; balanced 21 HCP → 6NT at 49%
+  ≈ break-even against 3NT at 92%; vulnerable → 4♠ over 3NT.
+
+## State at session end
+
+- v7 is **committed on `main`** on top of `7bfbe41`. Nothing since v6 is pushed
+  or deployed: prod (https://bridge-leads.icycookie.xyz, verified up and healthy
+  this session) still runs the **v6** build, without compare-leads (`f911954`)
+  and without v7.
+- Deploy recipe unchanged: push (build runs) then manual `workflow_dispatch`
+  (deploy job).
+
+## Next session (carried over)
+
+1. Push, deploy, and **time a 150-deal contract run on the VPS** —
+   if it is much over ~30 s, lower the default rather than raising nginx's
+   120 s proxy timeout.
+2. Prod verification of the lead tool still pending from the last session
+   (1NT preset, hands `T.KT932.Q2.T9843` / `AK872.Q95.J98.Q4` /
+   `Q84.A72.T653.K92` / `J9743.86.AQ2.J85`, 500+1000).
+3. v8 candidates, all deliberately out of v7: "they compete to X" toggle,
+   auto-doubling of large sets, realistic (single-dummy) opening lead before
+   solving, and demo auctions for the contract tab.
+4. Still declined: adaptive early stopping, VPS resize, persistent cache
+   warming.
+
+---
+
+# Previous session (2026-08-02)
 
 ## Suit-quality constraint ✅ backend + UI done, verified in a browser
 

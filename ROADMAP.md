@@ -169,3 +169,49 @@ Work log / handoff: [`latest_updates.md`](latest_updates.md).
 - **Native libdds build ⏳** — compile DDS with `-O3 -march=x86-64-v3` in the
   backend image to replace endplay's generic bundled `.so` (expected 10–25%;
   DDS is ~95%+ of runtime). Not started.
+
+## v7 — Optimal Contract Calculator (second tool, second tab) 🚧
+
+Detailed design: [`docs/v7-contract-plan.md`](docs/v7-contract-plan.md).
+Work log / handoff: [`latest_updates.md`](latest_updates.md).
+
+The mirror image of the lead simulator: enter **your own** hand plus what the
+auction told you about partner's (and the opponents') hands, and rank the
+**contracts your side could be in**.
+
+- **Shared core, per-tool packages ✅** — `engine/dds_runtime.py` (thread cap,
+  the one process-global DDS lock, both batch entry points) and
+  `engine/sampling.py` (constraint building + deal generation, parameterised by
+  *own seat*) were extracted from the lead simulator, which moved to
+  `engine/lead/`. Same split in the HTTP layer (`app/common`, `app/lead`,
+  `app/contract`) and the frontend (`components/` shared, `apps/lead`,
+  `apps/contract`). Lead endpoints and behaviour unchanged.
+- **Contract engine ✅** — `engine/contract/`: one double-dummy **table** per
+  deal (`calc_all_tables`, ~5× a lead solve) prices every contract at once, so
+  the candidate space is free and deal count is the only cost driver. The
+  candidate set is **20**, not 70: undoubled, every partscore level in a strain
+  scores the same for a given trick count and the lowest never scores less, so
+  per strain the decisions are `partscore | game | 6 | 7`. Both declarers are
+  evaluated; the better one is shown with a "play it from X" flag.
+- **Ranked against a benchmark ✅** — both scoring modes compare pairwise
+  against the contract you would otherwise be in (default: the highest-EV
+  candidate by mean score, user-changeable), which is how bidding decisions are
+  framed and what stops a 30% grand slam from looking good at matchpoints.
+  Reported beside it: make %, mean tricks, mean score, mean score when it fails,
+  and flags for a declarer-dependent contract or a thin (tail-driven) edge.
+  Ranking is frontend-only over the per-deal matrix, so mode and benchmark
+  changes are instant.
+- **Free opponent context ✅** — the same DD tables give *opponents make a game
+  on X%* and *par is theirs or a save on Y%* (via `endplay.dds.par`), the flag
+  that a constructive ranking is standing on a competitive deal.
+- **UI ✅** — new tab (hash-routed, both tabs stay mounted): ranked table with
+  benchmark selector, strain × decision-level heatmap, compare-two-contracts
+  (win/draw/lose + IMP swing, same pattern as compare-leads), and sample deals
+  split into makes/fails. Sidebar: seat, we/they vulnerable, deals (50–500,
+  default 150) with a time estimate, and per-strain checkboxes that skip strains
+  in the DDS solve.
+- **Not in v1, deliberately** — the opponents never compete or double (their
+  best contract is reported, not bid), and trick counts stay pure double-dummy
+  with the caveat stated rather than corrected by a fudge factor. Candidates for
+  v8: a "they compete to X" toggle, auto-doubling large sets, and a realistic
+  (single-dummy) opening lead before solving.

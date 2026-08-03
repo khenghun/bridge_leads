@@ -12,7 +12,7 @@ from collections import Counter
 
 from engine.deal_generator import ALL_CARDS_SET, calculate_hcp
 from engine.honor_sampler import ExactDealSampler
-from engine.lead_simulator import hand_to_cards
+from engine.sampling import hand_to_cards
 
 LEADER = hand_to_cards("AK872.Q95.J98.Q4")     # 12 HCP West hand
 KNOWN = {'W': LEADER}

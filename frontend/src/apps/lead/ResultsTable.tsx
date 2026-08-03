@@ -1,5 +1,6 @@
-import type { Mode, SimulateResponse } from '../api/types'
-import { SYMBOL_COLOR } from '../lib/bridge'
+import type { Mode } from '../../api/types'
+import type { SimulateResponse } from '../../api/leadTypes'
+import { SYMBOL_COLOR } from '../../lib/bridge'
 
 interface Props {
   result: SimulateResponse

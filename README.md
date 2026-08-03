@@ -1,9 +1,16 @@
-# Opening Lead Simulator
+# Bridge Simulator — Opening Lead & Optimal Contract
 
-A web app that helps you choose the best **opening lead** in contract bridge.
-Enter the leader's hand and the contract, optionally constrain the three unseen
-hands, and the app Monte-Carlo generates consistent deals, double-dummy solves
-every candidate lead, and ranks them by **Matchpoints** or **IMPs**.
+Two Monte-Carlo + double-dummy bridge tools, as two tabs of one web app.
+
+**Opening Lead Simulator.** Enter the leader's hand and the contract, optionally
+constrain the three unseen hands, and the app generates consistent deals,
+double-dummy solves every candidate lead, and ranks them by **Matchpoints** or
+**IMPs**.
+
+**Optimal Contract Calculator** (v7). Enter *your own* hand and what the auction
+told you about partner's (and the opponents') hands, and the app ranks the
+contracts your side could be in — 3NT, 4♠, ♠ partscore … — each with its make
+rate, mean tricks, and score against the contract you'd otherwise be in.
 
 Pure simulation — **no AI / LLM**.
 

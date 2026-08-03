@@ -1,6 +1,7 @@
 // Pure bridge helpers ported from the old Streamlit app.py.
 
-import type { DealsMatrix, Quality, Seat, Suit } from '../api/types'
+import type { CandidateMatrix, Quality, Seat, Suit } from '../api/types'
+import type { DealsMatrix } from '../api/leadTypes'
 
 export const SEATS: Seat[] = ['N', 'E', 'S', 'W']
 export const SEAT_NAME: Record<Seat, string> = {
@@ -166,9 +167,9 @@ export type CompareOutcome = 'win' | 'draw' | 'lose'
 
 export interface DealComparison {
   index: number // into deals.records
-  outcome: CompareOutcome // for lead A vs lead B on this deal
+  outcome: CompareOutcome // for candidate A vs candidate B on this deal
   impSwing: number // imps(scoreA - scoreB), signed for A
-  tricksA: number // declarer tricks when A is led
+  tricksA: number // declarer tricks under A
   tricksB: number
 }
 
@@ -181,15 +182,16 @@ export interface CompareSummary {
   mpPct: number // head-to-head MP% for A = 100 * (win + draw/2) / n
 }
 
-/** Compare two candidate leads deal-by-deal from the per-deal matrix.
- * Win/draw/lose comes from the leader-perspective scores (equivalent to
- * comparing defense tricks — score is monotonic in tricks for a fixed
- * contract), so the counts are the same in both scoring modes. */
-export function compareLeads(
-  deals: DealsMatrix, cardA: string, cardB: string,
+/** Compare two candidates deal-by-deal from a per-deal matrix — opening leads
+ * in the lead tool, contracts in the contract tool.
+ *
+ * Win/draw/lose comes from the scores, which are always in the asking tool's
+ * own perspective, so the counts are the same in both scoring modes. */
+export function compareCandidates(
+  deals: CandidateMatrix, a: string, b: string,
 ): { rows: DealComparison[]; summary: CompareSummary } {
-  const ia = deals.cards.indexOf(cardA)
-  const ib = deals.cards.indexOf(cardB)
+  const ia = deals.candidates.indexOf(a)
+  const ib = deals.candidates.indexOf(b)
   if (ia < 0 || ib < 0) {
     return { rows: [], summary: { n: 0, win: 0, draw: 0, lose: 0, avgImpSwing: 0, mpPct: 0 } }
   }
@@ -211,4 +213,82 @@ export function compareLeads(
   const avgImpSwing = n ? rows.reduce((sum, r) => sum + r.impSwing, 0) / n : 0
   const mpPct = n ? (100 * (win + draw / 2)) / n : 0
   return { rows, summary: { n, win, draw, lose, avgImpSwing, mpPct } }
+}
+
+/** Compare two opening leads. The lead response calls its column list `cards`;
+ * everything below is the shared implementation. */
+export function compareLeads(
+  deals: DealsMatrix, cardA: string, cardB: string,
+): { rows: DealComparison[]; summary: CompareSummary } {
+  return compareCandidates(
+    { candidates: deals.cards, records: deals.records }, cardA, cardB,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Contract calculator
+// ---------------------------------------------------------------------------
+
+/** The level at which each strain earns the game bonus (mirrors
+ * backend/engine/contract/candidates.py). */
+export const GAME_LEVEL: Record<string, number> = { N: 3, S: 4, H: 4, D: 5, C: 5 }
+
+export interface BenchmarkMetric {
+  key: string
+  /** Mean IMPs vs the benchmark contract, per deal. */
+  imps: number
+  /** Head-to-head matchpoints vs the benchmark: (win + ½·draw) / n, as a %. */
+  mpPct: number
+  win: number
+  draw: number
+  lose: number
+  /** Share of the positive IMP total contributed by the best 15% of deals —
+   * high means the edge rests on a handful of lucky layouts. */
+  edgeConcentration: number
+}
+
+/** Score every candidate against one benchmark contract.
+ *
+ * Both bridge scoring modes are pairwise-vs-the-contract-you'd-otherwise-be-in:
+ * at IMPs you care how big the swing is, at matchpoints only how often you win.
+ * Ranking against a fixed benchmark (rather than against the whole candidate
+ * list) is also what keeps a 30%-to-make grand slam from looking good just
+ * because it wins outright on the deals where it happens to come home. */
+export function rankVsBenchmark(
+  deals: CandidateMatrix, benchmarkKey: string,
+): Record<string, BenchmarkMetric> {
+  const ib = deals.candidates.indexOf(benchmarkKey)
+  const out: Record<string, BenchmarkMetric> = {}
+  if (ib < 0) return out
+  const n = deals.records.length
+
+  deals.candidates.forEach((key, i) => {
+    let total = 0
+    let win = 0
+    let draw = 0
+    const gains: number[] = []
+    for (const r of deals.records) {
+      const swing = imps(r.scores[i] - r.scores[ib])
+      total += swing
+      if (r.scores[i] > r.scores[ib]) win += 1
+      else if (r.scores[i] === r.scores[ib]) draw += 1
+      if (swing > 0) gains.push(swing)
+    }
+    // How top-heavy the upside is: share of all IMPs gained that comes from the
+    // best 15% of deals (1.0 = every gain sits in that tail).
+    gains.sort((a, b) => b - a)
+    const gained = gains.reduce((sum, g) => sum + g, 0)
+    const tailCount = Math.max(1, Math.round(n * 0.15))
+    const tail = gains.slice(0, tailCount).reduce((sum, g) => sum + g, 0)
+    out[key] = {
+      key,
+      imps: n ? total / n : 0,
+      mpPct: n ? (100 * (win + draw / 2)) / n : 0,
+      win,
+      draw,
+      lose: n - win - draw,
+      edgeConcentration: gained > 0 ? tail / gained : 0,
+    }
+  })
+  return out
 }

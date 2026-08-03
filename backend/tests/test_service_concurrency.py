@@ -7,8 +7,8 @@ import time
 
 import pytest
 
-from app import service
-from app.schemas import SimulateRequest
+from app.lead import service
+from app.lead.schemas import SimulateRequest
 
 
 def _request() -> SimulateRequest:
@@ -21,10 +21,8 @@ def _request() -> SimulateRequest:
 @pytest.fixture(autouse=True)
 def clean_cache():
     service._cache.clear()
-    service._inflight.clear()
     yield
     service._cache.clear()
-    service._inflight.clear()
 
 
 def test_concurrent_identical_requests_simulate_once(monkeypatch):
@@ -81,4 +79,4 @@ def test_failed_leader_releases_waiters(monkeypatch):
     assert len(outcomes) == 4
     assert sum(1 for kind, _ in outcomes if kind == 'err') == 1
     assert all(r['num_simulations'] == 100 for kind, r in outcomes if kind == 'ok')
-    assert not service._inflight              # no leaked in-flight entries
+    assert not service._cache.inflight         # no leaked in-flight entries

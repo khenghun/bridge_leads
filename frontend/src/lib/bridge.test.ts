@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { DealsMatrix } from '../api/types'
+import type { CandidateMatrix } from '../api/types'
+import type { DealsMatrix } from '../api/leadTypes'
 import {
-  compareLeads, holdingError, holdingsToPbn, imps, leaderSeat, parseContract, parsePbn,
-  randomHand, sortHolding,
+  compareCandidates, compareLeads, holdingError, holdingsToPbn, imps, leaderSeat,
+  parseContract, parsePbn, randomHand, rankVsBenchmark, sortHolding,
 } from './bridge'
 
 describe('parseContract', () => {
@@ -120,5 +121,51 @@ describe('compareLeads', () => {
     const { rows, summary } = compareLeads(matrix, '♥Q', '♦2')
     expect(rows).toEqual([])
     expect(summary.n).toBe(0)
+  })
+
+  it('is the same comparison as compareCandidates over the same columns', () => {
+    const generic = compareCandidates(
+      { candidates: matrix.cards, records: matrix.records }, '♥Q', '♠4',
+    )
+    expect(generic).toEqual(compareLeads(matrix, '♥Q', '♠4'))
+  })
+})
+
+describe('rankVsBenchmark', () => {
+  // Three contracts over four deals, scored from our (declaring) side.
+  const matrix: CandidateMatrix = {
+    candidates: ['4S-S', '3N-S', '6S-S'],
+    records: [
+      // everything makes; the slam is worth a lot more
+      { layout: {}, tricks: [12, 12, 12], scores: [480, 490, 980] },
+      { layout: {}, tricks: [12, 12, 12], scores: [480, 490, 980] },
+      // twelve tricks are not there: the slam goes down, the games are fine
+      { layout: {}, tricks: [10, 9, 10], scores: [420, 400, -100] },
+      { layout: {}, tricks: [10, 9, 10], scores: [420, 400, -100] },
+    ],
+  }
+
+  it('scores every candidate against the benchmark, which reads zero', () => {
+    const m = rankVsBenchmark(matrix, '4S-S')
+    expect(m['4S-S']).toMatchObject({ imps: 0, mpPct: 50, win: 0, lose: 0, draw: 4 })
+    // 3NT: +10 twice (imps(10)=0), -20 twice (imps(-20)=-1) -> wins 2, loses 2
+    expect(m['3N-S']).toMatchObject({ win: 2, lose: 2, draw: 0, mpPct: 50 })
+    expect(m['3N-S'].imps).toBeCloseTo((0 + 0 - 1 - 1) / 4)
+    // 6S: imps(500)=11 twice, imps(-520)=-11 twice -> nets out to zero IMPs
+    expect(m['6S-S'].imps).toBeCloseTo(0)
+    expect(m['6S-S'].mpPct).toBeCloseTo(50)
+  })
+
+  it('reports how concentrated a positive edge is', () => {
+    const m = rankVsBenchmark(matrix, '3N-S')
+    // 4S beats 3NT on the two deals where the slam fails, by the same amount
+    expect(m['4S-S'].win).toBe(2)
+    expect(m['4S-S'].edgeConcentration).toBeLessThan(1)
+    // the benchmark itself has no gains at all
+    expect(m['3N-S'].edgeConcentration).toBe(0)
+  })
+
+  it('returns nothing for an unknown benchmark', () => {
+    expect(rankVsBenchmark(matrix, '7C-N')).toEqual({})
   })
 })

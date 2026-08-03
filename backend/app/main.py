@@ -7,12 +7,14 @@ In prod it sits behind nginx (same-origin), so CORS is a dev-only convenience.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import router
+from .contract.routes import router as contract_router
+from .lead.routes import router as lead_router
 
 app = FastAPI(
-    title='Opening Lead Simulator API',
-    version='4.0',
-    description='Monte-Carlo + double-dummy opening-lead simulator. No AI — pure simulation.',
+    title='Bridge Simulation API',
+    version='7.0',
+    description='Monte-Carlo + double-dummy bridge tools (opening lead, optimal '
+                'contract). No AI — pure simulation.',
 )
 
 # Permissive CORS for local dev (Vite dev server on another port). Behind nginx
@@ -24,4 +26,5 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-app.include_router(router)
+app.include_router(lead_router)
+app.include_router(contract_router)

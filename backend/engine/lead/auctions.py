@@ -16,7 +16,7 @@ For now there is a single demo: a standard 15-17 1NT opening raised straight to
 West.
 """
 
-from .shape_parser import parse_shapes
+from ..shape_parser import parse_shapes
 
 # South: 15-17 balanced, allowing a 5-card major or a 6-card minor (6322).
 _SOUTH_1NT = ("(2-4s,2-4h,2-5d,2-5c) or (5h,2-3s,2-4d,2-4c) "

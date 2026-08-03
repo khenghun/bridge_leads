@@ -1,4 +1,4 @@
-"""API routes. All mounted under /api.
+"""Opening-lead routes, mounted under /api.
 
 `POST /api/simulate` is a plain `def` handler on purpose: Starlette runs sync
 endpoints in a threadpool, so the multi-second (blocking) DDS solve never stalls
@@ -7,14 +7,15 @@ the event loop.
 
 from fastapi import APIRouter, HTTPException
 
-from engine import auctions
+from engine.lead import auctions
 from engine.shape_parser import ShapeParseError
 
 from . import service
+from ..common import constraints as constraint_helpers
 from .schemas import (
-    AuctionsResponse, ShapeValidateRequest, ShapeValidateResponse,
-    SimulateRequest, SimulateResponse,
+    AuctionsResponse, SimulateRequest, SimulateResponse,
 )
+from ..common.schemas import ShapeValidateRequest, ShapeValidateResponse
 
 router = APIRouter(prefix='/api')
 
@@ -43,9 +44,10 @@ def list_auctions():
 
 @router.post('/validate/shape', response_model=ShapeValidateResponse)
 def validate_shape(req: ShapeValidateRequest):
-    """Live validation for the advanced-shape box (✓ term count / ⚠ warnings)."""
+    """Live validation for the advanced-shape box (✓ term count / ⚠ warnings).
+    Shared by both tools' constraint editors."""
     try:
-        return service.validate_shape(req.text)
+        return constraint_helpers.validate_shape(req.text)
     except ShapeParseError as e:
         raise HTTPException(status_code=422, detail=str(e))
 

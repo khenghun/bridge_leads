@@ -7,10 +7,10 @@ Verifies each preset is well-formed (parses, feasible, valid HCP) and that the
 
 import pytest
 
-from engine.auctions import auction_names, get_auction, constraints, AUCTIONS
+from engine.lead.auctions import auction_names, get_auction, constraints, AUCTIONS
 from engine.shape_parser import parse_shapes
 from engine.shapes import feasibility_warnings
-from engine.lead_simulator import simulate_opening_lead
+from engine.lead import simulate_opening_lead
 
 LEADER = "AK872.Q95.J98.Q4"
 

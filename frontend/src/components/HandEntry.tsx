@@ -1,19 +1,23 @@
 import { useState } from 'react'
 import type { Seat } from '../api/types'
 import {
-  ERR_RED, SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL, SUITS,
+  SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL, SUITS,
   holdingError, normHolding, parsePbn, randomHand, sortHolding,
   type Holdings,
 } from '../lib/bridge'
 
 interface Props {
-  leader: Seat
+  seat: Seat
+  /** What this hand is in the current tool, e.g. 'the opening leader'. */
+  role: string
   holdings: Holdings
   setHoldings: (h: Holdings) => void
 }
 
-/** Leader-hand entry: PBN paste, random-hand, per-suit boxes, live validation. */
-export default function HandEntry({ leader, holdings, setHoldings }: Props) {
+/** Known-hand entry: PBN paste, random-hand, per-suit boxes, live validation.
+ * Shared by both tools — the lead tool enters the leader's hand, the contract
+ * tool your own. */
+export default function HandEntry({ seat, role, holdings, setHoldings }: Props) {
   const [pbnEntry, setPbnEntry] = useState('')
   const [pbnError, setPbnError] = useState('')
 
@@ -37,7 +41,7 @@ export default function HandEntry({ leader, holdings, setHoldings }: Props) {
 
   return (
     <section>
-      <h2>{SEAT_NAME[leader]}'s hand (the opening leader)</h2>
+      <h2>{SEAT_NAME[seat]}'s hand ({role})</h2>
       <div className="hand-entry">
         <label className="field">
           Paste PBN (spades.hearts.diamonds.clubs)

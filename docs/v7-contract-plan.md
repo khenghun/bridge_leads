@@ -1,0 +1,148 @@
+# v7 — Optimal Contract Calculator
+
+The design decisions behind the second tool, and why they are what they are.
+Implementation status: **done**; see `latest_updates.md` for the work log.
+
+## The question it answers
+
+The lead simulator fixes the contract and asks what to lead. This one fixes the
+hands and asks **where they belong**: enter your own 13 cards, describe partner's
+hand (and the opponents', if the auction said something), and get a ranked list
+of the contracts your side could be in.
+
+Same front half of the pipeline as the lead tool — constrained deal sampling,
+shape/quality constraints, scoring — so v7 was mostly a restructure into a shared
+core plus one package per tool, and one genuinely new simulator.
+
+## 1. Why 20 candidate contracts, not 70
+
+7 levels × 5 strains × 2 declarers = 70 combinations, but they are not 70
+decisions.
+
+Undoubled, a contract's score depends only on the tricks taken and on whether
+the level bid reaches game — overtricks score at the same rate as bid tricks:
+
+```
+1♠ taking 8 tricks = 30 (bid) + 30 (overtrick) + 50 = 110
+2♠ taking 8 tricks = 60 (bid)                  + 50 = 110
+```
+
+So every partscore level in a strain scores identically when it makes, and the
+lowest never scores less (3♠ down one is −50 where 1♠ was +110). A partscore is
+therefore *one* decision. Per strain there are exactly four:
+
+```
+partscore (1-level) | game (3NT / 4M / 5m) | small slam | grand slam
+```
+
+5 strains × 4 = **20**, each evaluated with either partner as declarer. This is
+also what keeps the ranked table free of 4♠/3♠/2♠ near-duplicates — they were
+never distinct choices. The 1-level row is labelled **"♠ partscore"** so nobody
+reads it as a recommendation to actually bid 1♠ and pass.
+
+## 2. Why the ranking is pairwise against a benchmark
+
+The lead tool ranks candidates head-to-head against each other. That would be
+wrong here for two reasons:
+
+1. **Candidate-set dependence.** With 20 contracts in the comparison, adding or
+   removing one shifts every other contract's number. The real field does not
+   bid 20 contracts; it bids one or two normal ones.
+2. **Grand-slam distortion.** At matchpoints, a 30% grand slam wins outright on
+   the 30% of deals where it comes home while the sane contracts split the rest —
+   head-to-head scoring rewards variance.
+
+So both modes compare **pairwise against one benchmark contract** — the one you
+would otherwise be in — which is exactly how bidding decisions are framed ("is
+6♠ worth it over 4♠?"), and where the classic thresholds come from:
+
+- **IMPs:** mean `imps(score_candidate − score_benchmark)`, per deal. The
+  benchmark reads 0.00 and every row is "IMPs gained by moving there".
+- **MP:** `win% + ½·ties` vs the benchmark. Over 50% means bid it.
+
+The default benchmark is the **highest-EV** candidate — the best mean raw score
+over all 20 contracts. Mean score is the only candidate-set-independent number
+in the response, so the zero point does not drift when the candidate list
+changes, and when a slam genuinely is the EV-max spot the table says so rather
+than measuring everything against a game nobody should be in. The user can pick
+any other contract as the benchmark and the table re-ranks instantly, because
+the ranking is computed in the frontend from the per-deal score matrix.
+
+Note the IMP column can still be positive for a contract whose mean score is
+*lower* than the benchmark's: the IMP scale is concave, so winning small often
+and losing big rarely can beat a higher raw expectation. That divergence is
+information, not a bug — it is the whole reason IMP and MP modes exist.
+
+Par was considered as the baseline and rejected: par embeds double-dummy
+sacrifices and doubled contracts the field will never reach. It survives as a
+diagnostic column instead (§4).
+
+## 3. The trust columns
+
+Expected-score ranking handles the game/slam bonuses correctly, but a number
+alone hides how it was earned, so every row also carries:
+
+| Column | Why |
+|---|---|
+| Make % | A #1-ranked contract at 42% must visibly be a gamble |
+| Mean tricks / needed | `10.8 / 10` — how much margin there is |
+| Mean score | The only candidate-set-independent anchor |
+| When it fails | Mean score on the deals it goes down — separates "down one" from disaster |
+| ⚠ play it from X | Declarer choice worth ≥ 0.3 mean tricks |
+| ⚠ thin edge | A positive IMP edge (≥ 0.5) concentrated in the best 15% of deals: not better, luckier |
+
+## 4. Competition: reported, not modelled
+
+v1 assumes we declare, undoubled, with the opponents defending double-dummy —
+the same assumption comparable tools make, and the right one for a constructive
+"where do these cards belong" question.
+
+The DD table gives the opponents' tricks for free, so instead of modelling
+competition we report it:
+
+- **opponents make a game on X%** of deals;
+- **par is theirs or a save on Y%** (`endplay.dds.par` on the table we already
+  have). Above ~25–30% the deal is competitive and the constructive ranking is
+  standing on sand — on the misfit test hand this reads 100%, which is the
+  correct answer ("you are defending, not declaring").
+
+Deferred to v8: a "they compete to X" toggle and auto-doubling of large sets.
+Both change the model rather than annotate it.
+
+## 5. Double-dummy bias: stated, not corrected
+
+Double dummy gives *both* sides clairvoyance. Empirically real declarers roughly
+match DD in notrump (the killing blind lead DD always finds often isn't found at
+the table) and track it in suits; where it genuinely misleads is thin,
+lie-dependent slams and two-way finesses — which is exactly what the make % and
+the thin-edge flag expose.
+
+Crucially the bias largely **cancels within a strain** (game vs partscore vs
+slam in spades share one trick count), and that is most of what this tool
+decides. So: no fudge factors — an arbitrary "+0.1 tricks in NT" would destroy
+trust in a tool whose selling point is exactness. The caveat is stated in the
+UI. A v8 option would be a realistic (heuristic) opening lead solved from trick
+two, which is the one principled correction available cheaply here.
+
+## 6. Cost model
+
+A DD table is ~45–70 ms/deal on four threads (~160 ms on a 2-core box) — about
+5× a single-lead solve — and prices all 20 contracts at once. Scoring from the
+table is ~5 µs per contract-deal, so **deal count is the only cost driver**:
+
+- default 150 deals (50–500), with a live estimate in the sidebar;
+- per-strain checkboxes feed `calc_all_tables(exclude=...)`, worth roughly 20%
+  per dropped strain;
+- `calc_all_tables` batches at `MAXNOOFTABLES` (40), not the 200 that
+  `solve_all_boards` uses.
+
+## 7. Sanity checks the design has to pass
+
+Run at 100 deals, seed 0, non-vulnerable:
+
+| Hand | Constraint | Expected | Result |
+|---|---|---|---|
+| `AKQJ82.AK5.A98.4` | partner 10–13, 3–5 ♠ | slam | benchmark **6♠** (EV 987, 99% make); 7♠ **+0.86 IMPs** at 59% — correct, a grand needs ~57% against a small slam at IMPs, and it is the concavity case: 7♠'s raw EV (869) is *lower* |
+| `AJ862.3.Q987.J43` | partner 0–6 | ♠ partscore | ♠ partscore tops (EV −57); opponents make a game on 97%, par competitive 100% — "you are defending" |
+| `AQ82.AQ5.KJ98.Q4` | partner 11–14 | 3NT, slam marginal | benchmark 6NT (EV 443, 49% make); 3NT −0.34 IMPs at 92% — a coin-flip slam is ~break-even, and at matchpoints 3NT wins instead |
+| `AKQ82.AQ5.J98.Q4` | partner 10–14, vul | 4♠ over 3NT | benchmark 4♠ (EV 547, 86%); 3NT −0.33, 6♠ −4.08 at 30% |

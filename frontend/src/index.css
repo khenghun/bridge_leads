@@ -30,6 +30,25 @@ h2 { font-size: 1.1rem; margin: 1.4rem 0 0.5rem; }
 h3 { font-size: 0.95rem; margin: 0 0 0.5rem; }
 code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
+/* Tab bar across the two tools */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.4rem 1.2rem; background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.tabs { display: flex; gap: 0.4rem; }
+.tabs button {
+  background: transparent; color: var(--text); border: 1px solid transparent;
+  border-radius: 6px 6px 0 0; padding: 0.5rem 1rem; cursor: pointer;
+  font-size: 0.95rem; font-weight: 600;
+}
+.tabs button:hover { border-color: var(--border); }
+.tabs button.on {
+  background: var(--panel-2); border-color: var(--border);
+  border-bottom-color: var(--panel-2); color: var(--accent);
+}
+.topbar .toggle { margin: 0; }
+
 .layout { display: flex; min-height: 100vh; align-items: flex-start; }
 .sidebar {
   width: 300px; flex: 0 0 300px; padding: 1rem 1.2rem; background: var(--panel);
@@ -118,6 +137,17 @@ textarea { width: 100%; resize: vertical; }
 .deal-cell-name { font-size: 0.72rem; color: var(--muted); }
 .deal-center { text-align: center; font-size: 0.8rem; line-height: 1.4; padding: 0 0.6rem; }
 .hand-line { line-height: 1.3; font-size: 0.85rem; }
+
+/* Contract calculator: strain x level heat grid */
+.grid-scroll { overflow-x: auto; }
+.grid-heat { border-collapse: separate; border-spacing: 4px; margin: 0.6rem 0; }
+.grid-heat th { color: var(--muted); font-weight: 600; font-size: 0.85rem; padding: 0.2rem 0.5rem; }
+.grid-heat td {
+  border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.6rem;
+  text-align: center; min-width: 8.5rem; font-size: 0.9rem;
+}
+.grid-heat td.cell-best { border-color: var(--accent); border-width: 2px; }
+.grid-heat .caption { margin: 0; }
 
 @media (max-width: 780px) {
   .layout { flex-direction: column; }

@@ -9,11 +9,8 @@ import random
 
 import pytest
 
-from engine.lead_simulator import (
-    simulate_opening_lead,
-    hand_to_cards,
-    _hand_list_to_str,
-)
+from engine.lead import simulate_opening_lead
+from engine.sampling import hand_to_cards, hand_list_to_str as _hand_list_to_str
 
 # A fixed 13-card leader hand (PBN: spades.hearts.diamonds.clubs).
 LEADER = "AK872.Q95.J98.Q4"
@@ -118,10 +115,10 @@ def test_dds_batching_crosses_chunk_boundary(monkeypatch):
     # Shrink the DDS batch size so a handful of deals span several chunks; the
     # result must be identical in shape to a single-batch run (guards the
     # MAXNOOFBOARDS chunking path against regressing to the slow fallback).
-    import engine.lead_simulator as ls
-    monkeypatch.setattr(ls, '_DDS_BATCH', 2)
+    import engine.dds_runtime as dds
+    monkeypatch.setattr(dds, '_BOARD_BATCH', 2)
     random.seed(123)
-    result = ls.simulate_opening_lead(
+    result = simulate_opening_lead(
         leader_hand=LEADER, level=3, strain='N', declarer='S',
         num_simulations=5,
     )
@@ -152,7 +149,7 @@ def test_shapes_constraint_actually_filters_shapes():
     # Force South to a 6-card-club shape; verify the generated South hands obey
     # it. We reach into _build_known_and_constraints + generate_deal directly so
     # we can inspect the dealt hands (the public sim only returns leads).
-    from engine.lead_simulator import _build_known_and_constraints
+    from engine.sampling import build_known_and_constraints as _build_known_and_constraints
     from engine.deal_generator import generate_deal
 
     six_clubs = [{'C': (6, 6), 'S': (2, 3), 'H': (2, 3), 'D': (2, 3)}]

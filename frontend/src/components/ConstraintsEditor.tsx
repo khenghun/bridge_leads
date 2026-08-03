@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Quality, Seat, Suit } from '../api/types'
-import { validateShape } from '../api/client'
+import { validateShape } from '../api/lead'
 import {
   ERR_RED, OK_GREEN, QUALITY_HINT, SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL, SUITS,
-  dummySeat, leaderSeat, partnerSeat,
 } from '../lib/bridge'
 
 export interface SeatConstraint {
@@ -125,25 +124,19 @@ function SeatPanel({ seat, tag, value, onChange, setQuality }: {
 }
 
 interface Props {
-  declarer: Seat
+  /** The three hands the current tool cannot see, each with a role label —
+   * declarer/dummy/partner for the lead tool, partner/LHO/RHO for the
+   * contract tool. */
+  seats: Array<[Seat, string]>
   constraints: Record<Seat, SeatConstraint>
   setConstraint: (seat: Seat, v: SeatConstraint) => void
   setQuality: (seat: Seat, suit: Suit, level: Quality | '') => void
 }
 
-/** Constraint panels for the three unseen hands (declarer / dummy / partner). */
+/** Constraint panels for the three unseen hands. */
 export default function ConstraintsEditor({
-  declarer, constraints, setConstraint, setQuality,
+  seats, constraints, setConstraint, setQuality,
 }: Props) {
-  const leader = leaderSeat(declarer)
-  const dummy = dummySeat(declarer)
-  const partner = partnerSeat(leader)
-  const seats: Array<[Seat, string]> = [
-    [declarer, '  (declarer)'],
-    [dummy, '  (dummy)'],
-    [partner, '  (your partner)'],
-  ]
-
   return (
     <section>
       <h2>Constraints on the unseen hands (optional)</h2>

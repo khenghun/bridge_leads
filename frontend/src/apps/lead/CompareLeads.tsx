@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { Mode, Seat, SimulateResponse } from '../api/types'
-import { compareLeads, SYMBOL_COLOR, type CompareOutcome } from '../lib/bridge'
-import DealDiagram from './DealDiagram'
+import type { Mode, Seat } from '../../api/types'
+import type { SimulateResponse } from '../../api/leadTypes'
+import { compareLeads, SYMBOL_COLOR, type CompareOutcome } from '../../lib/bridge'
+import DealDiagram from '../../components/DealDiagram'
 
 interface Props {
   result: SimulateResponse
