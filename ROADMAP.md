@@ -283,6 +283,42 @@ this exposed it end to end, in **both** tools.
   box widened its own column and squeezed the other two seats' inputs into
   unreadable slivers (the shape box already did this).
 
+### Mobile UI pass ✅
+
+Reviewed at 390×844 against the real app. The two real bugs were both flexbox
+axis confusion in the 780px media query, and both only bit once `.layout` went
+`flex-direction: column`:
+
+- `.sidebar` kept `flex: 0 0 300px`, and in a column that basis is the **height**
+  — so every control sat in a 300px inner scroller with a second scrollbar
+  nobody notices (the deal slider and the strain chips were unreachable).
+  `flex: none` fixes it.
+- `.layout`'s `align-items: flex-start` (there to stop the sticky sidebar
+  stretching in *row* mode) becomes the **horizontal** axis in a column, so
+  `.content` shrink-wrapped to its widest child. A wide results table then
+  inflated the whole page sideways instead of scrolling in its own wrapper —
+  dragging the constraint panels and the sticky button off-screen with it.
+  `align-items: stretch` in the media query fixes it, and is what makes
+  `.content { min-width: 0 }` + `.table-scroll` work at all.
+
+Also: `font-size: 16px` on mobile inputs (Safari zooms the page below that, and
+the constraints editor has ~27 of them); a sticky bottom `.btn-primary`, since
+the stacked sidebar otherwise pushed Simulate ~2000px down; 40px minimum tap
+targets; `inputMode="numeric"` on every number field and
+`autoCapitalize`/`autoCorrect` off on every card field; a scrolling tab strip;
+and the column/flag explanations written out as text, since they lived only in
+`title` tooltips that touch devices cannot reach.
+
+### Query logging ✅
+
+`app/common/querylog.py`: one SQLite row per simulation — timestamp, tool,
+request body, nothing else. Off unless `BRIDGE_QUERY_LOG` names a file, so only
+production writes; the prod compose file points it at a bind-mounted
+`/opt/bridge_leads/data/queries.db` (bind, not a named volume, so it survives
+image pulls and can be read with the host's `sqlite3`). Deliberately not
+user-facing, so no changelog entry. Reading it: see the routine-operations table
+in [`deploy/provision.md`](deploy/provision.md).
+
 ### Changelog tab ✅
 
 Shipped in the same release: a third tab, **What's new** — user-facing

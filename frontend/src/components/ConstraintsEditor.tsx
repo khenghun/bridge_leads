@@ -77,12 +77,13 @@ function SeatPanel({ seat, tag, value, onChange, setQuality, cardIssue }: {
       <h3>{SEAT_NAME[seat]}<span className="tag">{tag}</span></h3>
 
       <div className="hcp-row">
+        {/* inputMode gets the digit pad on phones rather than the full keyboard. */}
         <label>HCP min
-          <input type="number" min={0} max={40} value={value.hcp[0]}
+          <input type="number" inputMode="numeric" min={0} max={40} value={value.hcp[0]}
             onChange={(e) => onChange({ ...value, hcp: [Number(e.target.value), value.hcp[1]] })} />
         </label>
         <label>HCP max
-          <input type="number" min={0} max={40} value={value.hcp[1]}
+          <input type="number" inputMode="numeric" min={0} max={40} value={value.hcp[1]}
             onChange={(e) => onChange({ ...value, hcp: [value.hcp[0], Number(e.target.value)] })} />
         </label>
       </div>
@@ -90,11 +91,11 @@ function SeatPanel({ seat, tag, value, onChange, setQuality, cardIssue }: {
       {SUITS.map((s) => (
         <div key={s} className="suit-len-row">
           <span className="suit-symbol" style={{ color: SUIT_COLOR[s] }}>{SUIT_SYMBOL[s]}</span>
-          <input type="number" min={0} max={13} value={value.suits[s][0]}
+          <input type="number" inputMode="numeric" min={0} max={13} value={value.suits[s][0]}
             onChange={(e) => onChange({
               ...value, suits: { ...value.suits, [s]: [Number(e.target.value), value.suits[s][1]] },
             })} />
-          <input type="number" min={0} max={13} value={value.suits[s][1]}
+          <input type="number" inputMode="numeric" min={0} max={13} value={value.suits[s][1]}
             onChange={(e) => onChange({
               ...value, suits: { ...value.suits, [s]: [value.suits[s][0], Number(e.target.value)] },
             })} />
@@ -124,6 +125,7 @@ function SeatPanel({ seat, tag, value, onChange, setQuality, cardIssue }: {
             rows={3}
             value={value.shape}
             placeholder="(2-4s,2-4h,2-5d,2-5c) or (5h,2-3s,2-4d,2-4c)"
+            autoCapitalize="none" autoCorrect="off" spellCheck={false}
             onChange={(e) => onChange({ ...value, shape: e.target.value })}
           />
           {feedback && (
@@ -149,6 +151,7 @@ function SeatPanel({ seat, tag, value, onChange, setQuality, cardIssue }: {
             <div key={s} className="fixed-card-row">
               <span className="suit-symbol" style={{ color: SUIT_COLOR[s] }}>{SUIT_SYMBOL[s]}</span>
               <input value={value.cards[s]} placeholder="e.g. AK" spellCheck={false}
+                autoCapitalize="characters" autoCorrect="off" autoComplete="off"
                 onChange={(e) => onChange({
                   ...value, cards: { ...value.cards, [s]: normHolding(e.target.value) },
                 })} />

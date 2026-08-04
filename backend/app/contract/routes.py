@@ -11,6 +11,7 @@ from engine.shape_parser import ShapeParseError
 
 from . import service
 from .schemas import ContractRequest, ContractResponse
+from ..common import querylog
 
 router = APIRouter(prefix='/api/contract')
 
@@ -18,6 +19,8 @@ router = APIRouter(prefix='/api/contract')
 @router.post('/simulate', response_model=ContractResponse)
 def simulate(req: ContractRequest):
     """Rank the contracts our side could be in, by Monte-Carlo + double-dummy."""
+    # Before the run — see the note in app/lead/routes.py.
+    querylog.QUERY_LOG.record('contract', req.model_dump())
     try:
         return service.run_simulation(req)
     except ShapeParseError as e:

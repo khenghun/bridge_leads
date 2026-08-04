@@ -12,6 +12,7 @@ from engine.shape_parser import ShapeParseError
 
 from . import service
 from ..common import constraints as constraint_helpers
+from ..common import querylog
 from .schemas import (
     AuctionsResponse, SimulateRequest, SimulateResponse,
 )
@@ -55,6 +56,9 @@ def validate_shape(req: ShapeValidateRequest):
 @router.post('/simulate', response_model=SimulateResponse)
 def simulate(req: SimulateRequest):
     """Run an opening-lead Monte-Carlo + DDS simulation and rank the leads."""
+    # Logged before the run, not after, so a query that turns out to be
+    # infeasible (422) still shows up — those are the interesting ones.
+    querylog.QUERY_LOG.record('lead', req.model_dump())
     try:
         return service.run_simulation(req)
     except ShapeParseError as e:

@@ -3,7 +3,7 @@ import type { Constraints, Mode, Quality, Seat, Suit } from '../../api/types'
 import type { ContractResponse } from '../../api/contractTypes'
 import { simulateContracts } from '../../api/contract'
 import {
-  SEATS, SEAT_NAME, SUIT_SYMBOL, SUITS,
+  SEATS, SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL, SUITS,
   applyQuality, fixedCardIssues, holdingError, holdingsToCards, holdingsToPbn,
   partnerSeat,
   type Holdings,
@@ -183,13 +183,21 @@ export default function ContractApp({ mode, setMode }: Props) {
 
         <h2>Strains to consider</h2>
         <div className="chips">
-          {ALL_STRAINS.map((s) => (
-            <button key={s}
-              className={`chip${strains.includes(s) ? ' chip-selected' : ''}`}
-              onClick={() => toggleStrain(s)}>
-              {s === 'N' ? 'NT' : SUIT_SYMBOL[s as Suit]}
-            </button>
-          ))}
+          {ALL_STRAINS.map((s) => {
+            const color = s === 'N' ? undefined : SUIT_COLOR[s as Suit]
+            const on = strains.includes(s)
+            const name = s === 'N' ? 'notrump' : SUIT_SYMBOL[s as Suit]
+            return (
+              <button key={s}
+                className={`chip chip-toggle${on ? ' chip-selected' : ''}`}
+                style={{ color, borderColor: on && color ? color : undefined }}
+                aria-pressed={on}
+                title={`${on ? 'Exclude' : 'Include'} ${name}`}
+                onClick={() => toggleStrain(s)}>
+                {s === 'N' ? 'NT' : SUIT_SYMBOL[s as Suit]}
+              </button>
+            )
+          })}
         </div>
         <p className="caption tiny">
           Dropping strains you would never play speeds the solve up.

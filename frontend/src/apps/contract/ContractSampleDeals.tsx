@@ -70,7 +70,7 @@ export default function ContractSampleDeals({ result, mode, benchmark }: Props) 
         <>
           <label className="inline-field">
             Max deals to show{' '}
-            <input type="number" min={1} max={deals.length} value={limit}
+            <input type="number" inputMode="numeric" min={1} max={deals.length} value={limit}
               onChange={(e) => setLimit(Math.max(1, Number(e.target.value) || 1))} />
           </label>
           <p className="caption">

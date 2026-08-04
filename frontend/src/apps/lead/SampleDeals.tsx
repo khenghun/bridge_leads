@@ -73,7 +73,7 @@ export default function SampleDeals({ result, mode }: Props) {
           <label className="inline-field">
             Max deals to show{' '}
             <input
-              type="number" min={1} max={SAMPLE_CAP} value={limit}
+              type="number" inputMode="numeric" min={1} max={SAMPLE_CAP} value={limit}
               onChange={(e) => setLimit(Math.max(1, Math.min(SAMPLE_CAP, Number(e.target.value) || 1)))}
             />
           </label>

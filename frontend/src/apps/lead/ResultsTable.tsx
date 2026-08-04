@@ -39,6 +39,7 @@ export default function ResultsTable({ result, mode }: Props) {
       <div className="banner banner-success">
         {label}: <b>{cardsStr}</b> · {metricStr} · {defeatStr} ({result.num_simulations} deals)
       </div>
+      <div className="table-scroll">
       <table className="results">
         <thead>
           <tr>
@@ -63,6 +64,15 @@ export default function ResultsTable({ result, mode }: Props) {
           ))}
         </tbody>
       </table>
+      </div>
+      {/* The column meanings are also `title` tooltips, which touch devices
+          cannot reach — so state them in text as well. */}
+      <p className="caption tiny">
+        <b>Decl. tricks</b>: average tricks declarer takes, so lower is better for
+        you. <b>Defeat %</b>: how often this lead beats the contract.{' '}
+        <b>MP%</b> and <b>IMPs</b>: the two scoring modes — the table is ranked by
+        whichever is selected, best first.
+      </p>
     </section>
   )
 }

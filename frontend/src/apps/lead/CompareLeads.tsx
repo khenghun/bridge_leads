@@ -121,7 +121,7 @@ export default function CompareLeads({ result, mode }: Props) {
             <label className="inline-field">
               Max deals to show{' '}
               <input
-                type="number" min={1} max={filtered.length} value={limit}
+                type="number" inputMode="numeric" min={1} max={filtered.length} value={limit}
                 onChange={(e) => setLimit(Math.max(1, Number(e.target.value) || 1))}
               />
             </label>

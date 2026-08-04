@@ -69,6 +69,7 @@ export default function ContractResults({ result, mode, benchmark, setBenchmark 
         </p>
       </div>
 
+      <div className="table-scroll">
       <table className="results">
         <thead>
           <tr>
@@ -123,6 +124,7 @@ export default function ContractResults({ result, mode, benchmark, setBenchmark 
           ))}
         </tbody>
       </table>
+      </div>
 
       {rows.length > TOP_N && (
         <button className="btn btn-small" onClick={() => setShowAll(!showAll)}>
@@ -130,6 +132,15 @@ export default function ContractResults({ result, mode, benchmark, setBenchmark 
         </button>
       )}
 
+      {/* Both flags are explained here as well as in a `title`, which touch
+          devices cannot reach — and "thin edge" is the caveat that most needs
+          saying. */}
+      <p className="caption tiny">
+        <b>⚠ play it from X</b>: that hand averages at least 0.3 more tricks, so
+        the contract is worth playing from its side. <b>⚠ thin edge</b>: most of
+        the gain comes from the luckiest 15% of deals, so the advantage is less
+        solid than the number suggests.
+      </p>
       <p className="caption tiny">
         One row per contract — every partscore level in a strain scores the same
         undoubled, so they are a single decision ("{'♠'} partscore"), and each row

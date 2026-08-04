@@ -28,6 +28,13 @@ services:
     environment:
       # DDS worker-thread cap (0 = all cores). 2-vCPU VPS: let DDS use both.
       BRIDGE_DDS_THREADS: "2"
+      # Query log: one row per simulation (timestamp + tool + request body).
+      # Unset this to turn logging off entirely.
+      BRIDGE_QUERY_LOG: /data/queries.db
+    volumes:
+      # Bind-mounted, not a named volume, so the log survives image pulls and
+      # can be read with the host's sqlite3 without entering the container.
+      - ./data:/data
     expose:
       - "8000"
 

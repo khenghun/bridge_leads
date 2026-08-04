@@ -35,10 +35,11 @@ export const RELEASES: Release[] = [
   {
     version: 'v2.1',
     date: '2026-08-04',
-    title: 'Specific cards',
+    title: 'Specific cards, and a phone-friendly app',
     summary:
       'Constraints could say how many cards and how good a suit was, but never '
-      + 'which cards. Now they can — and this page exists to tell you so.',
+      + 'which cards. Now they can — and the whole app is far easier to use on '
+      + 'a phone.',
     changes: [
       {
         kind: 'new',
@@ -65,6 +66,48 @@ export const RELEASES: Release[] = [
         kind: 'new',
         text: 'This page. Every release that changed something you can see, '
           + 'newest first.',
+      },
+      {
+        kind: 'fixed',
+        text: 'On a phone, the controls panel was stuck at a fixed height with '
+          + 'its own near-invisible scrollbar, which put the deal-count slider — '
+          + 'and the strain choices on the contract tab — effectively out of '
+          + 'reach. It now flows down the page like everything else.',
+      },
+      {
+        kind: 'fixed',
+        text: 'Wide results tables no longer drag the whole page sideways. They '
+          + 'scroll on their own, so the hand entry, constraint panels and '
+          + 'buttons stay where you expect them.',
+      },
+      {
+        kind: 'improved',
+        text: 'On a phone, Simulate now stays pinned to the bottom of the '
+          + 'screen rather than sitting a long scroll below the controls, your '
+          + 'hand and three constraint panels.',
+      },
+      {
+        kind: 'improved',
+        text: 'Tapping a field no longer makes iPhones zoom the page in, number '
+          + 'fields bring up the number pad, and card boxes are no longer '
+          + 'autocorrected — typing KT932 now stays KT932.',
+      },
+      {
+        kind: 'improved',
+        text: 'Buttons, dropdowns and text fields are finger-sized on a phone, '
+          + 'and the tabs no longer push the light-mode switch off the screen.',
+      },
+      {
+        kind: 'fixed',
+        text: 'The strain buttons on the contract tab were nearly invisible in '
+          + 'dark mode. They now carry their suit colour, are larger, and clearly '
+          + 'dim when you switch a strain off.',
+      },
+      {
+        kind: 'improved',
+        text: 'What the table columns mean, and what the two warning flags mean, '
+          + 'are now written out under the tables — they used to live only in '
+          + 'hover tooltips, which a touchscreen can never show.',
       },
       {
         kind: 'fixed',

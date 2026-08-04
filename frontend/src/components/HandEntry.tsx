@@ -45,9 +45,13 @@ export default function HandEntry({ seat, role, holdings, setHoldings }: Props) 
       <div className="hand-entry">
         <label className="field">
           Paste PBN (spades.hearts.diamonds.clubs)
+          {/* Card ranks, not prose: phone keyboards start lowercase and
+              autocorrect will happily rewrite 'KT932'. */}
           <input
             value={pbnEntry}
             placeholder="T.KT932.Q2.T9843"
+            autoCapitalize="characters" autoCorrect="off"
+            autoComplete="off" spellCheck={false}
             onChange={(e) => applyPbn(e.target.value)}
           />
         </label>
@@ -66,6 +70,8 @@ export default function HandEntry({ seat, role, holdings, setHoldings }: Props) 
               <input
                 value={holdings[s]}
                 placeholder="AKQ / T = ten"
+                autoCapitalize="characters" autoCorrect="off"
+                autoComplete="off" spellCheck={false}
                 onChange={(e) => setSuit(s, e.target.value)}
                 onBlur={(e) => setSuit(s, sortHolding(normHolding(e.target.value)))}
               />
