@@ -8,8 +8,9 @@ the source of truth for them; this file follows it and adds the engineering
 detail.
 
 > **Session handoff:** the latest work-in-progress state (what changed, what's
-> uncommitted, and the agreed next steps) is documented in
-> [`latest_updates.md`](latest_updates.md).
+> uncommitted, and the agreed next steps) is kept in `latest_updates.md` — a
+> **local, gitignored** scratch file, so it will not be in a fresh clone.
+> Anything worth keeping belongs in this file instead.
 
 ## v1.0 — Opening Lead Simulator ✅ (released 2026-07-16)
 
@@ -151,7 +152,7 @@ files and a one-time VPS provisioning procedure.
 
 ### Milestone 6 — Engine robustness & performance: exact dealing ✅
 
-Work log / handoff: [`latest_updates.md`](latest_updates.md).
+Work log / handoff: `latest_updates.md`.
 
 - **Infeasible-constraint handling ✅** — HCP constraint sets that can't sum
   to the deck's 40 HCP now return a clear 422 ("No way to meet the HCP
@@ -211,7 +212,7 @@ P(6 cards) and length rejection was the bottleneck.
 ## v2.0 — Optimal Contract Calculator ✅ (2026-08-03)
 
 Detailed design: [`docs/v7-contract-plan.md`](docs/v7-contract-plan.md).
-Work log / handoff: [`latest_updates.md`](latest_updates.md).
+Work log / handoff: `latest_updates.md`.
 
 The mirror image of the lead simulator: enter **your own** hand plus what the
 auction told you about partner's (and the opponents') hands, and rank the
@@ -256,7 +257,7 @@ auction told you about partner's (and the opponents') hands, and rank the
 
 ## v2.1 — Specific cards, and a changelog tab ✅ (2026-08-04)
 
-Work log: [`latest_updates.md`](latest_updates.md).
+Work log: `latest_updates.md`.
 
 Named cards pinned into an unseen hand ("partner holds ♥AK") — the one thing
 the HCP / length / shape / quality vocabulary cannot express. The engine had

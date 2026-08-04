@@ -154,5 +154,5 @@ pointing here). Certs persist in the `caddy_data` volume.
 | Deploy latest `main` | Actions → Build & Deploy → Run workflow |
 | Roll back | Run workflow with `image_tag` = an older commit SHA |
 | Logs | `docker compose -f docker-compose.prod.yml logs -f [backend\|frontend\|caddy]` |
-| Query log | `sqlite3 /opt/bridge_leads/data/queries.db 'SELECT ts, tool FROM queries ORDER BY id DESC LIMIT 20'` — one row per simulation (timestamp, tool, request body). Unset `BRIDGE_QUERY_LOG` in the compose file to turn it off. Bind-mounted, so it survives image pulls; back it up by copying the file. |
+| Query log | From your own machine: `BRIDGE_VPS=deploy@<ip> python scripts/view_queries.py --summary` (copies the DB down and decodes it; `--help` for filters). On the box: `sqlite3 /opt/bridge_leads/data/queries.db 'SELECT ts, tool FROM queries ORDER BY id DESC LIMIT 20'`. One row per simulation (timestamp, tool, request body). Unset `BRIDGE_QUERY_LOG` in the compose file to turn it off. Bind-mounted, so it survives image pulls; back it up by copying the file. |
 | OS updates | `sudo apt-get update && sudo apt-get upgrade` (occasionally; reboot if kernel) |
