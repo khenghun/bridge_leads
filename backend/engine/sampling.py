@@ -112,6 +112,75 @@ def resolve_quality(spec, own_seat):
     return (p, s, level)
 
 
+def resolve_fixed_cards(spec, own_seat, own_cards):
+    """Validate the `{seat: [card, ...]}` block of pinned cards against the one
+    hand we actually hold. Returns `{seat: [card, ...]}` (possibly empty).
+
+    Named cards are the one thing the HCP / length / quality vocabulary cannot
+    say ("East holds ♥AK"), so they are merged straight into `known_hands` and
+    both samplers treat them exactly like the user's own 13 cards. Cross-seat
+    duplicates and card syntax are the HTTP layer's job (`app.common.
+    constraints.build_fixed_cards`); what needs the hand is checked here, so the
+    engine is safe to call directly too."""
+    fixed = {}
+    own = set(own_cards)
+    claimed = {}
+    for p, cards in (spec or {}).items():
+        if p == own_seat:
+            raise ValueError(
+                "Specific cards can only be pinned into an unseen hand, not "
+                "your own — your own 13 cards are already known.")
+        if p not in DG_PLAYERS:
+            raise ValueError(f"unknown seat {p!r} in the fixed-cards constraint")
+        seat_cards = []
+        for card in cards or []:
+            if card in own:
+                raise ValueError(
+                    f"{card} cannot be given to {p}: it is already in your own hand.")
+            if card in claimed:
+                raise ValueError(
+                    f"{card} is given to both {claimed[card]} and {p} — a card "
+                    "can only be in one hand.")
+            if card in seat_cards:
+                continue                # same card listed twice for one seat
+            claimed[card] = p
+            seat_cards.append(card)
+        if len(seat_cards) > 13:
+            raise ValueError(f"{p} is given {len(seat_cards)} cards; a hand holds 13.")
+        if seat_cards:
+            fixed[p] = seat_cards
+    return fixed
+
+
+def check_length_feasibility(known, suit_length):
+    """Raise when a seat's pinned cards cannot fit its suit-length bounds.
+
+    Without this the sampler happily builds a DP (HCP is still satisfiable) and
+    then rejects every single draw in the suit-length step, so the user would
+    get "no deals could be generated" instead of being told which bound the
+    cards broke."""
+    for p, bounds in (suit_length or {}).items():
+        cards = known.get(p, [])
+        if not cards:
+            continue
+        counts = {s: 0 for s in DG_SUITS}
+        for c in cards:
+            counts[c[0]] += 1
+        room = 13 - len(cards)
+        need = 0
+        for s, (lo, hi) in bounds.items():
+            if hi is not None and counts[s] > hi:
+                raise ValueError(
+                    f"{p} is pinned {counts[s]} {s} card(s) but its {s} maximum "
+                    f"is {hi}.")
+            if lo is not None:
+                need += max(0, lo - counts[s])
+        if need > room:
+            raise ValueError(
+                f"{p}'s suit minimums still need {need} more card(s), but its "
+                f"{len(cards)} pinned card(s) leave room for only {room}.")
+
+
 def build_known_and_constraints(own_seat, own_cards, constraints):
     """Translate the public constraint dict (keyed by player letter) into the
     deal_generator's format. Returns
@@ -124,10 +193,12 @@ def build_known_and_constraints(own_seat, own_cards, constraints):
     constraints = constraints or {}
     known = {own_seat: list(own_cards)}
 
-    # fixed_cards merge into known hands
-    for p, cards in (constraints.get('fixed_cards') or {}).items():
-        known.setdefault(p, [])
-        known[p] = list(known[p]) + [c for c in cards if c not in known[p]]
+    # Pinned cards join the known hands, so every downstream consumer (both
+    # samplers, the HCP feasibility check, the quality DP's base counts) sees
+    # them as already dealt without needing to know they came from a constraint.
+    for p, cards in resolve_fixed_cards(
+            constraints.get('fixed_cards'), own_seat, own_cards).items():
+        known[p] = cards
 
     hcp = dict(constraints.get('hcp') or {})
     suit_length = {p: dict(v) for p, v in (constraints.get('suit_length') or {}).items()}

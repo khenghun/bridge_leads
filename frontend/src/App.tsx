@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import type { Mode } from './api/types'
 import LeadApp from './apps/lead/LeadApp'
 import ContractApp from './apps/contract/ContractApp'
+import ChangelogApp from './apps/changelog/ChangelogApp'
 
 const TABS = [
   { id: 'lead', label: '♠ Opening Lead' },
   { id: 'contract', label: '♦ Optimal Contract' },
+  { id: 'changelog', label: 'What’s new' },
 ] as const
 
 type TabId = typeof TABS[number]['id']
@@ -56,6 +58,8 @@ export default function App() {
 
       <div hidden={tab !== 'lead'}><LeadApp mode={mode} setMode={setMode} /></div>
       <div hidden={tab !== 'contract'}><ContractApp mode={mode} setMode={setMode} /></div>
+      {/* Static, so unlike the tools it costs nothing to mount alongside them. */}
+      <div hidden={tab !== 'changelog'}><ChangelogApp /></div>
     </>
   )
 }

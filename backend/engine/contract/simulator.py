@@ -30,8 +30,8 @@ from .. import scoring
 from ..dds_runtime import calc_tables
 from ..deal_generator import PLAYERS as DG_PLAYERS
 from ..sampling import (
-    build_known_and_constraints, check_hcp_feasibility, generate_layouts,
-    hand_to_cards,
+    build_known_and_constraints, check_hcp_feasibility, check_length_feasibility,
+    generate_layouts, hand_to_cards,
 )
 from . import candidates as cand
 
@@ -142,6 +142,7 @@ def simulate_contracts(hand, seat='S', vul='none', constraints=None,
     known, hcp, suit_length, acceptors, quality = build_known_and_constraints(
         seat, our_cards, constraints)
     check_hcp_feasibility(known, hcp)
+    check_length_feasibility(known, suit_length)
 
     # --- Phase 1: generate deals ---
     rng = random.Random(seed) if seed is not None else random

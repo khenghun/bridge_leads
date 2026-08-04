@@ -5,13 +5,13 @@ import type { Constraints } from '../../api/types'
 import { fetchAuctions, simulate } from '../../api/lead'
 import {
   SEATS, SEAT_NAME, SUITS,
-  applyQuality, dummySeat, holdingError, holdingsToPbn, leaderSeat,
-  parseContract, partnerSeat,
+  applyQuality, dummySeat, fixedCardIssues, holdingError, holdingsToCards,
+  holdingsToPbn, leaderSeat, parseContract, partnerSeat,
   type Holdings,
 } from '../../lib/bridge'
 import HandEntry from '../../components/HandEntry'
 import ConstraintsEditor, {
-  defaultSeatConstraint, type SeatConstraint,
+  defaultSeatConstraint, emptyCards, type SeatConstraint,
 } from '../../components/ConstraintsEditor'
 import ResultsTable from './ResultsTable'
 import CompareLeads from './CompareLeads'
@@ -40,7 +40,7 @@ function unseenSeats(declarer: Seat): Array<[Seat, string]> {
 /** Assemble the API constraints dict from the per-seat editor state, for the
  * three seats that are actually constrainable given the declarer. */
 function buildConstraints(declarer: Seat, constraints: Record<Seat, SeatConstraint>): Constraints {
-  const out: Constraints = { hcp: {}, suit_length: {}, shapes: {}, quality: {} }
+  const out: Constraints = { hcp: {}, suit_length: {}, shapes: {}, quality: {}, fixed_cards: {} }
   for (const [seat] of unseenSeats(declarer)) {
     const c = constraints[seat]
     if (c.hcp[0] !== 0 || c.hcp[1] !== 40) out.hcp[seat] = c.hcp
@@ -53,6 +53,8 @@ function buildConstraints(declarer: Seat, constraints: Record<Seat, SeatConstrai
     if (c.shape.trim()) out.shapes[seat] = c.shape
     const q = Object.entries(c.quality).filter(([, level]) => level)
     if (q.length) out.quality[seat] = Object.fromEntries(q)
+    const cards = holdingsToCards(c.cards)
+    if (cards.length) out.fixed_cards[seat] = cards
   }
   return out
 }
@@ -87,7 +89,7 @@ export default function LeadApp({ mode, setMode }: Props) {
       const next = { ...prev }
       if (name === MANUAL) {
         for (const s of SEATS) {
-          next[s] = { ...next[s], hcp: [0, 40], shape: '', quality: {} }
+          next[s] = { ...next[s], hcp: [0, 40], shape: '', quality: {}, cards: emptyCards() }
         }
         return next
       }
@@ -102,6 +104,9 @@ export default function LeadApp({ mode, setMode }: Props) {
           hcp: rng ? [rng[0], rng[1]] : [0, 40],
           shape: a.shapes_text[s] ?? '',
           quality: {},
+          // The auction paints the whole picture; anything hand-pinned before
+          // it was describing a different deal.
+          cards: emptyCards(),
         }
       }
       return next
@@ -119,7 +124,15 @@ export default function LeadApp({ mode, setMode }: Props) {
     () => cardCount === 13 && !SUITS.some((s) => holdingError(holdings[s])),
     [holdings, cardCount],
   )
-  const canSimulate = handValid && parsed !== null
+  // Pinned cards are checked against the leader's hand and each other here so
+  // the user sees the clash while typing, not as a 422 after Simulate.
+  const cardIssues = useMemo(
+    () => fixedCardIssues(
+      unseenSeats(declarer).map(([s]) => s), constraints, holdingsToCards(holdings),
+    ),
+    [declarer, constraints, holdings],
+  )
+  const canSimulate = handValid && parsed !== null && !Object.keys(cardIssues).length
 
   const onSimulate = async () => {
     if (!parsed || !handValid) return
@@ -218,7 +231,7 @@ export default function LeadApp({ mode, setMode }: Props) {
         <HandEntry seat={leader} role="the opening leader"
           holdings={holdings} setHoldings={setHoldings} />
         <ConstraintsEditor seats={unseenSeats(declarer)} constraints={constraints}
-          setConstraint={setConstraint} setQuality={setQuality} />
+          setConstraint={setConstraint} setQuality={setQuality} cardIssues={cardIssues} />
 
         <button className="btn btn-primary" disabled={!canSimulate || loading} onClick={onSimulate}>
           {loading ? `Simulating ${numSims} deals…` : 'Simulate'}

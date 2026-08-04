@@ -26,6 +26,9 @@ export interface Constraints {
   shapes: Record<string, string>
   /** At most one entry in total — the backend rejects more with a 422. */
   quality: Record<string, Record<string, Quality>>
+  /** Cards pinned into an unseen hand, endplay form ('HA', 'DT'). A card may
+   * appear once across the whole table and never in your own hand. */
+  fixed_cards: Record<string, string[]>
 }
 
 export interface ShapeValidation {

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import type { Quality, Seat, Suit } from '../api/types'
 import { validateShape } from '../api/lead'
 import {
-  ERR_RED, OK_GREEN, QUALITY_HINT, SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL, SUITS,
+  ERR_RED, FIXED_CARDS_HINT, OK_GREEN, QUALITY_HINT, SEAT_NAME, SUIT_COLOR,
+  SUIT_SYMBOL, SUITS, normHolding, type Holdings,
 } from '../lib/bridge'
 
 export interface SeatConstraint {
@@ -11,6 +12,12 @@ export interface SeatConstraint {
   shape: string
   /** At most one suit graded, and only for one seat across the whole table. */
   quality: Partial<Record<Suit, Quality>>
+  /** Cards this hand is known to hold, as per-suit rank strings ({H: 'AK'}). */
+  cards: Holdings
+}
+
+export function emptyCards(): Holdings {
+  return { S: '', H: '', D: '', C: '' }
 }
 
 export function defaultSeatConstraint(): SeatConstraint {
@@ -19,6 +26,7 @@ export function defaultSeatConstraint(): SeatConstraint {
     suits: { S: [0, 13], H: [0, 13], D: [0, 13], C: [0, 13] },
     shape: '',
     quality: {},
+    cards: emptyCards(),
   }
 }
 
@@ -27,15 +35,21 @@ interface ShapeFeedback {
   message: string
 }
 
-function SeatPanel({ seat, tag, value, onChange, setQuality }: {
+function SeatPanel({ seat, tag, value, onChange, setQuality, cardIssue }: {
   seat: Seat
   tag: string
   value: SeatConstraint
   onChange: (v: SeatConstraint) => void
   setQuality: (seat: Seat, suit: Suit, level: Quality | '') => void
+  /** Why this seat's pinned cards are unusable, if they are. */
+  cardIssue?: string
 }) {
   const [feedback, setFeedback] = useState<ShapeFeedback | null>(null)
   const [showShape, setShowShape] = useState(false)
+  const cardCount = SUITS.reduce((n, s) => n + value.cards[s].length, 0)
+  // Open on mount when cards are already pinned (a restored/demo state); the
+  // count on the button keeps a collapsed constraint from hiding.
+  const [showCards, setShowCards] = useState(cardCount > 0)
 
   // Debounced live validation of the advanced-shape text (mirrors the old
   // Streamlit popover's ✓/⚠ feedback).
@@ -119,6 +133,32 @@ function SeatPanel({ seat, tag, value, onChange, setQuality }: {
           )}
         </div>
       )}
+
+      <button className="btn btn-small" title={FIXED_CARDS_HINT}
+        onClick={() => setShowCards((v) => !v)}>
+        ➕ Specific cards{cardCount ? ` (${cardCount})` : ''}
+      </button>
+      {showCards && (
+        <div className="shape-box">
+          <p className="caption tiny">
+            Cards you know this hand holds — type ranks per suit, e.g.{' '}
+            <code>AK</code> in ♥ pins <span style={{ color: SUIT_COLOR.H }}>♥A ♥K</span>.
+            The rest of the hand is still simulated around them.
+          </p>
+          {SUITS.map((s) => (
+            <div key={s} className="fixed-card-row">
+              <span className="suit-symbol" style={{ color: SUIT_COLOR[s] }}>{SUIT_SYMBOL[s]}</span>
+              <input value={value.cards[s]} placeholder="e.g. AK" spellCheck={false}
+                onChange={(e) => onChange({
+                  ...value, cards: { ...value.cards, [s]: normHolding(e.target.value) },
+                })} />
+            </div>
+          ))}
+          {cardIssue && (
+            <div style={{ color: ERR_RED, fontSize: '0.8em' }}>⚠ {cardIssue}</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -131,11 +171,14 @@ interface Props {
   constraints: Record<Seat, SeatConstraint>
   setConstraint: (seat: Seat, v: SeatConstraint) => void
   setQuality: (seat: Seat, suit: Suit, level: Quality | '') => void
+  /** Per-seat pinned-card problems, from `fixedCardIssues` — the editor cannot
+   * work them out itself, since the clash may be with the hand it never sees. */
+  cardIssues?: Partial<Record<Seat, string>>
 }
 
 /** Constraint panels for the three unseen hands. */
 export default function ConstraintsEditor({
-  seats, constraints, setConstraint, setQuality,
+  seats, constraints, setConstraint, setQuality, cardIssues,
 }: Props) {
   return (
     <section>
@@ -156,6 +199,7 @@ export default function ConstraintsEditor({
             value={constraints[seat]}
             onChange={(v) => setConstraint(seat, v)}
             setQuality={setQuality}
+            cardIssue={cardIssues?.[seat]}
           />
         ))}
       </div>

@@ -4,7 +4,8 @@ import type { ContractResponse } from '../../api/contractTypes'
 import { simulateContracts } from '../../api/contract'
 import {
   SEATS, SEAT_NAME, SUIT_SYMBOL, SUITS,
-  applyQuality, holdingError, holdingsToPbn, partnerSeat,
+  applyQuality, fixedCardIssues, holdingError, holdingsToCards, holdingsToPbn,
+  partnerSeat,
   type Holdings,
 } from '../../lib/bridge'
 import HandEntry from '../../components/HandEntry'
@@ -43,7 +44,7 @@ function unseenSeats(seat: Seat): Array<[Seat, string]> {
 }
 
 function buildConstraints(seat: Seat, constraints: Record<Seat, SeatConstraint>): Constraints {
-  const out: Constraints = { hcp: {}, suit_length: {}, shapes: {}, quality: {} }
+  const out: Constraints = { hcp: {}, suit_length: {}, shapes: {}, quality: {}, fixed_cards: {} }
   for (const [s] of unseenSeats(seat)) {
     const c = constraints[s]
     if (c.hcp[0] !== 0 || c.hcp[1] !== 40) out.hcp[s] = c.hcp
@@ -56,6 +57,8 @@ function buildConstraints(seat: Seat, constraints: Record<Seat, SeatConstraint>)
     if (c.shape.trim()) out.shapes[s] = c.shape
     const q = Object.entries(c.quality).filter(([, level]) => level)
     if (q.length) out.quality[s] = Object.fromEntries(q)
+    const cards = holdingsToCards(c.cards)
+    if (cards.length) out.fixed_cards[s] = cards
   }
   return out
 }
@@ -102,7 +105,15 @@ export default function ContractApp({ mode, setMode }: Props) {
     () => cardCount === 13 && !SUITS.some((s) => holdingError(holdings[s])),
     [holdings, cardCount],
   )
-  const canSimulate = handValid && strains.length > 0
+  // Pinned cards are checked against our own hand and each other here so the
+  // user sees the clash while typing, not as a 422 after Simulate.
+  const cardIssues = useMemo(
+    () => fixedCardIssues(
+      unseenSeats(seat).map(([s]) => s), constraints, holdingsToCards(holdings),
+    ),
+    [seat, constraints, holdings],
+  )
+  const canSimulate = handValid && strains.length > 0 && !Object.keys(cardIssues).length
 
   const onSimulate = async () => {
     if (!canSimulate) return
@@ -203,7 +214,7 @@ export default function ContractApp({ mode, setMode }: Props) {
 
         <HandEntry seat={seat} role="your hand" holdings={holdings} setHoldings={setHoldings} />
         <ConstraintsEditor seats={unseenSeats(seat)} constraints={constraints}
-          setConstraint={setConstraint} setQuality={setQuality} />
+          setConstraint={setConstraint} setQuality={setQuality} cardIssues={cardIssues} />
 
         <button className="btn btn-primary" disabled={!canSimulate || loading} onClick={onSimulate}>
           {loading ? `Simulating ${numDeals} deals…` : 'Find the best contract'}

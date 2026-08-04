@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { CandidateMatrix } from '../api/types'
+import type { CandidateMatrix, Seat } from '../api/types'
 import type { DealsMatrix } from '../api/leadTypes'
 import {
-  compareCandidates, compareLeads, holdingError, holdingsToPbn, imps, leaderSeat,
-  parseContract, parsePbn, randomHand, rankVsBenchmark, sortHolding,
+  cardLabel, compareCandidates, compareLeads, fixedCardIssues, holdingError,
+  holdingsToCards, holdingsToPbn, imps, leaderSeat, parseContract, parsePbn,
+  randomHand, rankVsBenchmark, sortHolding, type Holdings,
 } from './bridge'
 
 describe('parseContract', () => {
@@ -167,5 +168,58 @@ describe('rankVsBenchmark', () => {
 
   it('returns nothing for an unknown benchmark', () => {
     expect(rankVsBenchmark(matrix, '7C-N')).toEqual({})
+  })
+})
+
+describe('pinned cards', () => {
+  const cards = (h: Partial<Holdings>): Holdings => ({ S: '', H: '', D: '', C: '', ...h })
+  const seats: Seat[] = ['N', 'E', 'W']
+  const state = (bySeat: Partial<Record<Seat, Partial<Holdings>>>) =>
+    Object.fromEntries(
+      (['N', 'E', 'S', 'W'] as Seat[]).map((s) => [s, { cards: cards(bySeat[s] ?? {}) }]),
+    ) as Record<Seat, { cards: Holdings }>
+
+  it('flattens per-suit holdings into endplay cards', () => {
+    expect(holdingsToCards(cards({ H: 'AK', C: 'T' }))).toEqual(['HA', 'HK', 'CT'])
+    expect(holdingsToCards(cards({}))).toEqual([])
+  })
+
+  it('labels a card with its suit symbol', () => {
+    expect(cardLabel('HA')).toBe('♥A')
+    expect(cardLabel('DT')).toBe('♦T')
+  })
+
+  it('accepts a clean set of pinned cards', () => {
+    expect(fixedCardIssues(seats, state({ N: { H: 'AK' }, E: { S: 'Q' } }), ['CA'])).toEqual({})
+  })
+
+  it('flags a card that is already in our own hand', () => {
+    const issues = fixedCardIssues(seats, state({ N: { H: 'AK' } }), ['HK'])
+    expect(issues.N).toContain('♥K is already in your own hand')
+    expect(issues.E).toBeUndefined()
+  })
+
+  it('flags the same card given to two seats', () => {
+    const issues = fixedCardIssues(seats, state({ N: { D: 'A' }, E: { D: 'A' } }), [])
+    // The first seat to claim it keeps it; the clash is reported on the second.
+    expect(issues.N).toBeUndefined()
+    expect(issues.E).toContain('♦A is also given to North')
+  })
+
+  it('flags invalid and duplicate ranks', () => {
+    const issues = fixedCardIssues(seats, state({ N: { H: 'AX' }, E: { S: 'QQ' } }), [])
+    expect(issues.N).toContain('♥ invalid: X')
+    expect(issues.E).toContain('♠ duplicate: Q')
+  })
+
+  it('flags more than thirteen pinned cards', () => {
+    const issues = fixedCardIssues(
+      seats, state({ N: { S: 'AKQJT98765432', H: 'A' } }), [])
+    expect(issues.N).toContain('14 cards pinned')
+  })
+
+  it('ignores seats the current tool cannot constrain', () => {
+    // S is our own seat here, so its entry is never inspected.
+    expect(fixedCardIssues(seats, state({ S: { H: 'AX' } }), [])).toEqual({})
   })
 })

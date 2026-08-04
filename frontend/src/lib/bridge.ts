@@ -145,6 +145,63 @@ export function holdingsToPbn(h: Holdings): string {
   return SUITS.map((s) => h[s]).join('.')
 }
 
+// ---------------------------------------------------------------------------
+// Pinned cards ("East holds ♥AK")
+// ---------------------------------------------------------------------------
+
+/** Flatten per-suit holdings into endplay cards: {H: 'AK'} -> ['HA', 'HK']. */
+export function holdingsToCards(h: Holdings): string[] {
+  return SUITS.flatMap((s) => [...(h[s] || '')].map((r) => s + r))
+}
+
+/** 'HA' -> '♥A', for messages the user reads. */
+export function cardLabel(card: string): string {
+  return (SUIT_SYMBOL[card[0] as Suit] ?? card[0]) + card.slice(1)
+}
+
+export const FIXED_CARDS_HINT =
+  'Cards you know this hand holds — the one thing HCP, length and quality'
+  + ' cannot say. Type ranks per suit, e.g. AK in ♥ pins ♥A and ♥K.'
+
+/** Validate the pinned-card entries across every constrainable seat.
+ *
+ * Returns one message per offending seat (absent = fine). The rules mirror
+ * `app/common/constraints.build_fixed_cards` + `engine.sampling.
+ * resolve_fixed_cards`, checked here so the user sees the problem while typing
+ * instead of as a 422 after pressing Simulate. `ownCards` is the hand the
+ * current tool already knows in full — the leader's, or your own. */
+export function fixedCardIssues(
+  seats: Seat[],
+  constraints: Record<Seat, { cards: Holdings }>,
+  ownCards: string[],
+): Partial<Record<Seat, string>> {
+  const issues: Partial<Record<Seat, string>> = {}
+  const own = new Set(ownCards)
+  const owner: Record<string, Seat> = {}
+
+  for (const seat of seats) {
+    const holdings = constraints[seat]?.cards
+    if (!holdings) continue
+    const problems: string[] = []
+    let count = 0
+    for (const s of SUITS) {
+      const holding = holdings[s] || ''
+      count += holding.length
+      const err = holdingError(holding)
+      if (err) { problems.push(`${SUIT_SYMBOL[s]} ${err}`); continue }
+      for (const r of holding) {
+        const card = s + r
+        if (own.has(card)) problems.push(`${cardLabel(card)} is already in your own hand`)
+        else if (owner[card]) problems.push(`${cardLabel(card)} is also given to ${SEAT_NAME[owner[card]]}`)
+        else owner[card] = seat
+      }
+    }
+    if (count > 13) problems.push(`${count} cards pinned, but a hand holds 13`)
+    if (problems.length) issues[seat] = [...new Set(problems)].join('; ')
+  }
+  return issues
+}
+
 // Standard IMP scale, ported from backend/engine/scoring.py (keep identical).
 const IMP_THRESHOLDS = [
   20, 50, 90, 130, 170, 220, 270, 320, 370, 430, 500, 600, 750, 900,

@@ -1,3 +1,89 @@
+# Latest updates — session handoff (2026-08-04)
+
+## v2.1: `fixed_cards` — pin named cards into an unseen hand ✅ both tools, verified in a browser
+
+The constraint vocabulary could say *how many* and *how good* but never *which*:
+there was no way to express "partner holds ♥AK". `fixed_cards` was already
+plumbed through `engine/sampling.py` (it predates the split) but was not in the
+Pydantic schema, so nothing could reach it. Now it is exposed end to end, in the
+opening-lead simulator **and** the optimal-contract calculator.
+
+### Representation
+
+Wire format is the engine's own, so there is no translation layer:
+
+```
+constraints: { ..., "fixed_cards": {"E": ["HA", "HK"]} }
+```
+
+endplay card form (`SA`, `HK`, `DT`), keyed by player letter like every other
+constraint block. In the UI each seat panel gains a collapsible **➕ Specific
+cards** box holding four per-suit rank inputs — type `AK` in the ♥ row — which
+is how a bridge player says it, and reuses the existing holding helpers
+(`normHolding` / `holdingError`). The button carries a count (`Specific cards
+(2)`) so a collapsed box never hides a live constraint.
+
+### How it composes (the reason this was cheap)
+
+Pinned cards are merged into `known_hands`, so they are *dealt*, not *tested*:
+the HCP bounds count them, `ExactDealSampler`'s quality DP seeds its base
+counts from them, and both samplers treat them exactly like the user's own 13
+cards. So `{fixed_cards: {N: ['HA','HQ']}, quality: {N: {H: 'poor'}}}` is
+reported infeasible rather than silently sampling forever.
+
+### Validation, split by what each layer knows
+
+- `app/common/constraints.build_fixed_cards` — card syntax, no card claimed
+  twice (within a seat or across two).
+- `engine/sampling.resolve_fixed_cards` — what needs the user's hand: not your
+  own seat, not a card you already hold. Lives in the engine so calling it
+  directly stays safe.
+- `engine/sampling.check_length_feasibility` — **new**: pinned cards vs the
+  suit-length bounds. Without it the sampler builds a valid DP and then rejects
+  every draw, and the user gets "no deals could be generated" instead of "N is
+  pinned 3 H cards but its H maximum is 2".
+- `fixedCardIssues` in `lib/bridge.ts` mirrors all of the above client-side and
+  disables Simulate, so the 422 is a backstop rather than the normal path.
+
+### Also fixed (pre-existing, surfaced by the new box)
+
+`.constraint-grid` was `repeat(3, 1fr)`, so an expanded box widened its own
+column and squeezed the other two seats' min/max inputs into unreadable
+slivers (the Advanced shape box already did this). Now
+`repeat(auto-fit, minmax(15rem, 1fr))` + a `min-width` floor on the inputs:
+equal columns, dropping to two then one rather than shrinking past what the
+controls need.
+
+### Tests
+
+- Backend **237 pass** (was 226). New `tests/test_fixed_cards.py` covers all
+  three layers plus the end-to-end invariant that every sampled deal really
+  contains the pinned cards in the named seat, and the composition cases
+  (HCP band, quality grade, cache key).
+- Frontend **30 vitest pass** (was 24); `tsc -b` + build clean.
+- Browser (Playwright): both tabs. Confirmed the request body carries
+  `fixed_cards`, all 300 lead deals / 150 contract deals put ♥AK in the named
+  seat and no other seat holds either card, and that typing a card the leader
+  already holds shows `⚠ ♥K is already in your own hand` and greys Simulate.
+
+## Also in v2.1: a **What's new** tab ✅
+
+A third tab of user-facing release notes, `frontend/src/apps/changelog/`.
+`releases.ts` holds the data (version, date, title, New/Improved/Fixed entries)
+and is now the **source of truth for public version numbers**; `ROADMAP.md`
+follows it. Static content, so it stays mounted beside the two tools for free.
+
+Version numbering was reworked at the same time: everything through 2026-07-16
+is **v1.0** (its six development milestones are kept inside that ROADMAP
+section, since `docs/vN-plan.md` are named after them), then v1.1 (compare
+leads), v1.2 (suit quality), v2.0 (contract calculator), v2.1 (this session).
+
+### State
+
+Uncommitted on `main`. Everything below this line is the previous session.
+
+---
+
 # Latest updates — session handoff (2026-08-03)
 
 ## v7: Optimal Contract Calculator ✅ backend + UI done, verified in a browser

@@ -1,12 +1,23 @@
 # Roadmap
 
-Version history and planned work for the Opening Lead Simulator.
+Version history and planned work.
+
+Releases are numbered **v1.0, v1.1, … v2.1** — the same numbers the app's
+**What's new** tab shows players. `frontend/src/apps/changelog/releases.ts` is
+the source of truth for them; this file follows it and adds the engineering
+detail.
 
 > **Session handoff:** the latest work-in-progress state (what changed, what's
 > uncommitted, and the agreed next steps) is documented in
 > [`latest_updates.md`](latest_updates.md).
 
-## v1 — Opening lead Monte-Carlo simulator ✅
+## v1.0 — Opening Lead Simulator ✅ (released 2026-07-16)
+
+Everything up to 2026-07-16 shipped as the first release. It was built in six
+development milestones, kept below as the engineering record — the plan docs
+under `docs/` are named after them.
+
+### Milestone 1 — Opening lead Monte-Carlo simulator ✅
 
 The initial Streamlit app.
 
@@ -17,7 +28,7 @@ The initial Streamlit app.
 - Hand entry, contract / declarer / vulnerability inputs, and a constraint
   editor in the UI.
 
-## v2 — UI polish, backend tests, and DDS performance fixes ✅
+### Milestone 2 — UI polish, backend tests, and DDS performance fixes ✅
 
 - **UI:** contract as a text box (e.g. `3NT`) + vulnerability checkbox; compact
   4-line hand entry; constraint panels ordered declarer / dummy / partner;
@@ -30,11 +41,11 @@ The initial Streamlit app.
 - **Tests:** 57 backend regression tests across the deal generator, scoring, and
   lead simulator; `pytest.ini` and `requirements-dev.txt` added.
 
-## v3 — Flexible constraints, auction demo, and sample deals 🚧
+### Milestone 3 — Flexible constraints, auction demo, and sample deals ✅
 
 Detailed design: [`docs/v3-plan.md`](docs/v3-plan.md).
 
-### 1. More flexible hand constraints ✅
+#### 1. More flexible hand constraints ✅
 
 Disjunctive shape constraints expressed in text — some set of **(A or B or C)**,
 where each term ANDs per-suit length bounds and terms are joined by `or`; HCP
@@ -44,7 +55,7 @@ deal generator so shapes appear at their natural frequency. New modules
 `acceptors=` hook; `app.py` has a per-seat "Shape (advanced)" box. *Done.*
 See `docs/v3-plan.md` §1.
 
-### 2. Basic auction demo (1NT–3NT) with predefined constraints ✅
+#### 2. Basic auction demo (1NT–3NT) with predefined constraints ✅
 
 A registry of named auctions (`engine/auctions.py`), each mapping to a contract +
 predefined constraint set (built on feature 1's shapes). A "Demo → Sample
@@ -53,7 +64,7 @@ via an `on_change` callback so the user just enters the leader's hand and hits
 Simulate. Presets: **1NT(S)–3NT(N)** and **2NT(S)–3NT(N)** (same shapes, HCP
 20–21 / 4–10). *Done — verified end to end.* See `docs/v3-plan.md` §2.
 
-### 3. Sample dealt hands showcasing the lead engine ✅
+#### 3. Sample dealt hands showcasing the lead engine ✅
 
 After a simulation, a "Sample deals" section shows up to **10 example deals**
 (fewer if there aren't that many) in which the selected lead *defeats* the
@@ -62,7 +73,7 @@ contract — full 4-hand cross diagrams with the contract result. The engine
 `max_samples` (10) per lead. *Done — verified end to end.* (Lead selection is
 interactive — see feature 5.)
 
-### 4. Faster leader-hand entry ✅
+#### 4. Faster leader-hand entry ✅
 
 Two shortcuts for filling the leader's hand, alongside per-suit typing: a
 **🎲 Random hand** button (`randomize_leader_hand`) and a **"…or paste PBN"** box
@@ -70,7 +81,7 @@ that parses `spades.hearts.diamonds.clubs` (e.g. `T.KT932.Q2.T9843`, `10`→`T`)
 into the four boxes via an `on_change` callback, with inline validation.
 *Done — verified.* See `docs/v3-plan.md` §4.
 
-### 5. Sample-deal interactivity ✅
+#### 5. Sample-deal interactivity ✅
 
 The "Sample deals" lead follows the **recommended lead for the active scoring
 mode** (toggling Matchpoints ↔ IMPs re-points the samples), and the dropdown is
@@ -78,7 +89,7 @@ replaced by clickable, suit-labelled **lead chips** (recommended marked ★,
 selected highlighted `primary`). Clicks persist across reruns and stick until the
 next mode flip / run. *Done — verified.* See `docs/v3-plan.md` §5.
 
-## v4 — Architecture migration: FastAPI + React/Vite + Docker 🚧
+### Milestone 4 — Architecture migration: FastAPI + React/Vite + Docker ✅
 
 Detailed design: [`docs/v4-plan.md`](docs/v4-plan.md).
 
@@ -104,7 +115,7 @@ simulation `engine/` **unchanged**:
 - **Cut** — `app.py`, `.streamlit/`, and the `streamlit` dependency removed;
   `engine/` + `tests/` moved under `backend/`.
 
-## v5 — Production deployment: Vultr VPS + Caddy + GHCR CI/CD ✅
+### Milestone 5 — Production deployment: Vultr VPS + Caddy + GHCR CI/CD ✅
 
 Detailed design: [`docs/v5-deploy-plan.md`](docs/v5-deploy-plan.md).
 
@@ -138,7 +149,7 @@ files and a one-time VPS provisioning procedure.
   ok, a real simulation solved over the public API, stack self-restarts after
   reboot (~55 s), and a green `workflow_dispatch` CI deploy.
 
-## v6 — Engine robustness & performance: exact dealing 🚧
+### Milestone 6 — Engine robustness & performance: exact dealing ✅
 
 Work log / handoff: [`latest_updates.md`](latest_updates.md).
 
@@ -168,9 +179,36 @@ Work log / handoff: [`latest_updates.md`](latest_updates.md).
   default deal count is now 300.
 - **Native libdds build ⏳** — compile DDS with `-O3 -march=x86-64-v3` in the
   backend image to replace endplay's generic bundled `.so` (expected 10–25%;
-  DDS is ~95%+ of runtime). Not started.
+  DDS is ~95%+ of runtime). **Attempted 2026-07-29, no measurable gain,
+  dropped.**
 
-## v7 — Optimal Contract Calculator (second tool, second tab) 🚧
+## v1.1 — Compare two opening leads ✅ (2026-07-25)
+
+`/api/simulate` gained a compact per-deal `deals` matrix (cards + layout /
+tricks / scores per record, index-aligned) built from what the engine already
+computed, and the frontend turned it into a **CompareLeads** section: pick two
+leads, see win/draw/lose with the average IMP swing or head-to-head MP%, and
+filter the sample deals by outcome. Pure client-side over the one cached
+response, like the MP/IMP toggle. Cache shrunk 256 -> 64 entries (they now carry
+the matrix) and nginx gzips JSON.
+
+## v1.2 — Suit quality constraint ✅ (2026-08-03)
+
+One table-wide `(seat, suit, level)` constraint on the unseen hands: **good** =
+2 of AKQ or 3 of AKQJT (what a preempt or overcall promises), **poor** =
+anything worse. Exactly one per simulation, modelling the single player who
+described a suit in the auction — that ceiling is what keeps the sampler's DP
+small.
+
+Enforced **inside** the DP rather than by rejection, so quality honours are
+dealt in the same pass that satisfies HCP: the draw stays exactly uniform, the
+two constraints prune each other, and `.total` counts HCP- *and*
+quality-consistent deals, giving exact feasibility instead of a silent empty
+result. It also made things faster — adding "good hearts" to a weak-two auction
+went 2.897s -> 0.332s per 500 deals, because conditioning on a good suit raises
+P(6 cards) and length rejection was the bottleneck.
+
+## v2.0 — Optimal Contract Calculator ✅ (2026-08-03)
 
 Detailed design: [`docs/v7-contract-plan.md`](docs/v7-contract-plan.md).
 Work log / handoff: [`latest_updates.md`](latest_updates.md).
@@ -210,8 +248,47 @@ auction told you about partner's (and the opponents') hands, and rank the
   split into makes/fails. Sidebar: seat, we/they vulnerable, deals (50–500,
   default 150) with a time estimate, and per-strain checkboxes that skip strains
   in the DDS solve.
-- **Not in v1, deliberately** — the opponents never compete or double (their
+- **Not in v2.0, deliberately** — the opponents never compete or double (their
   best contract is reported, not bid), and trick counts stay pure double-dummy
-  with the caveat stated rather than corrected by a fudge factor. Candidates for
-  v8: a "they compete to X" toggle, auto-doubling large sets, and a realistic
-  (single-dummy) opening lead before solving.
+  with the caveat stated rather than corrected by a fudge factor. Candidates
+  for a later release: a "they compete to X" toggle, auto-doubling large sets,
+  and a realistic (single-dummy) opening lead before solving.
+
+## v2.1 — Specific cards, and a changelog tab ✅ (2026-08-04)
+
+Work log: [`latest_updates.md`](latest_updates.md).
+
+Named cards pinned into an unseen hand ("partner holds ♥AK") — the one thing
+the HCP / length / shape / quality vocabulary cannot express. The engine had
+supported `fixed_cards` since before the tool split but nothing could reach it;
+this exposed it end to end, in **both** tools.
+
+- **Composes rather than layers ✅** — pinned cards are merged into
+  `known_hands`, so they are *dealt*, not tested: the HCP bounds count them and
+  `ExactDealSampler`'s quality DP seeds its base counts from them. A
+  contradictory set (`♥AK` + `poor` hearts) is reported infeasible instead of
+  sampling forever.
+- **Validation split by what each layer knows ✅** — card syntax and
+  claimed-twice in `app/common/constraints.build_fixed_cards`; own-seat and
+  own-hand collisions in `engine.sampling.resolve_fixed_cards` (they need the
+  hand, and keeping them in the engine leaves it safe to call directly); a new
+  `check_length_feasibility` catches pinned cards that cannot fit the seat's
+  suit bounds, which would otherwise reject every draw and surface as "no deals
+  could be generated".
+- **UI ✅** — a collapsible *Specific cards* box per seat with four per-suit
+  rank inputs (`AK` in the ♥ row), a count on the button so a collapsed box
+  cannot hide a live constraint, and `fixedCardIssues` mirroring every rule
+  client-side so the matching 422 is a backstop, not the normal path.
+- **Also fixed ✅** — `.constraint-grid` was `repeat(3, 1fr)`, so an expanded
+  box widened its own column and squeezed the other two seats' inputs into
+  unreadable slivers (the shape box already did this).
+
+### Changelog tab ✅
+
+Shipped in the same release: a third tab, **What's new** — user-facing
+release notes, newest first, in `frontend/src/apps/changelog/`. `releases.ts` is the data (version, date,
+title, New/Improved/Fixed entries) and is the source of truth for the **public**
+version numbers this file now follows. It is static content, so it costs nothing
+to keep mounted beside the two tools. Add an entry there whenever a release
+changes something a player would notice — and keep it free of module names and
+test counts, which belong here.

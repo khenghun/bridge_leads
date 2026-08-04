@@ -4,14 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Two Monte-Carlo + double-dummy bridge tools sharing one engine, shown as two tabs of one web app:
+Two Monte-Carlo + double-dummy bridge tools sharing one engine, shown as tabs of one web app (plus a third, static **What's new** tab):
 
 1. **Opening Lead Simulator** (v1–v6). Given the opening leader's hand, the contract, and optional constraints on the three unseen hands, generate consistent deals, double-dummy solve each candidate lead, and rank leads by **matchpoints** or **IMPs**.
 2. **Optimal Contract Calculator** (v7). Given *your own* hand and the same style of constraints on partner's and the opponents' hands, rank the **contracts your side could be in** — where do these two hands belong?
 
 Both sample deals the same way and score with the same tables; they differ only in the DDS call (`solve_all_boards` per lead vs one DD **table** per deal) and in what gets ranked.
 
-Since **v4** it is a client/server app: a **FastAPI** backend (`backend/`) wrapping the simulation engine, and a **React + Vite + TypeScript** frontend (`frontend/`), containerised with `docker-compose`. (v1–v3 were a single Streamlit script; that UI has been removed.)
+It is a client/server app: a **FastAPI** backend (`backend/`) wrapping the simulation engine, and a **React + Vite + TypeScript** frontend (`frontend/`), containerised with `docker-compose`. (It began as a single Streamlit script; that UI has been removed.)
+
+**Versions are `v1.0, v1.1, … v2.1`**, and `frontend/src/apps/changelog/releases.ts` is the source of truth — it is what players see in the *What's new* tab, and `ROADMAP.md` follows it. Everything through 2026-07-16 is v1.0; the six *development milestones* inside that ROADMAP section are a separate, older numbering that the `docs/vN-plan.md` filenames still use, so don't confuse "milestone 4" with "v1.1". **Shipping something a player would notice means adding an entry to `releases.ts`** — keep it plain-language, no module names or test counts.
 
 **No AI / LLM integration.** This is pure simulation. Do not add model calls, embeddings, or agent code.
 
@@ -60,6 +62,7 @@ backend/app/contract/      /api/contract/simulate
 frontend/src/components/   shared UI (HandEntry, ConstraintsEditor, DealDiagram)
 frontend/src/apps/lead/    lead tab
 frontend/src/apps/contract/ contract tab
+frontend/src/apps/changelog/ What's new tab — releases.ts is the version source of truth
 ```
 
 Put anything a second tool could want in the shared layer, not in a tool package — that is how `sampling.py` and `dds_runtime.py` came to exist.
@@ -67,7 +70,7 @@ Put anything a second tool could want in the shared layer, not in a tool package
 The **engine** is framework-agnostic — it has no HTTP/UI imports.
 
 - `backend/engine/dds_runtime.py` — **the only place that touches DDS.** Owns the thread cap, the global re-entrancy lock, and the two batch entry points (`solve_all`, `calc_tables`). See the performance section below; calling DDS from anywhere else is a bug.
-- `backend/engine/sampling.py` — constrained deal generation shared by both tools: `build_known_and_constraints` (public constraint dict → generator format, incl. shape compilation and the single suit-quality tuple), `check_hcp_feasibility`, and `generate_layouts` (exact sampler first, legacy fallback). Parameterised by **own seat** — the one hand the user knows (the leader's hand, or your own).
+- `backend/engine/sampling.py` — constrained deal generation shared by both tools: `build_known_and_constraints` (public constraint dict → generator format, incl. shape compilation, the single suit-quality tuple, and `resolve_fixed_cards`), `check_hcp_feasibility` / `check_length_feasibility`, and `generate_layouts` (exact sampler first, legacy fallback). Parameterised by **own seat** — the one hand the user knows (the leader's hand, or your own). Pinned `fixed_cards` are merged straight into `known_hands`, so every downstream consumer — both samplers, the HCP check, the quality DP's base counts — treats them exactly like the user's own 13 cards rather than as a constraint to test afterwards.
 - `backend/engine/honor_sampler.py` — `ExactDealSampler`: the primary deal source. Samples **exactly uniformly** over deals consistent with known cards + per-seat HCP bounds via an integer-count DP over honor value classes (A/K/Q/J), then enforces suit-length/shape constraints by rejection. Tight HCP bands cost nothing (no HCP rejection at all). `.total` is the exact count of HCP-consistent deals (0 = infeasible). Build once per constraint set (~10–30 ms, ~15–45 ms with a suit-quality constraint), then `sample(rng)` per draw.
 - `backend/engine/suit_quality.py` — the one suit-quality constraint: **good** = 2 of AKQ *or* 3 of AKQJT, **poor** = anything worse (a plain complement, so it matches ~70% of holdings and filters weakly). Exactly one `(seat, suit, level)` per simulation — it models the single player who described a suit in the auction, and that ceiling is what keeps the sampler's DP small. Enforced **inside** the DP, not by rejection: honor classes split by the constrained suit (`[SA]` + `[HA,DA,CA]`), the constrained suit's ten joins as a zero-value class (`HONORS` is A/K/Q/J, so `T` is a spot card everywhere else), and two state dimensions carry the seat's running top-3 / J-T counts. So quality honors are dealt in the same pass that satisfies HCP and the two constraints prune each other — `.total` then counts HCP- **and** quality-consistent deals, giving exact feasibility. The module's `predicate()` is only for the legacy fallback generator.
 - `backend/engine/deal_generator.py` — `generate_deal(known_hands, hcp_constraints, suit_constraints, acceptors=None)` is the legacy rejection sampler (steered placement, *approximately* uniform), kept as the fallback for pathologically tight shape constraints where the exact sampler's rejection step starves. Vendored from `bridge_ai/solver/deal_generator_v2.py`. **Keyed by player letter** `'N'/'E'/'S'/'W'`.
@@ -82,7 +85,7 @@ The **backend HTTP layer** (`backend/app/`) is a thin wrapper — no simulation 
 
 - `app/common/schemas.py` — shared Pydantic vocabulary (seat/strain/vul enums, HCP 0–40, `Constraints`, `DealRecord`); `app/lead/schemas.py` and `app/contract/schemas.py` add each tool's payloads (lead deals 100–1000; contract deals 50–500, because a DD table costs ~5× a lead solve).
 - `app/common/cache.py` — `ResultCache`: in-process LRU+TTL with dogpile protection (`get_or_compute`). Each service owns an instance; every run uses `seed=0`, which is what makes results cacheable.
-- `app/common/constraints.py` — `validate_hand`, `build_constraints` (shape *text* → terms), `validate_shape`.
+- `app/common/constraints.py` — `validate_hand`, `build_constraints` (shape *text* → terms), `build_fixed_cards` (card syntax + no card claimed twice), `validate_shape`. The checks that need the user's own hand live in the engine instead, so calling it directly is still safe.
 - `app/lead/routes.py` — `/api/health`, `/api/auctions`, `/api/validate/shape`, `/api/simulate`.
 - `app/contract/routes.py` — `/api/contract/simulate`.
 - Both simulate handlers are **plain `def`** so Starlette runs the blocking DDS solve in a threadpool.
@@ -90,11 +93,12 @@ The **backend HTTP layer** (`backend/app/`) is a thin wrapper — no simulation 
 
 The **frontend** (`frontend/src/`):
 
-- `App.tsx` — shell only: the tab bar, the light-mode toggle, and the shared MP/IMP mode. Both tabs stay **mounted** (the inactive one is `hidden`) so switching tabs never discards a simulation that took ten seconds. The active tab lives in the URL hash (`#lead` / `#contract`); no router dependency.
+- `App.tsx` — shell only: the tab bar, the light-mode toggle, and the shared MP/IMP mode. All tabs stay **mounted** (inactive ones are `hidden`) so switching never discards a simulation that took ten seconds. The active tab lives in the URL hash (`#lead` / `#contract` / `#changelog`); no router dependency.
 - `api/` — `http.ts` (fetch helpers + FastAPI `detail` unwrapping), `lead.ts` / `contract.ts` (one call per endpoint), `types.ts` (shared vocabulary + the generic `CandidateMatrix`), `leadTypes.ts` / `contractTypes.ts` (per-tool payloads, mirroring the Pydantic schemas by hand).
 - `lib/bridge.ts` — pure helpers shared by both tools: suit colours/symbols, contract/PBN parse, seat maths, `imps()`, `compareCandidates()` (generic over the per-deal matrix; `compareLeads()` is a thin alias) and `rankVsBenchmark()`.
-- `components/` — the UI both tools use: `HandEntry` (takes `seat` + `role`), `ConstraintsEditor` (takes `seats: [Seat, label][]` — it does **not** derive seats itself), `DealDiagram`.
+- `components/` — the UI both tools use: `HandEntry` (takes `seat` + `role`), `ConstraintsEditor` (takes `seats: [Seat, label][]` and `cardIssues` — it does **not** derive seats itself, nor validate pinned cards, since the clash may be with the one hand it never sees), `DealDiagram`.
 - `apps/lead/`, `apps/contract/` — one folder per tool: its own `*App.tsx` (state + sidebar) and its own result views. `apps/contract/ranking.ts` holds the pure ranking logic (best declarer per contract, benchmark options, the thin-edge flag) and is unit-tested.
+- `apps/changelog/` — the *What's new* tab: `releases.ts` (data + the public version numbers) and `ChangelogApp.tsx` (presentation). No API call, no state.
 
 `endplay` scoring recipe (used in `scoring.py`): `Contract(f"{level}{denom}{declarer}")` where denom is `NT/S/H/D/C`; set `.penalty` (`Penalty.doubled` etc.) and `.result = declarer_tricks - (6 + level)` (signed over/undertricks), then `.score(Vul.<x>)` returns the **declarer's** points. The leader is a defender, so leader score = `-declarer_score`.
 
@@ -108,6 +112,7 @@ Source material lives at `C:\kh\bridge_ai\solver\` — reuse the v2 modules (`de
 - **Opening leader is LHO of declarer.** At lead time only the leader's 13 cards are known — **dummy is NOT visible yet**, so the leader's hand is the only fixed hand. Declarer, dummy, and partner are all simulated under the user's constraints.
 - **In the contract calculator only your own hand is fixed**; partner *and* both opponents are simulated under the constraints (the editor shows partner / LHO / RHO). Candidate declarers are you and partner, and the DD table prices both.
 - Engine constraint dict (same for both tools) is **keyed by player letter**, not endplay `Player` objects: `{'hcp': {'S': (min,max)}, 'suit_length': {'S': {'H': (min,max)}}, 'shapes': {'S': [ {suit:(min,max)}, ... ]}, 'quality': {'S': {'H': 'good'}}, 'fixed_cards': {'N': ['SA', ...]}}`. Either HCP/length bound may be `None` for unbounded. Only the three seats the user cannot see are constrainable. The API accepts shapes as **text** (the mini-language) and `app/common/constraints.py` parses them to terms. `quality` accepts **at most one entry in total** across every seat and suit; more raises (→ 422), and the frontend enforces it by clearing the previous pick (`applyQuality` in `lib/bridge.ts`), so users never hit that error.
+- **`fixed_cards` is the escape hatch for what the vocabulary cannot say** ("East holds ♥AK"). Cards are endplay form (`HA`, `DT`) and a card may be claimed once across the whole table and never from the user's own hand — the UI (`fixedCardIssues` in `lib/bridge.ts`) checks that while typing and disables Simulate, so the matching 422 is a backstop, not the normal path. It composes with everything else rather than layering on top: pinned honours count toward the seat's HCP band and are seen by the quality DP, so `{fixed_cards: {N: ['HA','HQ']}, quality: {N: {H: 'poor'}}}` is correctly reported infeasible.
 - **A seat can attract more than one acceptor predicate** (a shape *and* a suit quality). `sampling.build_known_and_constraints` collects them per seat and ANDs them via `_all_of` — don't go back to `acceptors[p] = predicate`, which silently drops one.
 - DDS `solve_board` returns tricks for the side **on lead**; convert to declarer tricks → contract result → score with care about whose perspective you're in. `calc_all_tables` has no such trap — it is indexed `table[Denom, Player]` and already gives *declarer* tricks.
 

@@ -15,6 +15,8 @@ Suit = Annotated[str, Field(pattern=r'^[SHDC]$')]
 Vul = Annotated[str, Field(pattern=r'^(none|both|ns|ew)$')]
 Penalty = Annotated[str, Field(pattern=r'^(none|doubled|redoubled)$')]
 Quality = Annotated[str, Field(pattern=r'^(good|poor)$')]
+# endplay card form: suit letter then rank, 'T' for ten (SA, HK, DT, C2).
+Card = Annotated[str, Field(pattern=r'^[SHDC][AKQJT98765432]$')]
 
 Hcp = conint(ge=0, le=40)
 Length = conint(ge=0, le=13)
@@ -32,11 +34,17 @@ class Constraints(BaseModel):
     or 3 of AKQJT, 'poor' = worse). At most **one** entry across the whole dict
     is accepted — it models the single player who described a suit in the
     auction; the engine raises on more (surfaced as 422).
+
+    `fixed_cards` pins named cards into an unseen hand ('E holds ♥AK'), the one
+    constraint the length/HCP/quality vocabulary cannot express. Cards are in
+    endplay form (`HA`, `DT`); a card may appear only once across the whole
+    table and may not duplicate one of your own.
     """
     hcp: dict[Seat, HcpRange] = Field(default_factory=dict)
     suit_length: dict[Seat, dict[Suit, LengthRange]] = Field(default_factory=dict)
     shapes: dict[Seat, str] = Field(default_factory=dict)
     quality: dict[Seat, dict[Suit, Quality]] = Field(default_factory=dict)
+    fixed_cards: dict[Seat, list[Card]] = Field(default_factory=dict)
 
 
 class DealRecord(BaseModel):
