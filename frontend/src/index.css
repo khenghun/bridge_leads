@@ -98,6 +98,41 @@ textarea { width: 100%; resize: vertical; }
 
 .caption { color: var(--muted); font-size: 0.82rem; margin: 0.3rem 0; }
 .caption.tiny { font-size: 0.75rem; }
+
+/* Conclusion card — the answer, stated before the evidence table. */
+.conclusion {
+  background: var(--success-bg); border: 1px solid var(--success-border);
+  border-radius: 10px; padding: 0.8rem 1rem; margin: 0.7rem 0;
+}
+.conclusion .headline { font-size: 1.25rem; margin: 0 0 0.2rem; }
+.conclusion .headline b { font-size: 1.45rem; }
+.conclusion .margin-line { margin: 0.15rem 0; font-size: 0.9rem; }
+.conclusion .margin-line .btn-small { margin-left: 0.5rem; }
+
+/* Deal filter bar — one criterion over the browsable deals. */
+.filter-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.45rem 0.6rem; margin: 0.5rem 0;
+}
+.filter-bar input[type='number'] { width: 3.2rem; }
+.filter-bar select { max-width: 11rem; }
+.seg.seg-compact { display: inline-flex; }
+.seg.seg-compact button { flex: none; padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+
+/* Run history — this session's previous runs, restorable. */
+.run-history { margin: 0.6rem 0 0.2rem; }
+.run-history .chips { margin: 0.25rem 0; }
+.run-history .chip { font-size: 0.78rem; }
+
+/* Scenario recap — the question echoed back as chips. */
+.recap { margin: 0.5rem 0 0.8rem; }
+.recap-row { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.3rem 0; }
+.recap-chip {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 0.18rem 0.65rem; font-size: 0.78rem; color: var(--text);
+}
+.recap-chip.recap-context { font-weight: 600; }
 .err { color: var(--error); font-size: 0.82rem; margin: 0.2rem 0; }
 .err.inline { margin-left: 0.4rem; }
 

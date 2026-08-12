@@ -1,6 +1,8 @@
 // Pure bridge helpers ported from the old Streamlit app.py.
 
-import type { CandidateMatrix, Quality, Seat, Suit } from '../api/types'
+import type {
+  CandidateMatrix, Constraints, DealRecord, Mode, Quality, Seat, Suit,
+} from '../api/types'
 import type { DealsMatrix } from '../api/leadTypes'
 
 export const SEATS: Seat[] = ['N', 'E', 'S', 'W']
@@ -159,6 +161,17 @@ export function cardLabel(card: string): string {
   return (SUIT_SYMBOL[card[0] as Suit] ?? card[0]) + card.slice(1)
 }
 
+/** Inverse of holdingsToCards: ['HA','HK','DT'] -> {H:'AK', D:'T', ...}. */
+export function cardsToHoldings(cards: string[]): Holdings {
+  const holdings: Holdings = { S: '', H: '', D: '', C: '' }
+  for (const card of cards) {
+    const suit = card[0] as Suit
+    if (holdings[suit] !== undefined) holdings[suit] += card.slice(1)
+  }
+  for (const s of SUITS) holdings[s] = sortHolding(holdings[s])
+  return holdings
+}
+
 export const FIXED_CARDS_HINT =
   'Cards you know this hand holds — the one thing HCP, length and quality'
   + ' cannot say. Type ranks per suit, e.g. AK in ♥ pins ♥A and ♥K.'
@@ -280,6 +293,221 @@ export function compareLeads(
   return compareCandidates(
     { candidates: deals.cards, records: deals.records }, cardA, cardB,
   )
+}
+
+// ---------------------------------------------------------------------------
+// Equivalent-lead grouping
+// ---------------------------------------------------------------------------
+
+export interface LeadGroup {
+  /** Highest member ('♦T') — the key for samples / matrix / metric lookups. */
+  card: string
+  /** Every member, ranks high-to-low, e.g. ['♦T', '♦9']. */
+  cards: string[]
+  /** What the UI shows: '♦T9' (singletons stay '♦T'). */
+  label: string
+}
+
+/** Group candidate leads that are equivalent on the evidence: same suit and
+ * identical declarer tricks on every simulated deal. Double-dummy solving is
+ * deterministic, so equal trick vectors mean no sampled deal distinguishes the
+ * cards — the classic touching-card case (♦T9 from T97x). Every per-deal and
+ * aggregate number is identical across a group's members by construction.
+ * Cross-suit coincidences are deliberately left ungrouped: this is a display
+ * grouping of interchangeable cards, not a claim about the whole deal space. */
+export function groupEquivalentLeads(deals: DealsMatrix): LeadGroup[] {
+  const byKey = new Map<string, string[]>()
+  deals.cards.forEach((card, i) => {
+    const key = card[0] + '|' + deals.records.map((r) => r.tricks[i]).join(',')
+    const members = byKey.get(key)
+    if (members) members.push(card)
+    else byKey.set(key, [card])
+  })
+  return [...byKey.values()].map((members) => {
+    const cards = [...members].sort(
+      (a, b) => (RANK_ORDER[a.slice(1)] ?? 99) - (RANK_ORDER[b.slice(1)] ?? 99))
+    return {
+      card: cards[0],
+      cards,
+      label: cards[0][0] + cards.map((c) => c.slice(1)).join(''),
+    }
+  })
+}
+
+/** Map every member card to its group, for label/representative lookups. */
+export function leadGroupIndex(groups: LeadGroup[]): Map<string, LeadGroup> {
+  const index = new Map<string, LeadGroup>()
+  for (const g of groups) for (const c of g.cards) index.set(c, g)
+  return index
+}
+
+// ---------------------------------------------------------------------------
+// Sampling error on a margin ("too close to call")
+// ---------------------------------------------------------------------------
+
+export interface MarginStats {
+  n: number
+  /** Mean per-deal difference — equals the difference of the two displayed
+   * aggregate metrics by construction. */
+  margin: number
+  /** Standard error of that mean (sd/√n). Double-dummy solving is
+   * deterministic, so deal sampling is the only noise source, and pairing per
+   * deal removes the variance both candidates share. */
+  sem: number
+  /** True when the margin is within sampling noise (|margin| < 2·sem). */
+  tooClose: boolean
+}
+
+/** Paired mean ± standard error over per-deal metric differences. */
+export function pairedMarginStats(diffs: number[]): MarginStats {
+  const n = diffs.length
+  if (n === 0) return { n, margin: 0, sem: 0, tooClose: false }
+  const margin = diffs.reduce((s, d) => s + d, 0) / n
+  const variance = n > 1
+    ? diffs.reduce((s, d) => s + (d - margin) ** 2, 0) / (n - 1)
+    : 0
+  const sem = Math.sqrt(variance / n)
+  return { n, margin, sem, tooClose: n > 1 && Math.abs(margin) < 2 * sem }
+}
+
+/** Per-deal metric-contribution differences between two candidate leads, in
+ * the active mode's units. Replicates the per-deal terms of the backend's
+ * `scoring.aggregate` (MP: head-to-head % against the other candidates;
+ * IMPs: vs the per-deal datum), so the mean of these diffs is exactly the
+ * difference of the two table columns. */
+export function leadMetricDiffs(
+  deals: DealsMatrix, cardA: string, cardB: string, mode: Mode,
+): number[] {
+  const ia = deals.cards.indexOf(cardA)
+  const ib = deals.cards.indexOf(cardB)
+  const k = deals.cards.length
+  if (ia < 0 || ib < 0 || k < 2) return []
+  if (mode === 'matchpoints') {
+    const mp = (r: DealRecord, i: number) => {
+      let won = 0
+      for (let j = 0; j < k; j++) {
+        if (j === i) continue
+        if (r.scores[i] > r.scores[j]) won += 1
+        else if (r.scores[i] === r.scores[j]) won += 0.5
+      }
+      return (100 * won) / (k - 1)
+    }
+    return deals.records.map((r) => mp(r, ia) - mp(r, ib))
+  }
+  return deals.records.map((r) => {
+    const datum = r.scores.reduce((s, v) => s + v, 0) / k
+    return imps(r.scores[ia] - datum) - imps(r.scores[ib] - datum)
+  })
+}
+
+/** Per-deal metric-contribution differences between two contract candidates,
+ * both measured against the benchmark (the zero point of the displayed
+ * ranking). Passing the benchmark itself as `keyB` compares A against
+ * standing pat. Mirrors the per-deal terms of `rankVsBenchmark`. */
+export function benchmarkMetricDiffs(
+  deals: CandidateMatrix, keyA: string, keyB: string, benchmarkKey: string, mode: Mode,
+): number[] {
+  const ia = deals.candidates.indexOf(keyA)
+  const ib = deals.candidates.indexOf(keyB)
+  const ibench = deals.candidates.indexOf(benchmarkKey)
+  if (ia < 0 || ib < 0 || ibench < 0) return []
+  const contrib = (r: DealRecord, i: number) => {
+    if (mode === 'matchpoints') {
+      const a = r.scores[i]
+      const b = r.scores[ibench]
+      return a > b ? 100 : a === b ? 50 : 0
+    }
+    return imps(r.scores[i] - r.scores[ibench])
+  }
+  return deals.records.map((r) => contrib(r, ia) - contrib(r, ib))
+}
+
+// ---------------------------------------------------------------------------
+// Deal filter (browse-only) — filter browsable deals by a hand feature
+// ---------------------------------------------------------------------------
+
+const HCP_POINTS: Record<string, number> = { A: 4, K: 3, Q: 2, J: 1 }
+
+/** High-card points of a PBN hand string ('AK8.Q95.J982.Q43'). */
+export function handHcp(pbn: string): number {
+  return [...pbn].reduce((sum, ch) => sum + (HCP_POINTS[ch] ?? 0), 0)
+}
+
+/** Length of one suit in a PBN hand string. */
+export function handSuitLength(pbn: string, suit: Suit): number {
+  return pbn.split('.')[SUITS.indexOf(suit)]?.length ?? 0
+}
+
+/** One browse-filter criterion: a seat, an HCP window, and optionally one
+ * suit-length window; `exclude` inverts the match. Filtering only narrows
+ * which deals are *browsed* — rankings and aggregates always stay full-run. */
+export interface DealCriterion {
+  seat: string
+  exclude: boolean
+  hcp: [number, number]
+  /** '' = no suit-length test. */
+  suit: Suit | ''
+  len: [number, number]
+}
+
+export function defaultCriterion(seat: string): DealCriterion {
+  return { seat, exclude: false, hcp: [0, 40], suit: '', len: [0, 13] }
+}
+
+/** A criterion at its defaults filters nothing — treat it as off. */
+export function criterionActive(c: DealCriterion): boolean {
+  return c.hcp[0] > 0 || c.hcp[1] < 40
+    || (c.suit !== '' && (c.len[0] > 0 || c.len[1] < 13))
+}
+
+/** Does this deal's layout satisfy the criterion? */
+export function dealMatches(layout: Record<string, string>, c: DealCriterion): boolean {
+  const hand = layout[c.seat]
+  if (!hand) return true // defensive: an unknown seat filters nothing
+  const hcp = handHcp(hand)
+  let match = hcp >= c.hcp[0] && hcp <= c.hcp[1]
+  if (match && c.suit !== '') {
+    const len = handSuitLength(hand, c.suit)
+    match = len >= c.len[0] && len <= c.len[1]
+  }
+  return c.exclude ? !match : match
+}
+
+/** Short readable form of an active criterion, for the "showing N of M" line. */
+export function describeCriterion(c: DealCriterion): string {
+  const parts: string[] = []
+  if (c.hcp[0] > 0 || c.hcp[1] < 40) parts.push(`${c.hcp[0]}–${c.hcp[1]} HCP`)
+  if (c.suit !== '' && (c.len[0] > 0 || c.len[1] < 13)) {
+    parts.push(`${c.len[0]}–${c.len[1]} ${SUIT_SYMBOL[c.suit]}`)
+  }
+  return `${c.exclude ? 'not ' : ''}${parts.join(', ')}`
+}
+
+// ---------------------------------------------------------------------------
+// Scenario recap — the constraints echoed back as readable lines
+// ---------------------------------------------------------------------------
+
+/** Human-readable one-liners for one seat of a constraints dict, e.g.
+ * ['10–14 HCP', '♠ 4+', 'shape: (5-5)', 'good ♥', 'holds ♥A ♥K'].
+ * Empty array = nothing constrained ("any hand"). */
+export function describeSeatConstraints(c: Constraints, seat: string): string[] {
+  const lines: string[] = []
+  const hcp = c.hcp?.[seat]
+  if (hcp) lines.push(`${hcp[0]}–${hcp[1]} HCP`)
+  for (const s of SUITS) {
+    const range = c.suit_length?.[seat]?.[s]
+    if (!range) continue
+    const [lo, hi] = range
+    const text = hi >= 13 ? `${lo}+` : lo <= 0 ? `≤${hi}` : lo === hi ? `${lo}` : `${lo}–${hi}`
+    lines.push(`${SUIT_SYMBOL[s]} ${text}`)
+  }
+  if (c.shapes?.[seat]) lines.push(`shape: ${c.shapes[seat]}`)
+  for (const [s, level] of Object.entries(c.quality?.[seat] ?? {})) {
+    lines.push(`${level} ${SUIT_SYMBOL[s as Suit]}`)
+  }
+  const cards = c.fixed_cards?.[seat]
+  if (cards?.length) lines.push(`holds ${cards.map(cardLabel).join(' ')}`)
+  return lines
 }
 
 // ---------------------------------------------------------------------------

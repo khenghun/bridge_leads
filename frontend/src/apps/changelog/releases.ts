@@ -33,6 +33,70 @@ export const KIND_LABEL: Record<ChangeKind, string> = {
 
 export const RELEASES: Release[] = [
   {
+    version: 'v2.2',
+    date: '2026-08-12',
+    title: 'Results worth sharing',
+    summary:
+      'A result you can hand to your partner, the answer stated up front with '
+      + 'an honest margin of error, and new ways to dig through the deals '
+      + 'behind it.',
+    changes: [
+      {
+        kind: 'new',
+        text: '🔗 Copy link, on every result. The link carries your whole '
+          + 'setup, and opening it re-runs the identical simulation — same '
+          + 'deals, same numbers — so a bidding argument can be settled by '
+          + 'sending one URL. No account needed, nothing stored.',
+      },
+      {
+        kind: 'new',
+        text: 'Results now open with the answer: the recommended lead or '
+          + 'contract, and its margin over the next-best choice with a ± for '
+          + 'how much sampling luck could move that margin.',
+      },
+      {
+        kind: 'new',
+        text: 'When the top two choices sit closer than the sampling noise, '
+          + 'the verdict says "too close to call" instead of printing a '
+          + 'confident-looking decimal — with a one-click re-run at the '
+          + 'maximum deal count to try to separate them.',
+      },
+      {
+        kind: 'new',
+        text: 'The question is echoed back beside the answer — contract, '
+          + 'hand, and every constraint you set — so a shared or revisited '
+          + 'result explains itself.',
+      },
+      {
+        kind: 'new',
+        text: 'Filter the example deals by what a hidden hand held — "only '
+          + 'deals where partner had 4+ spades", or exclude them — in both '
+          + 'tools. Browsing only: the rankings always stay computed on the '
+          + 'full run, and the caption says how many deals matched.',
+      },
+      {
+        kind: 'new',
+        text: 'Your earlier runs this session stay one click away, so '
+          + 'tightening a constraint and re-running no longer throws the old '
+          + 'answer away — flip back and forth to compare. And after a '
+          + 'break, one click restores the last setup you ran on this '
+          + 'device.',
+      },
+      {
+        kind: 'improved',
+        text: 'Leads that are genuinely the same card now share one row: '
+          + 'from T97x, the ten and the nine always take the same tricks, so '
+          + 'the table says ♦T9 once instead of listing both.',
+      },
+      {
+        kind: 'improved',
+        text: 'The example deals for a lead used to be a fixed sample of up '
+          + 'to 100; you can now browse every simulated deal the lead '
+          + 'defeats.',
+      },
+    ],
+  },
+  {
     version: 'v2.1',
     date: '2026-08-04',
     title: 'Specific cards, and a phone-friendly app',

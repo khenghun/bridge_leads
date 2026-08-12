@@ -1,21 +1,36 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Mode, Quality, Seat, Suit } from '../../api/types'
-import type { Auction, SimulateResponse } from '../../api/leadTypes'
+import type { Auction, SimulateRequest, SimulateResponse } from '../../api/leadTypes'
 import type { Constraints } from '../../api/types'
 import { fetchAuctions, simulate } from '../../api/lead'
 import {
   SEATS, SEAT_NAME, SUITS,
-  applyQuality, dummySeat, fixedCardIssues, holdingError, holdingsToCards,
-  holdingsToPbn, leaderSeat, parseContract, partnerSeat,
+  applyQuality, describeSeatConstraints, dummySeat, fixedCardIssues,
+  holdingError, holdingsToCards, holdingsToPbn, leaderSeat, parseContract,
+  partnerSeat, strainLabel,
   type Holdings,
 } from '../../lib/bridge'
 import HandEntry from '../../components/HandEntry'
 import ConstraintsEditor, {
-  defaultSeatConstraint, emptyCards, type SeatConstraint,
+  defaultSeatConstraint, emptyCards, seatStateFromConstraints, type SeatConstraint,
 } from '../../components/ConstraintsEditor'
+import ScenarioRecap from '../../components/ScenarioRecap'
+import RunHistory from '../../components/RunHistory'
+import {
+  buildShareUrl, loadLastSetup, saveLastSetup, type SharePayload,
+} from '../../lib/share'
+import { parsePbn } from '../../lib/bridge'
 import ResultsTable from './ResultsTable'
 import CompareLeads from './CompareLeads'
 import SampleDeals from './SampleDeals'
+
+const HISTORY_CAP = 10
+
+interface RunEntry {
+  request: SimulateRequest
+  result: SimulateResponse
+  at: number
+}
 
 const MANUAL = '(manual entry)'
 
@@ -62,9 +77,11 @@ function buildConstraints(declarer: Seat, constraints: Record<Seat, SeatConstrai
 interface Props {
   mode: Mode
   setMode: (m: Mode) => void
+  /** A share-link payload for this tool, decoded by the shell at startup. */
+  shared?: Extract<SharePayload, { tool: 'lead' }> | null
 }
 
-export default function LeadApp({ mode, setMode }: Props) {
+export default function LeadApp({ mode, setMode, shared }: Props) {
   const [auctions, setAuctions] = useState<Auction[]>([])
   const [demoName, setDemoName] = useState(MANUAL)
   const [contractStr, setContractStr] = useState('3NT')
@@ -75,10 +92,44 @@ export default function LeadApp({ mode, setMode }: Props) {
   const [holdings, setHoldings] = useState<Holdings>(emptyHoldings)
   const [constraints, setConstraints] = useState<Record<Seat, SeatConstraint>>(defaultConstraints)
   const [result, setResult] = useState<SimulateResponse | null>(null)
+  // The request that produced `result`, frozen at simulate time — the form may
+  // have drifted since. Feeds the recap, the re-run button, and share links.
+  const [lastRequest, setLastRequest] = useState<SimulateRequest | null>(null)
+  // This session's completed runs, newest first — so tweaking a constraint and
+  // re-running keeps the old answer a click away. In-memory by design.
+  const [history, setHistory] = useState<RunEntry[]>([])
+  // The last setup simulated on this device, offered once as a restore —
+  // never auto-applied, and not offered when a share link brings its own.
+  const [storedSetup, setStoredSetup] = useState(() => (shared ? null : loadLastSetup('lead')))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { fetchAuctions().then(setAuctions).catch(() => {}) }, [])
+
+  /** Restore the whole form from a request (a share link opening, and later a
+   * stored setup). The simulation itself runs from the request verbatim — the
+   * form is populated only so the recipient can see and edit what was asked. */
+  const applyRequest = (req: SimulateRequest) => {
+    const { holdings: h } = parsePbn(req.leader_hand)
+    if (h) setHoldings(h)
+    setContractStr(`${req.level}${req.strain === 'N' ? 'NT' : req.strain}`)
+    setDeclarer(req.declarer as Seat)
+    setPenalty(req.penalty)
+    setVul(req.vul === 'both')
+    setNumSims(req.num_simulations)
+    setDemoName(MANUAL)
+    setConstraints(seatStateFromConstraints(req.constraints))
+  }
+
+  // A shared link lands on the result, not on a form: populate and auto-run.
+  // Determinism (seed=0) + the result cache make the recomputed result
+  // identical to the sharer's, and repeat opens cheap.
+  useEffect(() => {
+    if (!shared) return
+    applyRequest(shared.request)
+    runRequest(shared.request)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shared])
 
   const parsed = parseContract(contractStr)
   const leader = leaderSeat(declarer)
@@ -134,29 +185,90 @@ export default function LeadApp({ mode, setMode }: Props) {
   )
   const canSimulate = handValid && parsed !== null && !Object.keys(cardIssues).length
 
-  const onSimulate = async () => {
-    if (!parsed || !handValid) return
+  const runRequest = async (req: SimulateRequest) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await simulate({
-        leader_hand: holdingsToPbn(holdings),
-        level: parsed.level,
-        strain: parsed.strain,
-        declarer,
-        vul: vul ? 'both' : 'none',
-        penalty,
-        num_simulations: numSims,
-        constraints: buildConstraints(declarer, constraints),
-      })
+      const res = await simulate(req)
       setResult(res)
+      setLastRequest(req)
+      // A repeat of an identical request replaces its old entry (a cache hit
+      // is still one press of Simulate, not two runs worth remembering).
+      const reqKey = JSON.stringify(req)
+      setHistory((prev) => [
+        { request: req, result: res, at: Date.now() },
+        ...prev.filter((h) => JSON.stringify(h.request) !== reqKey),
+      ].slice(0, HISTORY_CAP))
+      saveLastSetup({ v: 1, tool: 'lead', request: req })
     } catch (e) {
       setError((e as Error).message)
       setResult(null)
+      setLastRequest(null)
     } finally {
       setLoading(false)
     }
   }
+
+  const onSimulate = () => {
+    if (!parsed || !handValid) return
+    runRequest({
+      leader_hand: holdingsToPbn(holdings),
+      level: parsed.level,
+      strain: parsed.strain,
+      declarer,
+      vul: vul ? 'both' : 'none',
+      penalty,
+      num_simulations: numSims,
+      constraints: buildConstraints(declarer, constraints),
+    })
+  }
+
+  // "Too close to call" escape hatch: the identical frozen request, more deals.
+  const onRerun = (deals: number) => {
+    if (!lastRequest) return
+    setNumSims(deals)
+    runRequest({ ...lastRequest, num_simulations: deals })
+  }
+
+  const shareUrl = () => buildShareUrl({
+    v: 1, tool: 'lead', request: lastRequest!, view: { mode },
+  })
+
+  // Flip the shown result back to a previous run: result, frozen request and
+  // form all restore together, so recap/share/re-run stay consistent.
+  const selectRun = (i: number) => {
+    const entry = history[i]
+    if (!entry) return
+    setResult(entry.result)
+    setLastRequest(entry.request)
+    applyRequest(entry.request)
+  }
+  const activeRun = history.findIndex((h) => h.result === result)
+
+  const runLabel = (h: RunEntry) => {
+    const req = h.request
+    const strain = req.strain === 'N' ? 'NT' : req.strain
+    const best = h.result.best_imp ?? h.result.best_mp
+    return `${req.level}${strain} by ${req.declarer} · ${req.num_simulations} deals`
+      + (best ? ` · best ${best}` : '')
+  }
+
+  const recap = lastRequest && (
+    <ScenarioRecap
+      context={[
+        `${lastRequest.level}${strainLabel(lastRequest.strain)} by ${SEAT_NAME[lastRequest.declarer as Seat]}`
+          + (lastRequest.penalty !== 'none' ? ` ${lastRequest.penalty}` : ''),
+        lastRequest.vul === 'none' ? 'none vul' : 'both vul',
+        `leader ${SEAT_NAME[leaderSeat(lastRequest.declarer as Seat)]}: ${lastRequest.leader_hand}`,
+        `${lastRequest.num_simulations} deals`,
+      ]}
+      seats={unseenSeats(lastRequest.declarer as Seat).map(([s, label]) => ({
+        seat: s,
+        role: label.trim().replace(/[()]/g, ''),
+        lines: describeSeatConstraints(lastRequest.constraints, s),
+      }))}
+    />
+  )
 
   return (
     <div className="layout">
@@ -237,7 +349,22 @@ export default function LeadApp({ mode, setMode }: Props) {
           {loading ? `Simulating ${numSims} deals…` : 'Simulate'}
         </button>
 
+        {storedSetup && !result && !loading && (
+          <p className="caption">
+            Last time on this device: {storedSetup.request.level}
+            {storedSetup.request.strain === 'N' ? 'NT' : storedSetup.request.strain} by{' '}
+            {storedSetup.request.declarer}, {storedSetup.request.num_simulations} deals.{' '}
+            <button className="btn btn-small"
+              onClick={() => { applyRequest(storedSetup.request); setStoredSetup(null) }}>
+              ↩ Restore last setup
+            </button>
+          </p>
+        )}
+
         {error && <div className="banner banner-error">{error}</div>}
+
+        <RunHistory items={history.map((h) => ({ at: h.at, label: runLabel(h) }))}
+          activeIndex={activeRun} onSelect={selectRun} />
 
         {result && result.num_simulations === 0 && (
           <div className="banner banner-error">
@@ -246,7 +373,8 @@ export default function LeadApp({ mode, setMode }: Props) {
         )}
         {result && result.num_simulations > 0 && (
           <>
-            <ResultsTable result={result} mode={mode} />
+            <ResultsTable result={result} mode={mode} onRerun={onRerun} recap={recap}
+              shareUrl={lastRequest ? shareUrl : undefined} />
             <CompareLeads result={result} mode={mode} />
             <SampleDeals result={result} mode={mode} />
           </>

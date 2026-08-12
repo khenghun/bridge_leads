@@ -3,7 +3,7 @@ import type { Quality, Seat, Suit } from '../api/types'
 import { validateShape } from '../api/lead'
 import {
   ERR_RED, FIXED_CARDS_HINT, OK_GREEN, QUALITY_HINT, SEAT_NAME, SUIT_COLOR,
-  SUIT_SYMBOL, SUITS, normHolding, type Holdings,
+  SUIT_SYMBOL, SUITS, cardsToHoldings, normHolding, type Holdings,
 } from '../lib/bridge'
 
 export interface SeatConstraint {
@@ -28,6 +28,32 @@ export function defaultSeatConstraint(): SeatConstraint {
     quality: {},
     cards: emptyCards(),
   }
+}
+
+/** Rebuild the per-seat editor state from an API constraints dict — the
+ * inverse of the buildConstraints functions in the two apps. Used when a
+ * share link (or a stored setup) restores a request into the form. */
+export function seatStateFromConstraints(
+  c: import('../api/types').Constraints,
+): Record<Seat, SeatConstraint> {
+  const out = {} as Record<Seat, SeatConstraint>
+  for (const seat of ['N', 'E', 'S', 'W'] as Seat[]) {
+    const sc = defaultSeatConstraint()
+    const hcp = c.hcp?.[seat]
+    if (hcp) sc.hcp = [hcp[0], hcp[1]]
+    for (const suit of SUITS) {
+      const range = c.suit_length?.[seat]?.[suit]
+      if (range) sc.suits[suit] = [range[0], range[1]]
+    }
+    if (c.shapes?.[seat]) sc.shape = c.shapes[seat]
+    for (const [suit, level] of Object.entries(c.quality?.[seat] ?? {})) {
+      sc.quality[suit as Suit] = level
+    }
+    const cards = c.fixed_cards?.[seat]
+    if (cards?.length) sc.cards = cardsToHoldings(cards)
+    out[seat] = sc
+  }
+  return out
 }
 
 interface ShapeFeedback {

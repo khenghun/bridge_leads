@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest'
 import type { CandidateMatrix, Seat } from '../api/types'
 import type { DealsMatrix } from '../api/leadTypes'
 import {
-  cardLabel, compareCandidates, compareLeads, fixedCardIssues, holdingError,
-  holdingsToCards, holdingsToPbn, imps, leaderSeat, parseContract, parsePbn,
-  randomHand, rankVsBenchmark, sortHolding, type Holdings,
+  benchmarkMetricDiffs, cardLabel, compareCandidates, compareLeads,
+  criterionActive, dealMatches, defaultCriterion, describeCriterion,
+  describeSeatConstraints, fixedCardIssues, groupEquivalentLeads, handHcp,
+  handSuitLength, holdingError, holdingsToCards, holdingsToPbn, imps,
+  leadGroupIndex, leadMetricDiffs, leaderSeat, pairedMarginStats,
+  parseContract, parsePbn, randomHand, rankVsBenchmark, sortHolding,
+  type Holdings,
 } from './bridge'
+import type { Constraints } from '../api/types'
 
 describe('parseContract', () => {
   it('parses NT and suit contracts', () => {
@@ -129,6 +134,164 @@ describe('compareLeads', () => {
       { candidates: matrix.cards, records: matrix.records }, '♥Q', '♠4',
     )
     expect(generic).toEqual(compareLeads(matrix, '♥Q', '♠4'))
+  })
+})
+
+describe('groupEquivalentLeads', () => {
+  // ♦T and ♦9 identical on every deal (touching); ♦2 differs on deal 3; the ♠5
+  // vector matches ♦T exactly but is another suit; ♥K is a singleton column.
+  const matrix: DealsMatrix = {
+    cards: ['♦9', '♦T', '♦2', '♠5', '♥K'],
+    records: [
+      { layout: {}, tricks: [9, 9, 9, 9, 8], scores: [0, 0, 0, 0, 0] },
+      { layout: {}, tricks: [8, 8, 8, 8, 8], scores: [0, 0, 0, 0, 0] },
+      { layout: {}, tricks: [9, 9, 10, 9, 9], scores: [0, 0, 0, 0, 0] },
+    ],
+  }
+  const groups = groupEquivalentLeads(matrix)
+  const byLabel = Object.fromEntries(groups.map((g) => [g.label, g]))
+
+  it('groups same-suit cards with identical trick vectors, highest first', () => {
+    expect(byLabel['♦T9']).toMatchObject({ card: '♦T', cards: ['♦T', '♦9'] })
+  })
+  it('does not group a near-miss vector or a cross-suit coincidence', () => {
+    expect(groups).toHaveLength(4)
+    expect(byLabel['♦2']).toBeTruthy()
+    expect(byLabel['♠5']).toBeTruthy()
+    expect(byLabel['♥K']).toBeTruthy()
+  })
+  it('covers every card exactly once', () => {
+    const all = groups.flatMap((g) => g.cards).sort()
+    expect(all).toEqual([...matrix.cards].sort())
+  })
+  it('indexes every member card to its group', () => {
+    const index = leadGroupIndex(groups)
+    expect(index.get('♦9')?.card).toBe('♦T')
+    expect(index.get('♦T')?.label).toBe('♦T9')
+    expect(index.get('♥K')?.label).toBe('♥K')
+  })
+})
+
+describe('pairedMarginStats', () => {
+  it('computes mean and standard error of paired differences', () => {
+    const s = pairedMarginStats([2, 0, 4, 2])
+    expect(s.margin).toBeCloseTo(2)
+    // sd = sqrt(((0)^2 + (-2)^2 + (2)^2 + 0^2)/3) = sqrt(8/3); sem = sd/2
+    expect(s.sem).toBeCloseTo(Math.sqrt(8 / 3) / 2)
+    expect(s.tooClose).toBe(false) // 2 > 2*0.816
+  })
+  it('flags a margin within 2 SEM as too close', () => {
+    const s = pairedMarginStats([1, -1, 1, -1, 1, -1, 1, 1])
+    expect(s.margin).toBeCloseTo(0.25)
+    expect(s.tooClose).toBe(true)
+  })
+  it('never calls identical-on-every-deal too close (sem 0)', () => {
+    const s = pairedMarginStats([0, 0, 0, 0])
+    expect(s.sem).toBe(0)
+    expect(s.tooClose).toBe(false)
+    expect(pairedMarginStats([3, 3, 3]).tooClose).toBe(false)
+  })
+  it('handles empty and single-deal inputs', () => {
+    expect(pairedMarginStats([]).tooClose).toBe(false)
+    expect(pairedMarginStats([5]).tooClose).toBe(false)
+  })
+})
+
+describe('leadMetricDiffs', () => {
+  const matrix: DealsMatrix = {
+    cards: ['♥Q', '♠4', '♦2'],
+    records: [
+      { layout: {}, tricks: [8, 9, 9], scores: [50, -400, -400] },
+      { layout: {}, tricks: [9, 9, 9], scores: [-400, -400, -400] },
+    ],
+  }
+  it('MP diffs mirror the backend aggregate per deal', () => {
+    // Deal 1: ♥Q beats both others -> 100; ♠4 ties ♦2 -> 25. Diff = 75.
+    // Deal 2: all tie -> 50 each. Diff = 0.
+    expect(leadMetricDiffs(matrix, '♥Q', '♠4', 'matchpoints')).toEqual([75, 0])
+  })
+  it('IMP diffs use the per-deal datum like the backend', () => {
+    // Deal 1 datum = -250: imps(300)=7, imps(-150)=-4 -> diff 11. Deal 2: 0.
+    expect(leadMetricDiffs(matrix, '♥Q', '♠4', 'imps')).toEqual([11, 0])
+  })
+  it('mean of diffs equals the difference of the aggregate metrics', () => {
+    const diffs = leadMetricDiffs(matrix, '♥Q', '♠4', 'matchpoints')
+    const mean = diffs.reduce((s, d) => s + d, 0) / diffs.length
+    // aggregate MP%: ♥Q = (100+50)/2 = 75, ♠4 = (25+50)/2 = 37.5
+    expect(mean).toBeCloseTo(75 - 37.5)
+  })
+  it('returns empty for an unknown card', () => {
+    expect(leadMetricDiffs(matrix, '♥Q', '♣9', 'imps')).toEqual([])
+  })
+})
+
+describe('benchmarkMetricDiffs', () => {
+  const matrix: CandidateMatrix = {
+    candidates: ['4S-S', '6S-S'],
+    records: [
+      { layout: {}, tricks: [10, 10], scores: [420, -50] },
+      { layout: {}, tricks: [12, 12], scores: [480, 980] },
+    ],
+  }
+  it('measures both candidates against the benchmark zero point', () => {
+    // vs benchmark 4S-S: 6S contributes imps(-470)=-10 then imps(500)=11.
+    expect(benchmarkMetricDiffs(matrix, '6S-S', '4S-S', '4S-S', 'imps')).toEqual([-10, 11])
+    // MP: lose -> 0-50, win -> 100-50.
+    expect(benchmarkMetricDiffs(matrix, '6S-S', '4S-S', '4S-S', 'matchpoints')).toEqual([-50, 50])
+  })
+})
+
+describe('deal filter helpers', () => {
+  const hand = 'AK8.Q95.J982.Q43' // 4+3+2+1+2 = 12 HCP
+  it('computes HCP and suit lengths from a PBN hand', () => {
+    expect(handHcp(hand)).toBe(12)
+    expect(handHcp('T98.765.432.5432')).toBe(0)
+    expect(handSuitLength(hand, 'S')).toBe(3)
+    expect(handSuitLength(hand, 'D')).toBe(4)
+  })
+  it('is inactive at its defaults and active once narrowed', () => {
+    const c = defaultCriterion('N')
+    expect(criterionActive(c)).toBe(false)
+    expect(criterionActive({ ...c, hcp: [10, 40] })).toBe(true)
+    // A length window without a suit selected filters nothing.
+    expect(criterionActive({ ...c, len: [4, 13] })).toBe(false)
+    expect(criterionActive({ ...c, suit: 'H', len: [4, 13] })).toBe(true)
+  })
+  it('matches on HCP and suit length, and exclude inverts', () => {
+    const layout = { N: hand, E: 'T98.765.432.5432' }
+    const c = { ...defaultCriterion('N'), hcp: [10, 14] as [number, number] }
+    expect(dealMatches(layout, c)).toBe(true)
+    expect(dealMatches(layout, { ...c, seat: 'E' })).toBe(false)
+    expect(dealMatches(layout, { ...c, exclude: true })).toBe(false)
+    const withSuit = { ...c, suit: 'D' as const, len: [4, 13] as [number, number] }
+    expect(dealMatches(layout, withSuit)).toBe(true)
+    expect(dealMatches(layout, { ...withSuit, len: [5, 13] })).toBe(false)
+  })
+  it('describes an active criterion readably', () => {
+    const c = { ...defaultCriterion('N'), hcp: [10, 14] as [number, number] }
+    expect(describeCriterion(c)).toBe('10–14 HCP')
+    expect(describeCriterion({ ...c, exclude: true })).toBe('not 10–14 HCP')
+    expect(describeCriterion({ ...c, suit: 'S', len: [4, 13] })).toBe('10–14 HCP, 4–13 ♠')
+  })
+})
+
+describe('describeSeatConstraints', () => {
+  it('renders each constraint kind readably', () => {
+    const c: Constraints = {
+      hcp: { N: [10, 14] },
+      suit_length: { N: { S: [4, 13], H: [0, 3], D: [2, 2], C: [1, 5] } },
+      shapes: { N: '(5-5)-3-x' },
+      quality: { N: { H: 'good' } },
+      fixed_cards: { N: ['HA', 'HK'] },
+    }
+    expect(describeSeatConstraints(c, 'N')).toEqual([
+      '10–14 HCP', '♠ 4+', '♥ ≤3', '♦ 2', '♣ 1–5',
+      'shape: (5-5)-3-x', 'good ♥', 'holds ♥A ♥K',
+    ])
+  })
+  it('returns an empty list for an unconstrained seat', () => {
+    const c: Constraints = { hcp: {}, suit_length: {}, shapes: {}, quality: {}, fixed_cards: {} }
+    expect(describeSeatConstraints(c, 'E')).toEqual([])
   })
 })
 

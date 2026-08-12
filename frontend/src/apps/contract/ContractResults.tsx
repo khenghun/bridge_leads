@@ -1,10 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type { Mode, Seat } from '../../api/types'
 import type { ContractResponse } from '../../api/contractTypes'
-import { SEAT_NAME, SUIT_COLOR } from '../../lib/bridge'
+import {
+  SEAT_NAME, SUIT_COLOR, benchmarkMetricDiffs, pairedMarginStats,
+} from '../../lib/bridge'
+import CopyLinkButton from '../../components/CopyLinkButton'
 import { benchmarkOptions, rankContracts } from './ranking'
 
 const TOP_N = 5
+export const CONTRACT_DEALS_CAP = 500
 
 /** Colour a contract label by its strain ('4♠', '♠ partscore', '3NT'). */
 function contractColor(strain: string): string | undefined {
@@ -17,10 +21,18 @@ interface Props {
   mode: Mode
   benchmark: string
   setBenchmark: (key: string) => void
+  /** Re-run the identical request with more deals (the too-close escape hatch). */
+  onRerun?: (numDeals: number) => void
+  /** Scenario recap, rendered between the conclusion card and the table. */
+  recap?: ReactNode
+  /** Share link for this result (built at click time from the frozen request). */
+  shareUrl?: () => string
 }
 
-/** Ranked contracts, each measured against the benchmark contract. */
-export default function ContractResults({ result, mode, benchmark, setBenchmark }: Props) {
+/** Conclusion card + ranked contracts, each measured against the benchmark. */
+export default function ContractResults({
+  result, mode, benchmark, setBenchmark, onRerun, recap, shareUrl,
+}: Props) {
   const [showAll, setShowAll] = useState(false)
   const rows = useMemo(
     () => rankContracts(result, benchmark, mode), [result, benchmark, mode],
@@ -31,21 +43,87 @@ export default function ContractResults({ result, mode, benchmark, setBenchmark 
   const top = rows[0]
   const opps = result.opponents
 
+  // The margin behind the headline, with its sampling error. When the top row
+  // IS the benchmark, the question becomes "does the runner-up really trail?".
+  const rival = top?.isBenchmark ? rows[1] : undefined
+  const stats = useMemo(() => {
+    if (!top) return null
+    const [a, b] = top.isBenchmark
+      ? (rival ? [benchmark, rival.best.key] : [null, null])
+      : [top.best.key, benchmark]
+    if (!a || !b) return null
+    return pairedMarginStats(benchmarkMetricDiffs(result.deals, a, b, benchmark, mode))
+  }, [result, mode, benchmark, top, rival])
+
+  const unit = mode === 'matchpoints' ? 'MP%' : 'IMPs'
+  const mdp = mode === 'matchpoints' ? 1 : 2
+  const canRerun = onRerun && result.num_deals < CONTRACT_DEALS_CAP
+  const rivalRow = top?.isBenchmark ? rival : top
+  const rerunButton = canRerun && (
+    <button className="btn btn-small" onClick={() => onRerun(CONTRACT_DEALS_CAP)}>
+      Re-run with {CONTRACT_DEALS_CAP} deals
+    </button>
+  )
+
   return (
     <section>
       <h2>Best contracts</h2>
 
-      <div className="banner banner-info">
-        {top && (top.isBenchmark
-          ? <>Nothing beats <b>{benchLabel}</b> — that is the spot.</>
-          : <>
-              Best spot: <b>{top.best.label}</b> by {SEAT_NAME[top.best.declarer as Seat]},
-              {' '}making {(top.best.make_rate * 100).toFixed(0)}% of the time
-              {' '}({mode === 'matchpoints'
-                ? `${top.metric.mpPct.toFixed(1)}% of matchpoints`
-                : `${top.score >= 0 ? '+' : ''}${top.score.toFixed(2)} IMPs`} vs {benchLabel}).
-            </>)}
-      </div>
+      {top && (
+        <div className="conclusion">
+          <p className="headline">
+            {top.isBenchmark ? (
+              <>Stay in{' '}
+                <b style={{ color: contractColor(top.best.strain) }}>{top.best.label}</b>
+                {' '}<span className="caption">by {SEAT_NAME[top.best.declarer as Seat]}</span>
+              </>
+            ) : (
+              <>Bid{' '}
+                <b style={{ color: contractColor(top.best.strain) }}>{top.best.label}</b>
+                {' '}<span className="caption">
+                  by {SEAT_NAME[top.best.declarer as Seat]}, instead of {benchLabel}
+                </span>
+              </>
+            )}
+            {shareUrl && <span style={{ float: 'right' }}><CopyLinkButton getUrl={shareUrl} /></span>}
+          </p>
+          <p className="margin-line">
+            makes {(top.best.make_rate * 100).toFixed(0)}% ·{' '}
+            {top.best.mean_tricks.toFixed(1)} of {top.best.tricks_needed} tricks ·{' '}
+            {result.num_deals} deals
+            {top.seatMatters && <> · ⚠ play it from {SEAT_NAME[top.best.declarer as Seat]}</>}
+            {top.thinEdge && <> · ⚠ thin edge</>}
+          </p>
+          {stats && rivalRow && (
+            <p className="margin-line">
+              {stats.tooClose ? (
+                <>
+                  ⚖ <b>Too close to call</b> at {stats.n} deals —{' '}
+                  {top.isBenchmark
+                    ? <>{benchLabel} vs <b>{rivalRow.best.label}</b></>
+                    : <><b>{rivalRow.best.label}</b> vs {benchLabel}</>}
+                  {' '}differ by {Math.abs(stats.margin).toFixed(mdp)} {unit}, within
+                  sampling noise (±{stats.sem.toFixed(mdp)}).
+                </>
+              ) : top.isBenchmark ? (
+                <>
+                  Next best <b>{rivalRow.best.label}</b> trails by{' '}
+                  {Math.abs(stats.margin).toFixed(mdp)} ±{stats.sem.toFixed(mdp)} {unit}.
+                </>
+              ) : (
+                <>
+                  Worth {stats.margin >= 0 ? '+' : ''}{stats.margin.toFixed(mdp)}{' '}
+                  ±{stats.sem.toFixed(mdp)} {unit} over {benchLabel}
+                  {mode === 'matchpoints' && ' (0 = coin flip)'}.
+                </>
+              )}
+              {stats.tooClose && rerunButton}
+            </p>
+          )}
+        </div>
+      )}
+
+      {recap}
 
       <div className="row">
         <label className="field">

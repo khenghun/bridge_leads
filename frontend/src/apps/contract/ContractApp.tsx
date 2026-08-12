@@ -1,18 +1,32 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Constraints, Mode, Quality, Seat, Suit } from '../../api/types'
-import type { ContractResponse } from '../../api/contractTypes'
+import type { ContractRequest, ContractResponse } from '../../api/contractTypes'
 import { simulateContracts } from '../../api/contract'
 import {
   SEATS, SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL, SUITS,
-  applyQuality, fixedCardIssues, holdingError, holdingsToCards, holdingsToPbn,
-  partnerSeat,
+  applyQuality, describeSeatConstraints, fixedCardIssues, holdingError,
+  holdingsToCards, holdingsToPbn, partnerSeat, strainLabel,
   type Holdings,
 } from '../../lib/bridge'
 import HandEntry from '../../components/HandEntry'
 import ConstraintsEditor, {
-  defaultSeatConstraint, type SeatConstraint,
+  defaultSeatConstraint, seatStateFromConstraints, type SeatConstraint,
 } from '../../components/ConstraintsEditor'
+import ScenarioRecap from '../../components/ScenarioRecap'
+import RunHistory from '../../components/RunHistory'
+import {
+  buildShareUrl, loadLastSetup, saveLastSetup, type SharePayload,
+} from '../../lib/share'
+import { parsePbn } from '../../lib/bridge'
 import ContractResults from './ContractResults'
+
+const HISTORY_CAP = 10
+
+interface RunEntry {
+  request: ContractRequest
+  result: ContractResponse
+  at: number
+}
 import StrainGrid from './StrainGrid'
 import CompareContracts from './CompareContracts'
 import ContractSampleDeals from './ContractSampleDeals'
@@ -66,9 +80,11 @@ function buildConstraints(seat: Seat, constraints: Record<Seat, SeatConstraint>)
 interface Props {
   mode: Mode
   setMode: (m: Mode) => void
+  /** A share-link payload for this tool, decoded by the shell at startup. */
+  shared?: Extract<SharePayload, { tool: 'contract' }> | null
 }
 
-export default function ContractApp({ mode, setMode }: Props) {
+export default function ContractApp({ mode, setMode, shared }: Props) {
   const [seat, setSeat] = useState<Seat>('S')
   const [weVul, setWeVul] = useState(false)
   const [theyVul, setTheyVul] = useState(false)
@@ -77,13 +93,51 @@ export default function ContractApp({ mode, setMode }: Props) {
   const [holdings, setHoldings] = useState<Holdings>(emptyHoldings)
   const [constraints, setConstraints] = useState<Record<Seat, SeatConstraint>>(defaultConstraints)
   const [result, setResult] = useState<ContractResponse | null>(null)
+  // The request that produced `result`, frozen at simulate time — the form may
+  // have drifted since. Feeds the recap, the re-run button, and share links.
+  const [lastRequest, setLastRequest] = useState<ContractRequest | null>(null)
+  // This session's completed runs, newest first (in-memory by design), and the
+  // last setup simulated on this device (offered once, never auto-applied).
+  const [history, setHistory] = useState<RunEntry[]>([])
+  const [storedSetup, setStoredSetup] = useState(() => (shared ? null : loadLastSetup('contract')))
   const [benchmark, setBenchmark] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // A new result resets the benchmark to the engine's suggestion (the best
-  // normal contract by mean score).
-  useEffect(() => { if (result?.default_benchmark) setBenchmark(result.default_benchmark) }, [result])
+  // normal contract by mean score) — unless a share link asked for a specific
+  // benchmark, which wins once, if the new result still offers it.
+  const pendingBenchmark = useRef<string | null>(null)
+  useEffect(() => {
+    if (!result) return
+    const wanted = pendingBenchmark.current
+    pendingBenchmark.current = null
+    if (wanted && result.candidates.some((c) => c.key === wanted)) setBenchmark(wanted)
+    else if (result.default_benchmark) setBenchmark(result.default_benchmark)
+  }, [result])
+
+  /** Restore the whole form from a request (a share link opening, and later a
+   * stored setup). The simulation itself runs from the request verbatim. */
+  const applyRequest = (req: ContractRequest) => {
+    const { holdings: h } = parsePbn(req.hand)
+    if (h) setHoldings(h)
+    setSeat(req.seat)
+    const ns = req.seat === 'N' || req.seat === 'S'
+    setWeVul(req.vul === 'both' || req.vul === (ns ? 'ns' : 'ew'))
+    setTheyVul(req.vul === 'both' || req.vul === (ns ? 'ew' : 'ns'))
+    setNumDeals(req.num_deals)
+    setStrains(req.strains)
+    setConstraints(seatStateFromConstraints(req.constraints))
+  }
+
+  // A shared link lands on the result, not on a form: populate and auto-run.
+  useEffect(() => {
+    if (!shared) return
+    applyRequest(shared.request)
+    if (shared.view?.benchmark) pendingBenchmark.current = shared.view.benchmark
+    runRequest(shared.request)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shared])
 
   const partner = partnerSeat(seat)
   const weAreNS = seat === 'N' || seat === 'S'
@@ -115,27 +169,89 @@ export default function ContractApp({ mode, setMode }: Props) {
   )
   const canSimulate = handValid && strains.length > 0 && !Object.keys(cardIssues).length
 
-  const onSimulate = async () => {
-    if (!canSimulate) return
+  const runRequest = async (req: ContractRequest) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await simulateContracts({
-        hand: holdingsToPbn(holdings),
-        seat,
-        vul,
-        num_deals: numDeals,
-        strains,
-        constraints: buildConstraints(seat, constraints),
-      })
+      const res = await simulateContracts(req)
       setResult(res)
+      setLastRequest(req)
+      const reqKey = JSON.stringify(req)
+      setHistory((prev) => [
+        { request: req, result: res, at: Date.now() },
+        ...prev.filter((h) => JSON.stringify(h.request) !== reqKey),
+      ].slice(0, HISTORY_CAP))
+      saveLastSetup({ v: 1, tool: 'contract', request: req })
     } catch (e) {
       setError((e as Error).message)
       setResult(null)
+      setLastRequest(null)
     } finally {
       setLoading(false)
     }
   }
+
+  const onSimulate = () => {
+    if (!canSimulate) return
+    runRequest({
+      hand: holdingsToPbn(holdings),
+      seat,
+      vul,
+      num_deals: numDeals,
+      strains,
+      constraints: buildConstraints(seat, constraints),
+    })
+  }
+
+  // "Too close to call" escape hatch: the identical frozen request, more deals.
+  const onRerun = (deals: number) => {
+    if (!lastRequest) return
+    setNumDeals(deals)
+    runRequest({ ...lastRequest, num_deals: deals })
+  }
+
+  const shareUrl = () => buildShareUrl({
+    v: 1, tool: 'contract', request: lastRequest!, view: { mode, benchmark },
+  })
+
+  // Flip the shown result back to a previous run: result, frozen request and
+  // form all restore together, so recap/share/re-run stay consistent. The
+  // benchmark re-resolves through the result effect above.
+  const selectRun = (i: number) => {
+    const entry = history[i]
+    if (!entry) return
+    setResult(entry.result)
+    setLastRequest(entry.request)
+    applyRequest(entry.request)
+  }
+  const activeRun = history.findIndex((h) => h.result === result)
+
+  const runLabel = (h: RunEntry) => {
+    const best = h.result.candidates.find((c) => c.key === h.result.default_benchmark)
+    return `${SEAT_NAME[h.request.seat]} · ${h.request.num_deals} deals`
+      + (best ? ` · ${best.label}` : '')
+  }
+
+  const VUL_TEXT: Record<string, string> = {
+    none: 'none vul', both: 'both vul', ns: 'NS vul', ew: 'EW vul',
+  }
+  const recap = lastRequest && (
+    <ScenarioRecap
+      context={[
+        `you sit ${SEAT_NAME[lastRequest.seat]}: ${lastRequest.hand}`,
+        VUL_TEXT[lastRequest.vul] ?? lastRequest.vul,
+        `${lastRequest.num_deals} deals`,
+        ...(lastRequest.strains.length < ALL_STRAINS.length
+          ? [`strains ${lastRequest.strains.map(strainLabel).join(' ')}`]
+          : []),
+      ]}
+      seats={unseenSeats(lastRequest.seat).map(([s, label]) => ({
+        seat: s,
+        role: label.trim().replace(/[()]/g, ''),
+        lines: describeSeatConstraints(lastRequest.constraints, s),
+      }))}
+    />
+  )
 
   return (
     <div className="layout">
@@ -228,7 +344,21 @@ export default function ContractApp({ mode, setMode }: Props) {
           {loading ? `Simulating ${numDeals} deals…` : 'Find the best contract'}
         </button>
 
+        {storedSetup && !result && !loading && (
+          <p className="caption">
+            Last time on this device: seat {SEAT_NAME[storedSetup.request.seat]},{' '}
+            {storedSetup.request.num_deals} deals.{' '}
+            <button className="btn btn-small"
+              onClick={() => { applyRequest(storedSetup.request); setStoredSetup(null) }}>
+              ↩ Restore last setup
+            </button>
+          </p>
+        )}
+
         {error && <div className="banner banner-error">{error}</div>}
+
+        <RunHistory items={history.map((h) => ({ at: h.at, label: runLabel(h) }))}
+          activeIndex={activeRun} onSelect={selectRun} />
 
         {result && result.num_deals === 0 && (
           <div className="banner banner-error">
@@ -238,7 +368,9 @@ export default function ContractApp({ mode, setMode }: Props) {
         {result && result.num_deals > 0 && benchmark && (
           <>
             <ContractResults result={result} mode={mode}
-              benchmark={benchmark} setBenchmark={setBenchmark} />
+              benchmark={benchmark} setBenchmark={setBenchmark}
+              onRerun={onRerun} recap={recap}
+              shareUrl={lastRequest ? shareUrl : undefined} />
             <StrainGrid result={result} mode={mode} benchmark={benchmark} />
             <CompareContracts result={result} mode={mode} benchmark={benchmark} />
             <ContractSampleDeals result={result} mode={mode} benchmark={benchmark} />

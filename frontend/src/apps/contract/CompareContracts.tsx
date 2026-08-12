@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Mode, Seat } from '../../api/types'
 import type { CandidateResult, ContractResponse } from '../../api/contractTypes'
 import {
-  SEAT_NAME, SUIT_COLOR, compareCandidates, leaderSeat, type CompareOutcome,
+  SEAT_NAME, SUIT_COLOR, compareCandidates, criterionActive, dealMatches,
+  defaultCriterion, describeCriterion, leaderSeat,
+  type CompareOutcome, type DealCriterion,
 } from '../../lib/bridge'
 import DealDiagram from '../../components/DealDiagram'
+import DealFilterBar from '../../components/DealFilterBar'
+import { contractFilterSeats } from './ContractSampleDeals'
 import { rankContracts } from './ranking'
 
 interface Props {
@@ -29,6 +33,8 @@ export default function CompareContracts({ result, mode, benchmark }: Props) {
   const [b, setB] = useState<string | null>(null)
   const [bucket, setBucket] = useState<Bucket>('all')
   const [limit, setLimit] = useState(8)
+  const [criterion, setCriterion] = useState<DealCriterion>(
+    () => defaultCriterion(result.partner))
 
   const rows = useMemo(
     () => rankContracts(result, benchmark, mode), [result, benchmark, mode],
@@ -42,6 +48,8 @@ export default function CompareContracts({ result, mode, benchmark }: Props) {
     setA(rows[0]?.best.key ?? null)
     setB(rows.find((r) => r.best.key !== rows[0]?.best.key)?.best.key ?? null)
     setBucket('all')
+    setCriterion(defaultCriterion(result.partner))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result])
 
   if (result.deals.candidates.length < 2) return null
@@ -86,7 +94,11 @@ export default function CompareContracts({ result, mode, benchmark }: Props) {
     const { rows: deals, summary } = compareCandidates(result.deals, a, b)
     if (summary.n === 0) return null
 
-    const filtered = bucket === 'all' ? deals : deals.filter((r) => r.outcome === bucket)
+    const inBucket = bucket === 'all' ? deals : deals.filter((r) => r.outcome === bucket)
+    const active = criterionActive(criterion)
+    const filtered = active
+      ? inBucket.filter((r) => dealMatches(result.deals.records[r.index].layout, criterion))
+      : inBucket
     const shown = filtered.slice(0, limit)
     const stat = mode === 'imps'
       ? <>avg <b>{summary.avgImpSwing >= 0 ? '+' : ''}{summary.avgImpSwing.toFixed(3)} IMPs</b> per deal for <Label c={ca} /></>
@@ -113,8 +125,12 @@ export default function CompareContracts({ result, mode, benchmark }: Props) {
             </button>
           ))}
         </div>
+        <DealFilterBar seats={contractFilterSeats(result.seat)}
+          criterion={criterion} setCriterion={setCriterion} />
         {filtered.length === 0 ? (
-          <p className="caption">No deal in this bucket.</p>
+          <p className="caption">
+            {active ? 'No deal in this bucket matches the filter.' : 'No deal in this bucket.'}
+          </p>
         ) : (
           <>
             <label className="inline-field">
@@ -125,7 +141,12 @@ export default function CompareContracts({ result, mode, benchmark }: Props) {
               />
             </label>
             <p className="caption">
-              Showing {shown.length}{shown.length < filtered.length ? ` of ${filtered.length}` : ''} deal(s),
+              Showing {shown.length}{shown.length < filtered.length ? ` of ${filtered.length}` : ''} deal(s)
+              {active && <>
+                {' '}— <b>filtered</b> ({SEAT_NAME[criterion.seat as Seat]}{' '}
+                {describeCriterion(criterion)}; {filtered.length} of {inBucket.length} in this
+                bucket, counts above stay full-run)
+              </>},
               with the tricks <Label c={ca} /> takes.
             </p>
             <div className="deal-grid">

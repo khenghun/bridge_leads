@@ -331,38 +331,61 @@ to keep mounted beside the two tools. Add an entry there whenever a release
 changes something a player would notice — and keep it free of module names and
 test counts, which belong here.
 
-## v2.2 — Results worth sharing 🔜 (planned 2026-08-12)
+## v2.2 — Results worth sharing ✅ (built 2026-08-12, not yet deployed)
 
 Detailed design: [`docs/v2.2-share-plan.md`](docs/v2.2-share-plan.md).
+Work log: `latest_updates.md`.
 
 Five presentation features taken from a review of the commercial competitor
 <https://bridgesolver.com/> (whose flagship is shareable saved results), plus
 three drawn from week-one production query-log usage patterns — all
-frontend-only; the backend, API, and engine do not change:
+frontend-only as designed; the backend, API, and engine did not change:
 
-1. **Share links** — the frozen request + view state, base64url-encoded in the
-   URL hash; opening a link restores the setup and auto-runs (`seed=0`
-   determinism + the result cache make recomputation a substitute for
-   server-side storage and accounts).
-2. **Conclusion card** — results open with the answer (best lead / best
-   contract, margin vs next best) instead of leading with the table.
-3. **Scenario recap** — the constraints echoed back as readable chips, from
-   the frozen request the results already carry.
-4. **Equivalent-lead grouping** — same-suit cards with identical per-deal
-   trick vectors collapse into one row (♦T9), computed from the deals matrix.
-5. **Deal filter (browse-only)** — filter browsable deals by seat / HCP /
-   suit length; rankings and aggregates always stay full-run. Requires the
-   lead tool's sample deals to switch source from the capped `samples` field
-   to the full `deals.records` matrix.
-6. **"Too close to call"** — a paired sampling-error estimate on the
-   conclusion card's margin, with a one-click higher-deal-count re-run when
-   the top two candidates are within noise (the log shows users doing this
-   confirmation bump by hand).
-7. **Session run history** — the last ~10 runs per tool kept in memory and
-   restorable, so the observed constraint-tweaking loop can compare runs
-   instead of re-running from memory.
-8. **Restore last setup** — the share-link payload written to localStorage on
-   each simulate, with an explicit restore button on load.
+1. **Share links ✅** — the frozen request + view state (`lib/share.ts`:
+   versioned JSON, empties stripped, base64url) in the URL hash
+   (`#lead?s=…`, ~250 chars); opening a link restores the form and
+   auto-runs (`seed=0` determinism + the result cache make recomputation a
+   substitute for server-side storage and accounts). Decode is fully
+   defensive — garbage, wrong versions, missing fields → a dismissible
+   banner over the plain app; out-of-range deal counts clamp. 🔗 Copy link
+   sits on both conclusion cards and builds the URL at click time.
+2. **Conclusion card ✅** — results open with the answer: recommended
+   lead / contract (both framings: "Bid 3NT instead of 4♥" and "Stay in
+   4♥"), metric, defeat/make rate, and the margin over the next-best
+   distinct candidate.
+3. **Scenario recap ✅** — context + per-seat constraint chips
+   (`ScenarioRecap` + `describeSeatConstraints`), rendered from the request
+   frozen at simulate time, never the live form.
+4. **Equivalent-lead grouping ✅** — same-suit cards with identical per-deal
+   trick vectors collapse into one row/chip (♦T9) across the results table,
+   sample deals, and compare pickers; the recommendation banner's tie count
+   now counts distinct groups. (bridgesolver's own example page shows this
+   done wrong — two rows with identical numbers; ours groups from data.)
+5. **Deal filter (browse-only) ✅** — one criterion row (seat, HCP window,
+   optional suit-length window, include/exclude) over the browsable deals in
+   all four browsing surfaces, composing with the outcome buckets; every
+   live filter shows "N of M, rankings stay full-run". Prerequisite landed
+   too: the lead tool's sample deals now render from the full
+   `deals.records` matrix instead of the server-capped `samples` field
+   (which stays in the API, unused).
+6. **"Too close to call" ✅** — paired per-deal metric differences
+   (replicating the backend aggregation exactly, so margin = difference of
+   the displayed columns) give the margin a `±sd/√n`; within 2·SEM the card
+   says "too close to call" and offers a one-click re-run at the deal cap
+   using the frozen request.
+7. **Session run history ✅** — last 10 runs per tool in memory as chips
+   (time · setup · answer); clicking restores result + frozen request +
+   form together, so recap/share/re-run stay consistent. Identical re-runs
+   replace their entry. Deliberately not persisted.
+8. **Restore last setup ✅** — the share payload written to localStorage
+   (one slot per tool, best-effort) on every simulate; an explicit
+   "↩ Restore last setup" offer on load fills the form without running.
+   Suppressed when a share link brings its own setup.
 
 Deliberately not taken: their 10k–50k-deal paid tier (accounts + job queue on
 2-core hardware, no demand), and re-ranking on a deal filter.
+
+Frontend tests grew 30 → 60 (grouping, paired-SEM and metric-diff helpers,
+constraint/criterion describers, share codec round-trip + rejection cases,
+localStorage slots); every feature was also driven in the real app via
+Playwright, including a share-link round trip and a malformed link.
