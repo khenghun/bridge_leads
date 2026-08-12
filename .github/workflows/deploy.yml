@@ -1,5 +1,5 @@
 # Build+push images on every main commit; deploy to the VPS only when a human
-# clicks "Run workflow" (workflow_dispatch). See docs/v5-deploy-plan.md.
+# clicks "Run workflow" (workflow_dispatch). See docs/v1.0-deploy-plan.md.
 name: Build & Deploy
 
 on:

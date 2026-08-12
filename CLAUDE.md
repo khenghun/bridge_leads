@@ -13,7 +13,7 @@ Both sample deals the same way and score with the same tables; they differ only 
 
 It is a client/server app: a **FastAPI** backend (`backend/`) wrapping the simulation engine, and a **React + Vite + TypeScript** frontend (`frontend/`), containerised with `docker-compose`. (It began as a single Streamlit script; that UI has been removed.)
 
-**Versions are `v1.0, v1.1, … v2.1`**, and `frontend/src/apps/changelog/releases.ts` is the source of truth — it is what players see in the *What's new* tab, and `ROADMAP.md` follows it. Everything through 2026-07-16 is v1.0; the six *development milestones* inside that ROADMAP section are a separate, older numbering that the `docs/vN-plan.md` filenames still use, so don't confuse "milestone 4" with "v1.1". **Shipping something a player would notice means adding an entry to `releases.ts`** — keep it plain-language, no module names or test counts.
+**Versions are `v1.0, v1.1, … v2.2`**, and `frontend/src/apps/changelog/releases.ts` is the source of truth — it is what players see in the *What's new* tab, and `ROADMAP.md` follows it. Everything through 2026-07-16 is v1.0, so the plan docs under `docs/` (named `docs/<version>-<topic>-plan.md`) include three `v1.0-*` files; the six *development milestones* inside ROADMAP's v1.0 section are an older internal numbering that survives only there — don't confuse "milestone 4" with "v1.1". **Shipping something a player would notice means adding an entry to `releases.ts`** — keep it plain-language, no module names or test counts.
 
 **No AI / LLM integration.** This is pure simulation. Do not add model calls, embeddings, or agent code.
 
