@@ -65,14 +65,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Keep the VPS copies of the infra files in sync with the repo.
-      - name: Copy compose + Caddyfile to VPS
+      # Keep the VPS copy of the compose file in sync with the repo. TLS/routing
+      # moved to the shared edge stack (/opt/edge, owned by the FBO repo's
+      # deploy/edge/) — no Caddyfile here anymore.
+      - name: Copy compose file to VPS
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.prod.yml,Caddyfile"
+          source: "docker-compose.prod.yml"
           target: /opt/bridge_leads
 
       - name: Pull images & restart stack

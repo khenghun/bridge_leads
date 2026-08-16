@@ -2,26 +2,12 @@
 #   Requires a .env next to this file with DOMAIN=<yourdomain> (see deploy/.env.example).
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# Only Caddy publishes ports; frontend/backend live on the internal network.
+# TLS and routing live in the shared edge stack (/opt/edge — source of truth:
+# the FBO repo's deploy/edge/), not here: this stack publishes no ports. The edge
+# Caddy reaches frontend/backend through the external `edge` docker network via
+# the bl-* aliases below; backend<->frontend traffic stays on the default network.
 # Images are built by CI (.github/workflows/deploy.yml) — the VPS only pulls.
 services:
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp" # HTTP/3
-    environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data # Let's Encrypt certs — must persist across restarts
-      - caddy_config:/config
-    depends_on:
-      - frontend
-      - backend
-
   backend:
     image: ghcr.io/khenghun/bridge_leads-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
@@ -37,6 +23,11 @@ services:
       - ./data:/data
     expose:
       - "8000"
+    networks:
+      default: {}
+      edge:
+        aliases:
+          - bl-backend
 
   frontend:
     image: ghcr.io/khenghun/bridge_leads-frontend:${IMAGE_TAG:-latest}
@@ -45,7 +36,13 @@ services:
       - "80"
     depends_on:
       - backend
+    networks:
+      default: {}
+      edge:
+        aliases:
+          - bl-frontend
 
-volumes:
-  caddy_data:
-  caddy_config:
+networks:
+  default: {}
+  edge:
+    external: true
