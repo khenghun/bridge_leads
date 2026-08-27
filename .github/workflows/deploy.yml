@@ -1,12 +1,21 @@
-# Build+push images on every main commit; deploy to the VPS only when a human
-# clicks "Run workflow" (workflow_dispatch). See docs/v1.0-deploy-plan.md.
-name: Build & Deploy
+# Test+build images on every main commit; deploy to the VPS only when a human
+# clicks "Run workflow" (workflow_dispatch), picking which product stack to
+# deploy. Tests and builds always cover every product — shared engine/frontend
+# code means a change anywhere must run every consumer's suite. See
+# docs/v1.0-deploy-plan.md and docs/v3.0-play-solver-plan.md.
+name: Test, Build & Deploy
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
+      stack:
+        description: "Which product stack to deploy"
+        type: choice
+        options:
+          - lead
+        default: lead
       image_tag:
         description: "Image tag to deploy (a commit SHA for rollback, or latest)"
         required: false
@@ -19,7 +28,40 @@ env:
   FRONTEND_IMAGE: ghcr.io/${{ github.repository }}-frontend
 
 jobs:
+  # One test job for everything: the monorepo's contract is that a change to
+  # shared code (engine/, lib/bridge.ts, components/) runs every product's
+  # tests. The frontend typecheck (tsc -b) rides inside the image build.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Backend tests (pytest)
+        working-directory: backend
+        run: |
+          pip install -r requirements-dev.txt
+          python -m pytest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend tests (vitest)
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run test
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -50,6 +92,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
+          build-args: |
+            APP=lead
           push: true
           tags: |
             ${{ env.FRONTEND_IMAGE }}:latest
@@ -57,9 +101,11 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,scope=frontend,mode=max
 
-  deploy:
-    # Manual gate: only a workflow_dispatch run deploys; plain pushes stop at build.
-    if: github.event_name == 'workflow_dispatch'
+  deploy-lead:
+    # Manual gate: only a workflow_dispatch run deploys; plain pushes stop at
+    # build. One deploy job per product stack, selected by the `stack` input,
+    # so each product's prod version is managed independently.
+    if: github.event_name == 'workflow_dispatch' && inputs.stack == 'lead'
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -67,14 +113,17 @@ jobs:
 
       # Keep the VPS copy of the compose file in sync with the repo. TLS/routing
       # moved to the shared edge stack (/opt/edge, owned by the FBO repo's
-      # deploy/edge/) — no Caddyfile here anymore.
+      # deploy/edge/) — no Caddyfile here anymore. Per-stack compose files live
+      # under deploy/<stack>/; strip_components flattens the repo path so the
+      # file lands as /opt/bridge_leads/docker-compose.prod.yml as before.
       - name: Copy compose file to VPS
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.prod.yml"
+          source: "deploy/lead/docker-compose.prod.yml"
+          strip_components: 2
           target: /opt/bridge_leads
 
       - name: Pull images & restart stack

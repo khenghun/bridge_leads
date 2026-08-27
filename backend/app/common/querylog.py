@@ -5,7 +5,7 @@ No IP address, no session, no user agent, no response — enough to see what the
 app is being used for and how often, and not enough to profile anyone.
 
 **Off unless `BRIDGE_QUERY_LOG` names a SQLite file**, so local dev and the test
-suite write nothing; production sets it in `docker-compose.prod.yml`.
+suite write nothing; production sets it in `deploy/lead/docker-compose.prod.yml`.
 
 Every write is best-effort. A full disk or a read-only mount must never turn a
 working simulation into a 500, so failures are swallowed — with one warning to

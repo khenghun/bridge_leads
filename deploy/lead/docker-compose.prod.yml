@@ -1,5 +1,6 @@
-# Opening Lead Simulator — production stack (Vultr VPS).
-#   Requires a .env next to this file with DOMAIN=<yourdomain> (see deploy/.env.example).
+# Opening Lead Simulator — production stack (Vultr VPS), deployed to
+# /opt/bridge_leads (an optional .env there can pin IMAGE_TAG — see
+# deploy/.env.example).
 #   docker compose -f docker-compose.prod.yml up -d
 #
 # TLS and routing live in the shared edge stack (/opt/edge — source of truth:

@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY engine ./engine
 COPY app ./app
 
-# DDS thread cap (see engine/lead_simulator.py). Overridden by compose; 0 = all cores.
+# DDS thread cap (see engine/dds_runtime.py). Overridden by compose; 0 = all cores.
 ENV BRIDGE_DDS_THREADS=4
 
 EXPOSE 8000
