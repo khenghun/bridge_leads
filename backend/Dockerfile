@@ -1,4 +1,6 @@
-# Opening Lead Simulator — API image.
+# Bridge backend image — carries both app packages plus the shared engine.
+# The lead container runs the default CMD; the play container overrides
+# `command:` in its compose file (uvicorn app_play.main:app).
 FROM python:3.12-slim
 
 # endplay's bundled double-dummy solver (a compiled .so) links against the
@@ -14,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY engine ./engine
 COPY app ./app
+COPY app_play ./app_play
 
 # DDS thread cap (see engine/dds_runtime.py). Overridden by compose; 0 = all cores.
 ENV BRIDGE_DDS_THREADS=4

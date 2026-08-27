@@ -4,9 +4,11 @@
   "version": "4.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --strictPort",
+    "dev:play": "vite -c vite.play.config.ts --port 5174 --strictPort --open /play.html",
     "build": "npm run build:lead",
     "build:lead": "tsc -b && vite build",
+    "build:play": "tsc -b && vite build -c vite.play.config.ts",
     "preview": "vite preview",
     "test": "vitest run"
   },
@@ -18,6 +20,9 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^3.4.19",
     "typescript": "^5.6.3",
     "vite": "^6.0.5",
     "vitest": "^2.1.8"

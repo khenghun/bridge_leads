@@ -115,6 +115,15 @@ def decode(row: dict) -> dict:
                        + ('' if p.get('vul', 'none') == 'none' else f" vul {p['vul']}"))
         out['hand'] = p.get('leader_hand', '')
         out['deals'] = p.get('num_simulations')
+    elif row['tool'] == 'play':
+        pen = p.get('penalty', 'none')
+        seat = p.get('seat') or f"@{len(p.get('play') or [])}"
+        out['what'] = (contract_label(p.get('level', '?'), p.get('strain', '?'))
+                       + f" by {p.get('declarer', '?')}"
+                       + ('' if pen == 'none' else f' {pen}')
+                       + f" grade {seat} {p.get('method', '?')}")
+        out['hand'] = (p.get('hands') or {}).get(p.get('seat') or 'N', '')
+        out['deals'] = p.get('num_deals')
     else:
         strains = p.get('strains') or []
         # Only worth mentioning when the user narrowed it.
@@ -222,7 +231,7 @@ app since logging started. That is an answer, not an error.""")
     ap.add_argument('--remote-path', default=REMOTE_DB,
                     help=f'path on the server (default {REMOTE_DB})')
     ap.add_argument('--since', help='only queries newer than 7d / 12h / 30m / YYYY-MM-DD')
-    ap.add_argument('--tool', choices=['lead', 'contract'], help='only this tool')
+    ap.add_argument('--tool', choices=['lead', 'contract', 'play'], help='only this tool')
     ap.add_argument('--limit', type=int, default=40,
                     help='most recent N (default 40; 0 = all)')
     ap.add_argument('--summary', action='store_true',

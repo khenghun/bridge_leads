@@ -1,5 +1,10 @@
-# Opening Lead Simulator — full stack.
-#   docker compose up --build   →  http://localhost
+# Both products, full stack, from local builds.
+#   docker compose up --build   →  lead/contract app on http://localhost,
+#                                  play solver on http://localhost:8080
+# One backend image serves both; play-backend starts the play app from it with
+# `command:`. Each frontend's nginx proxies /api to the host name `backend`, so
+# the two pairs sit on separate networks and the play backend takes the alias
+# `backend` on its own — exactly how the two prod stacks are isolated.
 services:
   backend:
     build: ./backend
@@ -8,6 +13,7 @@ services:
       BRIDGE_DDS_THREADS: "4"
     expose:
       - "8000"
+    networks: [lead]
 
   frontend:
     build: ./frontend
@@ -15,3 +21,30 @@ services:
       - "80:80"
     depends_on:
       - backend
+    networks: [lead]
+
+  play-backend:
+    build: ./backend
+    command: ["uvicorn", "app_play.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      BRIDGE_DDS_THREADS: "4"
+    expose:
+      - "8000"
+    networks:
+      play:
+        aliases: [backend]
+
+  play-frontend:
+    build:
+      context: ./frontend
+      args:
+        APP: play
+    ports:
+      - "8080:80"
+    depends_on:
+      - play-backend
+    networks: [play]
+
+networks:
+  lead: {}
+  play: {}

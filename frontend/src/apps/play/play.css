@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tailwind's preflight ships inside `@tailwind base`, and this entry imports
+   index.css FIRST (for the shared tokens and the component classes the
+   ConstraintsEditor is styled with), so preflight would land afterwards and
+   reset every form control back to zero padding / transparent background.
+   `@layer base` is emitted right after preflight inside the same layer, so
+   re-asserting index.css's control rules here restores them for the play page
+   without editing index.css or touching the lead app at all. */
+@layer base {
+  input, select, textarea {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+  }
+  input[type='range'] { padding: 0; }
+  input[type='number'] { width: 100%; }
+  input[type='checkbox'] { width: auto; }
+  textarea { width: 100%; resize: vertical; }
+  /* Preflight flattens headings to `font-size: inherit; font-weight: inherit`;
+     the shared panels expect the index.css scale. Utility classes still win. */
+  h1 { font-size: 1.7rem; font-weight: 700; }
+  h2 { font-size: 1.1rem; font-weight: 700; }
+  h3 { font-size: 0.95rem; font-weight: 700; }
+}
+
+/* --------------------------------------------------------------------------
+   Play-solver shell. Panels use the shared tokens so the light-mode toggle
+   works exactly as it does in the lead app; the card table stays light in both
+   themes, the way a real table is.
+   -------------------------------------------------------------------------- */
+
+.play-shell {
+  --status-optimal: #2ea36a;
+  --status-good: #d8a012;
+  --status-suboptimal: #e74c3c;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.play-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+
+.play-panel-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.6rem;
+  text-align: center;
+}
+
+/* The felt: deliberately light in both themes — cards are printed on white. */
+.play-felt {
+  background: #eef5fd;
+  color: #1e293b;
+  border: 1px solid #cddcef;
+  border-radius: 14px;
+  padding: 1.1rem;
+}
+
+.play-dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.play-dropzone:hover { border-color: var(--accent); }
+.play-dropzone.dragging { border-color: var(--accent); background: var(--info-bg); }
+
+.play-seat-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+.play-seat-btn:hover { border-color: var(--border); }
+.play-seat-btn.on { background: var(--panel-2); border-color: var(--accent); }
+.play-seat-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.play-navbtn {
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: rgba(30, 41, 59, 0.08);
+  color: #334155;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+.play-navbtn:hover:not(:disabled) { background: rgba(30, 41, 59, 0.16); }
+.play-navbtn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Decisions table */
+.play-decisions { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.play-decisions th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--panel);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.5rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+.play-decisions th:first-child, .play-decisions th:nth-child(2) { text-align: left; }
+.play-decisions td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.play-decisions td:first-child, .play-decisions td:nth-child(2) { text-align: left; }
+.play-decisions tr.clickable { cursor: pointer; }
+.play-decisions tr.clickable:hover { background: var(--panel-2); }
+.play-decisions tr.on { background: var(--panel-2); }
+
+.play-options { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+.play-options th, .play-options td { padding: 0.2rem 0.5rem; text-align: right; }
+.play-options th:nth-child(2), .play-options td:nth-child(2) { text-align: left; }
+.play-options th { color: var(--muted); font-weight: 600; }
+.play-options tr.played { background: var(--panel-2); font-weight: 600; }
+
+.play-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.play-spinner {
+  display: inline-block;
+  width: 0.85rem; height: 0.85rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: play-spin 0.7s linear infinite;
+}
+@keyframes play-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .play-felt { padding: 0.6rem; }
+}
+
+/* The sidebar carries the shared ConstraintsEditor, whose seat panels have a
+   15rem floor; 300px would force a horizontal squeeze on the two of them. */
+.play-shell .sidebar { width: 340px; flex: 0 0 340px; }
+@media (max-width: 900px) {
+  .play-shell .sidebar { width: 100%; flex: none; }
+}

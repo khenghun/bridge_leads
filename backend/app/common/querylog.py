@@ -26,7 +26,7 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS queries (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     ts      TEXT NOT NULL,      -- ISO-8601 UTC, e.g. '2026-08-04T13:22:05Z'
-    tool    TEXT NOT NULL,      -- 'lead' | 'contract'
+    tool    TEXT NOT NULL,      -- 'lead' | 'contract' | 'play'
     payload TEXT NOT NULL       -- the request body, as JSON
 );
 CREATE INDEX IF NOT EXISTS queries_ts ON queries (ts);

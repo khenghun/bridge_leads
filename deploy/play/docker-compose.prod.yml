@@ -1,0 +1,53 @@
+# Play Solver — production stack (Vultr VPS), deployed to /opt/bridge_play
+# (an optional .env there can pin IMAGE_TAG — see deploy/.env.example).
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Same shape as deploy/lead/: no published ports; the shared edge stack
+# (/opt/edge — source of truth: the FBO repo's deploy/edge/) reaches these
+# containers over the external `edge` network via the bp-* aliases below, so
+# the play domain's vhost there must point at bp-frontend.
+#
+# The backend image is the SAME image the lead stack runs (it carries both app
+# packages); this stack just starts the play app from it with `command:`. Each
+# stack pins its own IMAGE_TAG, so the two products' backend versions still
+# move independently. Images are built by CI (.github/workflows/deploy.yml).
+services:
+  backend:
+    image: ghcr.io/khenghun/bridge_leads-backend:${IMAGE_TAG:-latest}
+    command: ["uvicorn", "app_play.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+    environment:
+      # DDS worker-thread cap (0 = all cores). 2-vCPU VPS: let DDS use both.
+      # A play solve running beside a lead batch contends for CPU at the OS
+      # level — accepted (docs/two-products-one-repo.md).
+      BRIDGE_DDS_THREADS: "2"
+      # Query log: one row per analyze/position call (timestamp + tool +
+      # request body). This stack's own file. Unset to turn logging off.
+      BRIDGE_QUERY_LOG: /data/queries.db
+    volumes:
+      - ./data:/data
+    expose:
+      - "8000"
+    networks:
+      default: {}
+      edge:
+        aliases:
+          - bp-backend
+
+  frontend:
+    image: ghcr.io/khenghun/bridge_play-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      default: {}
+      edge:
+        aliases:
+          - bp-frontend
+
+networks:
+  default: {}
+  edge:
+    external: true

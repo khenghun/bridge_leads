@@ -1,35 +1,19 @@
-// User-facing release notes, newest first.
+// User-facing release notes for the lead/contract app, newest first — ITS OWN
+// version line (v1.0 … v2.2), separate from the play solver's
+// `apps/play/changelog/releases.ts`. This file is the source of truth for the
+// app's version numbers; `docs/lead/ROADMAP.md` follows it.
 //
 // This is the changelog *players* read, so entries describe what changed for
 // them — not how. Keep it free of module names, endpoints and test counts;
-// ROADMAP.md and latest_updates.md are where the technical story lives.
+// the roadmap and latest_updates.md are where the technical story lives.
 //
 // Dates are the date the work landed. Add a new entry at the top of the array
 // whenever a release ships something a user would notice.
 
-export type ChangeKind = 'new' | 'improved' | 'fixed'
+import type { Release } from '../../components/Changelog'
 
-export interface Change {
-  kind: ChangeKind
-  text: string
-}
-
-export interface Release {
-  /** Version label, omitted for releases that were not a numbered version. */
-  version?: string
-  /** ISO date the work landed. */
-  date: string
-  title: string
-  /** One line on why the release exists, shown under the title. */
-  summary?: string
-  changes: Change[]
-}
-
-export const KIND_LABEL: Record<ChangeKind, string> = {
-  new: 'New',
-  improved: 'Improved',
-  fixed: 'Fixed',
-}
+export type { Change, ChangeKind, Release } from '../../components/Changelog'
+export { KIND_LABEL } from '../../components/Changelog'
 
 export const RELEASES: Release[] = [
   {
