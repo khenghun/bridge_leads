@@ -1,6 +1,14 @@
-# Bridge Simulator — Opening Lead & Optimal Contract
+# Bridge Simulator — Opening Lead, Optimal Contract & Play Solver
 
-Two Monte-Carlo + double-dummy bridge tools, as tabs of one web app.
+Two web apps on one Monte-Carlo + double-dummy engine, in one repo:
+
+- **Opening Lead Simulator + Optimal Contract Calculator** — tabs of one app
+  (`v2.2`, live at <https://bridge-leads.icycookie.xyz>).
+- **Play Solver** — a separate app (`v1.0`, in progress): load a BBO `.lin`
+  hand, step through the play, and grade every decision one seat made.
+
+Each product has its own version line, roadmap and changelog — see
+[`ROADMAP.md`](ROADMAP.md) and [`docs/two-products-one-repo.md`](docs/two-products-one-repo.md).
 
 **Opening Lead Simulator.** Enter the leader's hand and the contract, optionally
 constrain the three unseen hands, and the app generates consistent deals,
@@ -14,11 +22,17 @@ rate, mean tricks, and score against the contract you'd otherwise be in.
 
 A third tab, **What's new**, carries the release notes.
 
+**Play Solver.** Drop in a completed hand as a BBO `.lin` file, step through
+the play trick by trick, and press *Analyze*: every decision the chosen seat
+made is graded — the two hands that player could not see are sampled, every
+legal card is double-dummy solved, and the table shows what was played against
+what was best. Its own *What's new* panel tracks its releases.
+
 Pure simulation — **no AI / LLM**.
 
 A **FastAPI** backend + **React/Vite/TypeScript** frontend, containerised with
-Docker. Current release **v2.1**; see [`ROADMAP.md`](ROADMAP.md) for the full
-version history. (It began as a single Streamlit app.)
+Docker. Lead/contract app at **v2.2**, play solver at **v1.0** (in progress);
+see [`ROADMAP.md`](ROADMAP.md). (It began as a single Streamlit app.)
 
 ## Quick start (Docker)
 
@@ -40,6 +54,8 @@ python -m venv .venv
 # Windows:
 .venv/Scripts/python.exe -m pip install -r backend/requirements-dev.txt
 cd backend && ../.venv/Scripts/uvicorn app.main:app --reload
+# play solver API (its own app), alongside:
+cd backend && ../.venv/Scripts/uvicorn app_play.main:app --reload --port 8001
 # macOS / Linux:
 # .venv/bin/python -m pip install -r backend/requirements-dev.txt
 # cd backend && ../.venv/bin/uvicorn app.main:app --reload
@@ -56,7 +72,9 @@ npm run dev
 ```
 
 Vite serves the UI on <http://localhost:5173> and proxies `/api` to the backend
-on `:8000`, so run both together in dev.
+on `:8000`, so run both together in dev. The play solver is a second entry:
+`npm run dev:play` serves it on <http://localhost:5174/play.html> and proxies
+`/api` to the play API on `:8001`.
 
 ### Using the app
 
@@ -83,8 +101,9 @@ cd frontend && npm run test
 - `backend/engine/sampling.py` + `honor_sampler.py` — build random full deals consistent with the known cards and constraints.
 - `backend/engine/lead/simulator.py` — for each candidate lead, double-dummy solves the generated deals and scores the outcome.
 - `backend/engine/contract/simulator.py` — the second tool: one double-dummy table per deal, scoring every candidate contract at once.
+- `backend/engine/play/` — the play solver: replay a recorded hand (`state.py`) and grade each decision by sampling the unseen hands and solving every legal card (`grader.py`).
 - `backend/engine/scoring.py` — turns tricks into a duplicate-bridge score (via `endplay`) and aggregates leads as Matchpoints or IMPs.
-- `backend/app/` — FastAPI HTTP layer (validation, caching, routes) over the engine.
+- `backend/app/` — FastAPI HTTP layer (validation, caching, routes) over the engine; `backend/app_play/` is the play solver's own app on the same engine.
 - `frontend/src/` — React UI (hand entry, constraints, results, sample-deal diagrams).
 
 The double-dummy solve is the bottleneck and runs multithreaded in ≤200-board

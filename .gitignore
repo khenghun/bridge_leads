@@ -26,10 +26,15 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 
-# Claude — local tooling only (settings, skills, scheduler state, MCP servers).
-# CLAUDE.md itself lives at the repo root and IS tracked.
+# Claude — local tooling (settings, scheduler state, MCP servers) stays local;
+# project skills under .claude/skills/ are repo knowledge and ARE tracked, as
+# is CLAUDE.md at the repo root.
 CLAUDE.local.md
-.claude/
+.claude/*
+!.claude/skills/
 .mcp.json
 # Session scratch/handoff notes. Anything durable belongs in ROADMAP.md.
 latest_updates.md
+
+# Third-party books used as calibration oracles (copyrighted, keep local)
+docs/*.pdf

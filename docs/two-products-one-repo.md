@@ -1,21 +1,25 @@
-# v3.0 — Play Solver: two products, one repo
+# Two products, one repo
 
-The architecture decisions for the third tool — a play solver that solves /
-corrects the play of a hand — and the migration that makes room for it. "v3.0"
-is a working label; `releases.ts` stays the source of truth for the public
-number when the tool actually ships.
+The architecture decisions behind hosting two products — the **lead/contract
+simulator** and the **play solver** — in one repository, and the migration
+that made room for the second. Each product has its own version line, its own
+`docs/<product>/` folder with a `ROADMAP.md`, its own changelog in the UI, its
+own image tags and deploy job. The repo is shared for one reason: they use the
+same engine and the same frontend components.
 
-Implementation status: **Milestone 1 in progress** (repo/CI migration). The
-play solver itself (engine, API, UI) arrives in Milestone 2 from prepared code.
+Status: the migration ("Milestone 1" below) is **complete and verified in
+production, 2026-08-27**. The play solver's own design and history live in
+`docs/play/` (`v1.0-play-solver-plan.md`, `ROADMAP.md`).
 
 ## The shape of the thing
 
 The play solver is a different product, not a fourth tab. The two existing
 tools are the same interaction — fill a form, run a Monte-Carlo + DDS
 simulation, read a ranked table — which is why they share one app shell, one
-MP/IMP toggle, one changelog. The play solver is interactive and stateful:
-the user plays a hand card by card and the tool prices each play. Different
-UX, different pacing, different audience framing. So:
+MP/IMP toggle, one changelog. The play solver is a different interaction:
+load a hand you already played, step through it, and read a grade for every
+decision — a viewer with a solver behind it, not a form. Different UX,
+different pacing, different audience framing. So:
 
 - **Separate domain**, with plain hyperlinks between the two apps. Nothing
   carries across origins (no shared localStorage or mode preference); anything
@@ -76,6 +80,21 @@ changelog across two domains would recouple what the split decouples.
   input. Per-stack compose files live under `deploy/<stack>/` in the repo and
   land in `/opt/bridge_leads` and `/opt/bridge_play` on the VPS.
 
+## Versioning, docs, releases: per product
+
+| | Lead / contract simulator | Play solver |
+| --- | --- | --- |
+| Version line | `v1.0 … v2.2` | `v1.0 …` (its own count) |
+| Source of truth | `frontend/src/apps/changelog/releases.ts` | `frontend/src/apps/play/changelog/releases.ts` |
+| Roadmap + plan docs | `docs/lead/` | `docs/play/` |
+| Frontend build | `npm run build:lead` (`APP=lead`) | `npm run build:play` (`APP=play`) |
+| Images | `bridge_leads-backend`, `bridge_leads-frontend` | `bridge_leads-backend` (shared, play `command:`), `bridge_play-frontend` |
+| Deploy | `deploy/lead/`, job `deploy-lead`, `/opt/bridge_leads` | `deploy/play/`, job `deploy-play`, `/opt/bridge_play` |
+
+The backend image is shared because both apps sit on the same `engine/`;
+each stack pins its own tag of it, so their backend versions still move
+independently. Nothing else is shared at release time.
+
 ## Milestone 1 — migrate the existing solver (zero behavior change)
 
 When this lands, the live site serves exactly what it serves today, from the
@@ -100,23 +119,3 @@ Phase 3, verify: dispatch a lead deploy at `latest`, confirm the site is
 unchanged (one lead sim, one contract sim, query log gains rows); dispatch once
 at the previous good SHA to prove rollback survived the migration; roll
 forward.
-
-## Milestone 2 — the play solver lands (additive only)
-
-Every item below is a new file or a new job; nothing in the lead path is
-edited except one `COPY app_play ./app_play` line in the backend Dockerfile.
-
-- `backend/engine/play/` (solver logic — from prepared code) and
-  `backend/app_play/` (FastAPI app). The API is **stateless**: the client
-  sends the full play history each request, the server solves and returns —
-  which is what lets the cache, the threadpool model, and the query log work
-  exactly as they do for the other tools. Own query-log DB under the play
-  stack's own `./data` bind mount.
-- `frontend/src/apps/play/` + its own entry HTML and shell + `build:play`,
-  its own `nginx.conf`, its own changelog data.
-- `deploy/play/docker-compose.prod.yml` (`bp-*` edge aliases,
-  `BRIDGE_DDS_THREADS: "2"`), a `deploy-play` job, `/opt/bridge_play` on the
-  VPS.
-- Outside this repo: a Porkbun DNS record for the play domain, and a vhost in
-  the FBO repo's `deploy/edge/` routing it to the `bp-*` aliases — the one
-  cross-repo step, easy to forget in the runbook.

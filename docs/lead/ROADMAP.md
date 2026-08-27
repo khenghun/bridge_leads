@@ -1,8 +1,10 @@
-# Roadmap
+# Roadmap — Opening Lead Simulator & Optimal Contract Calculator
 
-Version history and planned work.
+Version history and planned work for the lead/contract app. The play
+solver has its own line in [`../play/ROADMAP.md`](../play/ROADMAP.md);
+the repo-level story is [`../two-products-one-repo.md`](../two-products-one-repo.md).
 
-Releases are numbered **v1.0, v1.1, … v2.1** — the same numbers the app's
+Releases are numbered **v1.0, v1.1, … v2.2** — the same numbers the app's
 **What's new** tab shows players. `frontend/src/apps/changelog/releases.ts` is
 the source of truth for them; this file follows it and adds the engineering
 detail.
@@ -45,7 +47,7 @@ The initial Streamlit app.
 
 ### Milestone 3 — Flexible constraints, auction demo, and sample deals ✅
 
-Detailed design: [`docs/v1.0-constraints-plan.md`](docs/v1.0-constraints-plan.md).
+Detailed design: [`v1.0-constraints-plan.md`](v1.0-constraints-plan.md).
 
 #### 1. More flexible hand constraints ✅
 
@@ -55,7 +57,7 @@ stays a plain range. Implemented as an envelope + predicate (rejection) in the
 deal generator so shapes appear at their natural frequency. New modules
 `engine/shapes.py` and `engine/shape_parser.py`; `generate_deal` gained an
 `acceptors=` hook; `app.py` has a per-seat "Shape (advanced)" box. *Done.*
-See `docs/v1.0-constraints-plan.md` §1.
+See `v1.0-constraints-plan.md` §1.
 
 #### 2. Basic auction demo (1NT–3NT) with predefined constraints ✅
 
@@ -64,7 +66,7 @@ predefined constraint set (built on feature 1's shapes). A "Demo → Sample
 auction" selector in `app.py` auto-fills the contract, declarer, and constraints
 via an `on_change` callback so the user just enters the leader's hand and hits
 Simulate. Presets: **1NT(S)–3NT(N)** and **2NT(S)–3NT(N)** (same shapes, HCP
-20–21 / 4–10). *Done — verified end to end.* See `docs/v1.0-constraints-plan.md` §2.
+20–21 / 4–10). *Done — verified end to end.* See `v1.0-constraints-plan.md` §2.
 
 #### 3. Sample dealt hands showcasing the lead engine ✅
 
@@ -81,7 +83,7 @@ Two shortcuts for filling the leader's hand, alongside per-suit typing: a
 **🎲 Random hand** button (`randomize_leader_hand`) and a **"…or paste PBN"** box
 that parses `spades.hearts.diamonds.clubs` (e.g. `T.KT932.Q2.T9843`, `10`→`T`)
 into the four boxes via an `on_change` callback, with inline validation.
-*Done — verified.* See `docs/v1.0-constraints-plan.md` §4.
+*Done — verified.* See `v1.0-constraints-plan.md` §4.
 
 #### 5. Sample-deal interactivity ✅
 
@@ -89,11 +91,11 @@ The "Sample deals" lead follows the **recommended lead for the active scoring
 mode** (toggling Matchpoints ↔ IMPs re-points the samples), and the dropdown is
 replaced by clickable, suit-labelled **lead chips** (recommended marked ★,
 selected highlighted `primary`). Clicks persist across reruns and stick until the
-next mode flip / run. *Done — verified.* See `docs/v1.0-constraints-plan.md` §5.
+next mode flip / run. *Done — verified.* See `v1.0-constraints-plan.md` §5.
 
 ### Milestone 4 — Architecture migration: FastAPI + React/Vite + Docker ✅
 
-Detailed design: [`docs/v1.0-webapp-plan.md`](docs/v1.0-webapp-plan.md).
+Detailed design: [`v1.0-webapp-plan.md`](v1.0-webapp-plan.md).
 
 Retire Streamlit and split into a proper client/server app, keeping the
 simulation `engine/` **unchanged**:
@@ -119,7 +121,7 @@ simulation `engine/` **unchanged**:
 
 ### Milestone 5 — Production deployment: Vultr VPS + Caddy + GHCR CI/CD ✅
 
-Detailed design: [`docs/v1.0-deploy-plan.md`](docs/v1.0-deploy-plan.md).
+Detailed design: [`v1.0-deploy-plan.md`](v1.0-deploy-plan.md).
 
 Stand the **unchanged** v4 container stack up on a public host with automatic
 TLS and a push-button deploy. **No application code changes** — only new infra
@@ -212,7 +214,7 @@ P(6 cards) and length rejection was the bottleneck.
 
 ## v2.0 — Optimal Contract Calculator ✅ (2026-08-03)
 
-Detailed design: [`docs/v2.0-contract-plan.md`](docs/v2.0-contract-plan.md).
+Detailed design: [`v2.0-contract-plan.md`](v2.0-contract-plan.md).
 Work log / handoff: `latest_updates.md`.
 
 The mirror image of the lead simulator: enter **your own** hand plus what the
@@ -331,9 +333,9 @@ to keep mounted beside the two tools. Add an entry there whenever a release
 changes something a player would notice — and keep it free of module names and
 test counts, which belong here.
 
-## v2.2 — Results worth sharing ✅ (built 2026-08-12, not yet deployed)
+## v2.2 — Results worth sharing ✅ (built 2026-08-12, deployed 2026-08-27)
 
-Detailed design: [`docs/v2.2-share-plan.md`](docs/v2.2-share-plan.md).
+Detailed design: [`v2.2-share-plan.md`](v2.2-share-plan.md).
 Work log: `latest_updates.md`.
 
 Five presentation features taken from a review of the commercial competitor

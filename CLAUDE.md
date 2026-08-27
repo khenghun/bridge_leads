@@ -4,16 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Two Monte-Carlo + double-dummy bridge tools sharing one engine, shown as tabs of one web app (plus a third, static **What's new** tab):
+Two Monte-Carlo + double-dummy bridge tools sharing one engine, shown as tabs of one web app (plus a third, static **What's new** tab), and a third tool that is a **separate web app** on the same engine (see 3. below):
 
 1. **Opening Lead Simulator** (v1–v6). Given the opening leader's hand, the contract, and optional constraints on the three unseen hands, generate consistent deals, double-dummy solve each candidate lead, and rank leads by **matchpoints** or **IMPs**.
 2. **Optimal Contract Calculator** (v7). Given *your own* hand and the same style of constraints on partner's and the opponents' hands, rank the **contracts your side could be in** — where do these two hands belong?
 
 Both sample deals the same way and score with the same tables; they differ only in the DDS call (`solve_all_boards` per lead vs one DD **table** per deal) and in what gets ranked.
 
+3. **Play Solver** (`docs/play/v1.0-play-solver-plan.md`). Load a completed hand (a BBO `.lin` file), step through the play, and grade every decision one seat made: at each of that seat's turns the two hands it could not see are sampled under the play-so-far and the user's constraints, and every legal card is DD-solved. **A second product, not a fourth tab** — its own FastAPI app (`backend/app_play/`, same image, own container), its own frontend entry (`frontend/play.html` → `src/apps/play/`, Tailwind scoped to that entry), its own domain and deploy stack. The API is stateless: LIN is parsed in the browser (`lib/lin.ts`) and each request carries the four hands, the contract and the play so far.
+
 It is a client/server app: a **FastAPI** backend (`backend/`) wrapping the simulation engine, and a **React + Vite + TypeScript** frontend (`frontend/`), containerised with `docker-compose`. (It began as a single Streamlit script; that UI has been removed.)
 
-**Versions are `v1.0, v1.1, … v2.2`**, and `frontend/src/apps/changelog/releases.ts` is the source of truth — it is what players see in the *What's new* tab, and `ROADMAP.md` follows it. Everything through 2026-07-16 is v1.0, so the plan docs under `docs/` (named `docs/<version>-<topic>-plan.md`) include three `v1.0-*` files; the six *development milestones* inside ROADMAP's v1.0 section are an older internal numbering that survives only there — don't confuse "milestone 4" with "v1.1". **Shipping something a player would notice means adding an entry to `releases.ts`** — keep it plain-language, no module names or test counts.
+**The two products are versioned, documented and released separately** — think of the repo as shared only for the libraries. Each has its own line: the lead/contract app is `v1.0, v1.1, … v2.2`, the play solver starts again at `v1.0`. The source of truth for each is its in-app changelog data — `frontend/src/apps/changelog/releases.ts` (lead, the *What's new* tab) and `frontend/src/apps/play/changelog/releases.ts` (play, the *What's new* panel) — and the roadmaps follow it: `docs/lead/ROADMAP.md` and `docs/play/ROADMAP.md`, with plan docs beside them as `docs/<product>/<version>-<topic>-plan.md` (root `ROADMAP.md` is just the index; `docs/two-products-one-repo.md` is the repo-level architecture). Everything in the lead app through 2026-07-16 is v1.0, so it has three `v1.0-*` plan docs; the six *development milestones* inside the lead ROADMAP's v1.0 section are an older internal numbering that survives only there — don't confuse "milestone 4" with "v1.1". **Shipping something a player would notice means adding an entry to that product's `releases.ts`** — keep it plain-language, no module names or test counts.
 
 **No AI / LLM integration.** This is pure simulation. Do not add model calls, embeddings, or agent code.
 
@@ -27,6 +29,7 @@ Python deps live in a project venv at `.venv/` (gitignored). The engine is pure 
 python -m venv .venv
 .venv/Scripts/python.exe -m pip install -r backend/requirements-dev.txt   # Windows
 cd backend && ../.venv/Scripts/uvicorn app.main:app --reload              # dev server on :8000
+cd backend && ../.venv/Scripts/uvicorn app_play.main:app --reload --port 8001   # play solver API (its own app), beside the lead API
 ```
 
 - `fastapi` / `uvicorn` — HTTP layer (`backend/app/`).
@@ -38,8 +41,10 @@ cd backend && ../.venv/Scripts/uvicorn app.main:app --reload              # dev 
 cd frontend
 npm install
 npm run dev        # Vite dev server; proxies /api → http://localhost:8000
-npm run build      # tsc -b && vite build (typecheck + production bundle)
-npm run test       # vitest (pure helpers in src/lib/bridge.ts)
+npm run dev:play   # the play solver on :5174 (open /play.html); proxies /api → :8001
+npm run build      # = build:lead — tsc -b && vite build (typecheck + production bundle)
+npm run build:play # the play app via vite.play.config.ts
+npm run test       # vitest (pure helpers in src/lib/*.ts, contract ranking)
 ```
 
 ### Docker (whole stack)
@@ -47,6 +52,10 @@ npm run test       # vitest (pure helpers in src/lib/bridge.ts)
 ```
 docker compose up --build     # frontend on http://localhost, backend proxied at /api
 ```
+
+### Running & checking both apps locally
+
+Two products = **four dev processes**, each pair on its own ports: lead API `:8000` + `npm run dev` (`:5173`), play API `:8001` (`uvicorn app_play.main:app --port 8001`) + `npm run dev:play` (`:5174`, open `/play.html`). Health-check **through the Vite proxies** (`:5173/api/health`, `:5174/api/play/health`), not just the APIs. Both dev scripts are `--strictPort` so a taken port fails loudly. Two gotchas: the play Vite config has its own `cacheDir` (`node_modules/.vite-play`) — without it the two dev servers invalidate each other's pre-bundled React and the play page goes blank with `504 Outdated Optimize Dep`; and stopping a backgrounded dev-server shell can leave the node/python child bound to the port with the old config (`netstat -ano | grep :5174`, then `taskkill`). The full boot-and-verify runbook, including the expected deterministic result for the play example, is the project skill **`.claude/skills/run-apps/SKILL.md`** (tracked) — use it before any browser verification.
 
 ## Architecture
 
@@ -56,14 +65,20 @@ Both tools are split the same way at every layer: **shared core, then one packag
 backend/engine/            shared: sampling, constraints, scoring, DDS runtime
 backend/engine/lead/       opening-lead simulator + demo auctions
 backend/engine/contract/   optimal-contract calculator
-backend/app/common/        shared: result cache, constraint parsing, base schemas
+backend/engine/play/       play solver: replay state + the per-decision grader
+backend/app/common/        shared: result cache, constraint parsing, base schemas, query log
 backend/app/lead/          /api/simulate, /api/auctions, /api/validate/shape, /api/health
 backend/app/contract/      /api/contract/simulate
-frontend/src/components/   shared UI (HandEntry, ConstraintsEditor, DealDiagram)
+backend/app_play/          the play solver's OWN FastAPI app: /api/play/analyze, /api/play/position
+frontend/src/components/   shared UI (HandEntry, ConstraintsEditor, DealDiagram, Changelog)
+frontend/src/lib/          shared pure helpers (bridge.ts, share.ts, lin.ts)
 frontend/src/apps/lead/    lead tab
 frontend/src/apps/contract/ contract tab
 frontend/src/apps/changelog/ What's new tab — releases.ts is the version source of truth
+frontend/src/apps/play/    the play solver app (own entry play.html / play-main.tsx, own Tailwind css, own changelog/releases.ts)
 ```
+
+Two frontend entries, one source tree: `npm run build:lead` (→ `index.html`) and `npm run build:play` (`vite.play.config.ts` → `play.html`, emitted as `index.html`); the Docker build arg `APP` picks one and the matching `nginx.${APP}.conf`. `dev:play` serves the play app on :5174. Tailwind's `content` is limited to the play files, so the lead bundle carries none of it.
 
 Put anything a second tool could want in the shared layer, not in a tool package — that is how `sampling.py` and `dds_runtime.py` came to exist.
 
@@ -79,6 +94,8 @@ The **engine** is framework-agnostic — it has no HTTP/UI imports.
 - `backend/engine/shapes.py` / `shape_parser.py` — disjunctive `(A or B or C)` shape constraints: text mini-language → terms → (envelope box + acceptor predicate).
 - `backend/engine/lead/auctions.py` — predefined demo auctions (contract + constraint presets).
 - `backend/engine/contract/candidates.py` — the **20-contract** candidate set and its labels. Undoubled, every partscore level in a strain scores the same for a given trick count and the lowest never scores less, so per strain there are exactly four decisions: `partscore (1-level) | game (3NT/4M/5m) | 6 | 7`. That pruning is a scoring argument, not a display convenience — it is also why the ranked table never fills with 4♠/3♠/2♠ near-duplicates. Partscores are labelled `♠ partscore`, not `1♠`.
+- `backend/engine/play/state.py` — pure replay: `replay(hands, strain, declarer, play)` validates the play (right hand, follows suit) and returns the position (tricks + winners, current partial trick, who is on play, remaining cards, tricks per side); `legal_cards`, `trick_winner`. Raises `ValueError` naming the offending play index.
+- `backend/engine/play/grader.py` — one Monte-Carlo grader parameterised by the **view** seat. `grade_position` samples the two hands that seat cannot see (declarer sees dummy; a defender sees dummy except at the opening lead), consistent with the play so far — cards an unseen seat already played are pinned via `fixed_cards`, a seat that showed out has that suit capped — replays each sample to the position and solves all samples in one `dds_runtime.solve_all` batch (`solve_board` prices every legal card of the player on play at once). `grade_play` walks the play and grades every decision of one seat (declarer's include dummy's cards); single-legal-card positions are `forced`, not solved. Method `double_dummy` solves the actual deal instead of sampling. Tricks are reported for the graded side; status thresholds on `diff = actual − best`: optimal (<0.1), good (≥ −0.3), else suboptimal.
 - `backend/engine/contract/simulator.py` — `simulate_contracts(hand, seat, vul, constraints, num_deals, strains, seed=None)`. Samples deals with *our* hand fixed, gets one DD table per deal (`dds_runtime.calc_tables`), then scores all 20 contracts × both declarers from that table (pure arithmetic — the candidate space is free, deal count is the only cost driver). Returns per-candidate `make_rate` / `mean_tricks` / `mean_score` / `fail_mean_score` / `seat_delta`, opponent context (`opps_game_rate`, `par_competitive_rate` via `endplay.dds.par` on the same table), and the per-deal `deals` matrix. **We declare here, so the declarer score IS our score** — no sign flip, unlike the lead simulator where we defend. It deliberately does **not** rank: the frontend does that from the matrix so switching mode or benchmark is instant.
 
 The **backend HTTP layer** (`backend/app/`) is a thin wrapper — no simulation logic:
@@ -89,7 +106,8 @@ The **backend HTTP layer** (`backend/app/`) is a thin wrapper — no simulation 
 - `app/common/querylog.py` — one SQLite row per simulation: timestamp, tool, request body. Nothing else — no IP, no session, no response. **Off unless `BRIDGE_QUERY_LOG` names a file**, so dev and tests write nothing; prod sets it in `deploy/lead/docker-compose.prod.yml` against a bind-mounted `./data`. Both simulate routes call it *before* running, so an infeasible query (422) is logged too. Every write is best-effort and swallows its own errors — a full disk must cost you the log, not the app. Routes read it through the module (`querylog.QUERY_LOG`) so tests can swap the singleton. There is deliberately **no endpoint** to read it: `scripts/view_queries.py` copies the file down over scp and decodes each row (`--summary` for counts, `--json` to pipe). An empty result means nobody has used the app since logging started — that is an answer, not a failure.
 - `app/lead/routes.py` — `/api/health`, `/api/auctions`, `/api/validate/shape`, `/api/simulate`.
 - `app/contract/routes.py` — `/api/contract/simulate`.
-- Both simulate handlers are **plain `def`** so Starlette runs the blocking DDS solve in a threadpool.
+- `app_play/` — the play solver's own app (`main.py`, `routes.py`, `schemas.py`, `service.py`), importing `app.common` for schemas, cache, constraints and the query log (tool `'play'`). It also serves `/api/validate/shape`, which the shared `ConstraintsEditor` calls. It runs as a second container from the same image (`uvicorn app_play.main:app`, set by `deploy/play/docker-compose.prod.yml`'s `command:`). Keeping it out of `app/main.py` is what makes the two products deployable independently.
+- All simulate/analyze handlers are **plain `def`** so Starlette runs the blocking DDS solve in a threadpool.
 - `app/main.py` — FastAPI instance + CORS (dev only; prod is same-origin behind nginx) + both routers.
 
 The **frontend** (`frontend/src/`):
@@ -111,6 +129,7 @@ Source material lives at `C:\kh\bridge_ai\solver\` — reuse the v2 modules (`de
 - **PBN hand strings** are `spades.hearts.diamonds.clubs`, suits high-to-low (e.g. `AK8.Q95.J982.Q43`). PBN deal order is `N:` then N E S W.
 - **The simulator returns candidate-lead cards with the unicode suit symbol** (`♥Q`), not the `HQ` input form — the frontend maps the leading symbol to a suit colour/letter (`SYMBOL_COLOR` / `SYMBOL_LETTER` in `lib/bridge.ts`).
 - **Opening leader is LHO of declarer.** At lead time only the leader's 13 cards are known — **dummy is NOT visible yet**, so the leader's hand is the only fixed hand. Declarer, dummy, and partner are all simulated under the user's constraints.
+- **In the play solver all four hands are known** (a LIN file has them) but the grader deliberately hides two of them per decision — grading is "best card given what this player could see". `method: 'double_dummy'` is the hindsight answer. The DDS perspective trap applies at every mid-trick position: `solve_board` returns future tricks for the side **on play**, so graded-side tricks = tricks already won + future (flipped when the other side is on play).
 - **In the contract calculator only your own hand is fixed**; partner *and* both opponents are simulated under the constraints (the editor shows partner / LHO / RHO). Candidate declarers are you and partner, and the DD table prices both.
 - Engine constraint dict (same for both tools) is **keyed by player letter**, not endplay `Player` objects: `{'hcp': {'S': (min,max)}, 'suit_length': {'S': {'H': (min,max)}}, 'shapes': {'S': [ {suit:(min,max)}, ... ]}, 'quality': {'S': {'H': 'good'}}, 'fixed_cards': {'N': ['SA', ...]}}`. Either HCP/length bound may be `None` for unbounded. Only the three seats the user cannot see are constrainable. The API accepts shapes as **text** (the mini-language) and `app/common/constraints.py` parses them to terms. `quality` accepts **at most one entry in total** across every seat and suit; more raises (→ 422), and the frontend enforces it by clearing the previous pick (`applyQuality` in `lib/bridge.ts`), so users never hit that error.
 - **`fixed_cards` is the escape hatch for what the vocabulary cannot say** ("East holds ♥AK"). Cards are endplay form (`HA`, `DT`) and a card may be claimed once across the whole table and never from the user's own hand — the UI (`fixedCardIssues` in `lib/bridge.ts`) checks that while typing and disables Simulate, so the matching 422 is a backstop, not the normal path. It composes with everything else rather than layering on top: pinned honours count toward the seat's HCP band and are seen by the quality DP, so `{fixed_cards: {N: ['HA','HQ']}, quality: {N: {H: 'poor'}}}` is correctly reported infeasible.
