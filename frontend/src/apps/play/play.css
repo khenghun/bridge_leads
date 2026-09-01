@@ -32,8 +32,9 @@
 
 /* --------------------------------------------------------------------------
    Play-solver shell. Panels use the shared tokens so the light-mode toggle
-   works exactly as it does in the lead app; the card table stays light in both
-   themes, the way a real table is.
+   works exactly as it does in the lead app. The card table follows the theme
+   too (v1.1): its colours are the --felt-* tokens below, dark by default and
+   swapped under body.light — only the cards themselves stay white.
    -------------------------------------------------------------------------- */
 
 .play-shell {
@@ -62,13 +63,43 @@
   text-align: center;
 }
 
-/* The felt: deliberately light in both themes — cards are printed on white. */
+/* The felt. Everything drawn on it reads a --felt-* token so the table
+   follows the light-mode toggle; the face-up cards stay white in both themes,
+   the way real cards are. */
 .play-felt {
-  background: #eef5fd;
-  color: #1e293b;
-  border: 1px solid #cddcef;
+  --felt-bg: #141a24;
+  --felt-border: var(--border);
+  --felt-text: var(--text);
+  --felt-muted: var(--muted);
+  --felt-strong: #f3f4f6;
+  --felt-hand-bg: #1c2431;
+  --felt-hand-bg-declarer: #1b2a44;
+  --felt-hand-ring: #2e3a4c;
+  --felt-hand-ring-declarer: #35598e;
+  --felt-faded: #5d6877;
+  --felt-lines: #3a4557;
+  --felt-seat-bg: #4b5563;
+  --felt-vul: #c0392b;
+  --felt-dealer: #eab308;
+  background: var(--felt-bg);
+  color: var(--felt-text);
+  border: 1px solid var(--felt-border);
   border-radius: 14px;
   padding: 1.1rem;
+}
+body.light .play-felt {
+  --felt-bg: #eef5fd;
+  --felt-border: #cddcef;
+  --felt-text: #1e293b;
+  --felt-muted: #64748b;
+  --felt-strong: #0f172a;
+  --felt-hand-bg: #f7fbff;
+  --felt-hand-bg-declarer: #dceafb;
+  --felt-hand-ring: #d9e6f5;
+  --felt-hand-ring-declarer: #93b4de;
+  --felt-faded: #94a3b8;
+  --felt-lines: #cbd5e1;
+  --felt-seat-bg: #64748b;
 }
 
 .play-dropzone {
@@ -99,6 +130,25 @@
 .play-seat-btn.on { background: var(--panel-2); border-color: var(--accent); }
 .play-seat-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
+/* v1.1 — one section per graded seat inside a pair card */
+.play-seat-section { margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+.play-seat-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.play-seat-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
 .play-navbtn {
   padding: 0.2rem 0.55rem;
   border-radius: 6px;
@@ -111,7 +161,7 @@
   cursor: pointer;
   user-select: none;
 }
-.play-navbtn:hover:not(:disabled) { background: rgba(30, 41, 59, 0.16); }
+.play-navbtn:hover:not(:disabled) { background: var(--felt-hand-ring); }
 .play-navbtn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* Decisions table */

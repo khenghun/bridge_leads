@@ -48,7 +48,7 @@ samples, v1.3 changes how it prices, v1.4 and v1.5 drive it from new places.
 The order is value-per-effort: v1.1 is a frontend composition of what exists,
 v1.2 is the one deep engine feature and the thing no free tool does.
 
-## v1.1 — Analyze a pair, or the whole table ⚪
+## v1.1 — Analyze a pair, or the whole table 🟡 (built 2026-09-01, not yet deployed)
 
 Design: [`v1.1-pair-analysis-plan.md`](v1.1-pair-analysis-plan.md).
 
@@ -64,7 +64,12 @@ mistakes, tricks lost) and, for the whole table, one ranked list of the
 biggest swings across all seats — the "whose fault was it" view. Constraints
 become **per seat, for all four seats** ("what the auction revealed about this
 hand"), and each request carries the entries for the seats that request cannot
-see; today's editor only knows the two seats hidden from one graded seat.
+see; because the real deal is known, the editor warns when a constraint rules
+out the hand a player actually held, and blocks a pinned card they did not
+hold. Built as planned — no backend change; `frontend/src/apps/play/analysis.ts`
+holds the pure parts (23 vitest cases) and the UI was verified with Playwright
+(request bodies carry exactly the per-view constraint slice; E/W on the example
+reproduces v1.0's West result).
 
 ## v1.2 — Expert opponents ⚪
 

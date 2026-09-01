@@ -47,10 +47,10 @@ interface Props {
   step: number
   setStep: (next: number | ((prev: number) => number)) => void
   analysis: AnalysisMap | null
-  gradedSeat?: Seat | null
+  gradedSeats?: Seat[]
 }
 
-export default function PlayViewer({ game, step, setStep, analysis, gradedSeat }: Props) {
+export default function PlayViewer({ game, step, setStep, analysis, gradedSeats }: Props) {
   const { tricks, play } = game
   const totalCards = play.length
   const hasPlay = totalCards > 0
@@ -171,14 +171,14 @@ export default function PlayViewer({ game, step, setStep, analysis, gradedSeat }
   return (
     <div className="flex flex-col items-center gap-3">
       {hasPlay && (
-        <div className="flex items-center gap-3 text-sm" style={{ color: '#475569' }}>
-          <span>N–S <b className="tabular-nums" style={{ color: '#0f172a' }}>{nsTricks}</b></span>
-          <span className="text-xs font-mono" style={{ color: '#64748b' }}>{label}</span>
-          <span>E–W <b className="tabular-nums" style={{ color: '#0f172a' }}>{ewTricks}</b></span>
+        <div className="flex items-center gap-3 text-sm" style={{ color: 'var(--felt-muted)' }}>
+          <span>N–S <b className="tabular-nums" style={{ color: 'var(--felt-strong)' }}>{nsTricks}</b></span>
+          <span className="text-xs font-mono" style={{ color: 'var(--felt-muted)' }}>{label}</span>
+          <span>E–W <b className="tabular-nums" style={{ color: 'var(--felt-strong)' }}>{ewTricks}</b></span>
         </div>
       )}
 
-      <PlayTable game={game} playInfo={playInfo} analysis={analysis} gradedSeat={gradedSeat} />
+      <PlayTable game={game} playInfo={playInfo} analysis={analysis} gradedSeats={gradedSeats} />
 
       {hasPlay ? (
         <div className="flex flex-col items-center gap-1.5 mt-1">
@@ -188,7 +188,7 @@ export default function PlayViewer({ game, step, setStep, analysis, gradedSeat }
             <NavBtn onClick={() => setStep((v) => Math.max(v - 1, 0))} disabled={s === 0} title="Previous card (←)">◀</NavBtn>
             <span
               className="px-2 text-xs font-mono w-14 text-center tabular-nums"
-              style={{ color: '#64748b' }}
+              style={{ color: 'var(--felt-muted)' }}
             >
               {cardsShown}/{totalCards}
             </span>
@@ -196,12 +196,12 @@ export default function PlayViewer({ game, step, setStep, analysis, gradedSeat }
             <NavBtn onClick={() => setStep(nextTrickStep)} disabled={s >= totalSteps} title="Next trick (Shift+→)">▶▶</NavBtn>
             <NavBtn onClick={() => setStep(totalSteps)} disabled={s >= totalSteps} title="End (End)">▶|</NavBtn>
           </div>
-          <div className="text-xs" style={{ color: '#64748b' }}>
+          <div className="text-xs" style={{ color: 'var(--felt-muted)' }}>
             ← → cards · Shift+← → tricks · Home / End
           </div>
         </div>
       ) : (
-        <div className="text-sm" style={{ color: '#64748b' }}>
+        <div className="text-sm" style={{ color: 'var(--felt-muted)' }}>
           This hand has no recorded play — there is nothing to step through or grade.
         </div>
       )}

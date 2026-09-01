@@ -1,15 +1,23 @@
 /**
  * AnalysisPanel — the graded decisions, ported from
- * bridge_ai/src/components/AnalysisPanel.jsx (minus its AI review modal).
+ * bridge_ai/src/components/AnalysisPanel.jsx (minus its AI review modal) and
+ * regrouped by pair for v1.1.
  *
- * One row per decision the graded seat made. Clicking a row jumps the viewer
- * to the moment that card was played and expands the sub-table of every legal
- * card at that point, ranked by expected tricks.
+ * One analysis is a plan (which pairs, which seats) plus one result per seat
+ * as they arrive. Each pair is a card: its summary, then a section per graded
+ * seat with the decisions table — one row per decision, click to jump the
+ * viewer to that card and expand every legal alternative ranked by expected
+ * tricks. The whole-table view adds the biggest swings across all seats at
+ * the top.
  */
-import { Fragment, useState } from 'react'
-import type { Suit } from '../../api/types'
+import { Fragment, useEffect, useState } from 'react'
+import type { Seat, Suit } from '../../api/types'
 import type { AnalyzeResponse, CardOption, Decision, DecisionStatus } from '../../api/playTypes'
-import { SUIT_COLOR, SUIT_SYMBOL } from '../../lib/bridge'
+import { SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL } from '../../lib/bridge'
+import {
+  PAIR_LABEL, pairRole, pairSummary, rankSwings, seatsOfPair,
+  type AnalysisAction, type Pair, type Swing,
+} from './analysis'
 
 export const STATUS_COLOR: Record<string, string> = {
   optimal: 'var(--status-optimal)',
@@ -30,6 +38,21 @@ export function buildAnalysisMap(decisions: Decision[]): Map<string, Decision> {
   const map = new Map<string, Decision>()
   for (const d of decisions) map.set(d.card, d)
   return map
+}
+
+export type SeatStatus = 'queued' | 'solving' | 'done' | 'failed'
+
+/** What one Analyze press asked for. */
+export interface AnalysisPlan {
+  action: AnalysisAction
+  declarer: Seat
+  pairs: Pair[]
+  seats: Seat[]
+}
+
+export interface Selection {
+  seat: Seat
+  index: number
 }
 
 function CardText({ card }: { card: string }) {
@@ -114,65 +137,22 @@ function Options({ options, played }: { options: CardOption[]; played: string })
   )
 }
 
-interface Props {
-  result: AnalyzeResponse | null
-  loading: boolean
-  error: string | null
-  /** Jump the viewer to the card this decision played. */
-  onSelect: (decision: Decision) => void
-  /** Index into `result.decisions` currently highlighted, or null. */
+/** One seat's graded decisions — the v1.0 table, now one section of a pair card. */
+function DecisionsTable({ result, selected, onSelect }: {
+  result: AnalyzeResponse
   selected: number | null
-}
-
-export default function AnalysisPanel({ result, loading, error, onSelect, selected }: Props) {
+  onSelect: (decision: Decision, index: number) => void
+}) {
   const [expanded, setExpanded] = useState<number | null>(null)
-
-  if (loading) {
-    return (
-      <div className="play-panel">
-        <h2 className="play-panel-title">Analysis</h2>
-        <div className="flex items-center justify-center gap-3 py-8 text-sm" style={{ color: 'var(--muted)' }}>
-          <span className="play-spinner" style={{ color: 'var(--accent)' }} />
-          Solving every decision…
-        </div>
-        <p className="caption tiny" style={{ textAlign: 'center' }}>
-          Each decision is its own Monte-Carlo batch, so a full hand takes a while.
-        </p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="play-panel">
-        <h2 className="play-panel-title">Analysis</h2>
-        <div className="banner banner-error">{error}</div>
-      </div>
-    )
-  }
-
-  if (!result) {
-    return (
-      <div className="play-panel">
-        <h2 className="play-panel-title">Analysis</h2>
-        <p className="caption" style={{ textAlign: 'center' }}>
-          Pick a seat and press <b>Analyze</b> to price every card that seat
-          played against every card it could have played instead.
-        </p>
-      </div>
-    )
-  }
-
+  // A selection made elsewhere (the biggest-swings list) opens the options
+  // here too, so the jump lands on the alternatives, not just the row.
+  useEffect(() => { if (selected != null) setExpanded(selected) }, [selected])
   const { decisions, summary } = result
   const sideLabel = result.role === 'defender' ? 'defensive tricks' : 'tricks'
 
   return (
-    <div className="play-panel">
-      <h2 className="play-panel-title">
-        {result.role === 'defender' ? 'Defense' : 'Declarer'} analysis · {result.seat}
-      </h2>
-
-      <div className="flex flex-wrap items-center gap-2 mb-2 text-xs" style={{ color: 'var(--muted)' }}>
+    <>
+      <div className="flex flex-wrap items-center gap-2 mb-1 text-xs" style={{ color: 'var(--muted)' }}>
         <span style={{ color: 'var(--status-optimal)' }}>{summary.optimal}✓</span>
         {summary.good > 0 && <span style={{ color: 'var(--status-good)' }}>{summary.good}~</span>}
         {summary.suboptimal > 0 && (
@@ -183,13 +163,11 @@ export default function AnalysisPanel({ result, loading, error, onSelect, select
           <span>({summary.decisions - summary.graded} forced)</span>
         )}
         <span>·</span>
-        <span>needs {result.tricks_needed} tricks</span>
-        <span>·</span>
         <span>{result.method === 'double_dummy' ? 'double dummy' : `${result.num_deals} deals`}</span>
         {result.visible?.length > 0 && <span>· saw {result.visible.join(' + ')}</span>}
       </div>
 
-      <div className="overflow-y-auto" style={{ maxHeight: '30rem' }}>
+      <div className="overflow-y-auto" style={{ maxHeight: '24rem' }}>
         <table className="play-decisions">
           <thead>
             <tr>
@@ -210,7 +188,7 @@ export default function AnalysisPanel({ result, loading, error, onSelect, select
                     className={`clickable ${selected === i ? 'on' : ''}`}
                     style={d.forced ? { opacity: 0.55 } : undefined}
                     onClick={() => {
-                      onSelect(d)
+                      onSelect(d, i)
                       if (hasOptions) setExpanded((prev) => (prev === i ? null : i))
                     }}
                   >
@@ -241,8 +219,8 @@ export default function AnalysisPanel({ result, loading, error, onSelect, select
         </table>
       </div>
 
-      <div className="mt-2 pt-2 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted)' }}>
-        Total {sideLabel} given up:{' '}
+      <div className="mt-1 text-xs" style={{ color: 'var(--muted)' }}>
+        {sideLabel[0].toUpperCase() + sideLabel.slice(1)} given up:{' '}
         <b style={{ color: summary.total_trick_loss > 0 ? 'var(--status-suboptimal)' : 'var(--status-optimal)' }}>
           {summary.total_trick_loss.toFixed(2)}
         </b>
@@ -250,11 +228,212 @@ export default function AnalysisPanel({ result, loading, error, onSelect, select
           <> · {summary.avg_trick_loss.toFixed(2)} per graded decision</>
         )}
       </div>
-      <p className="caption tiny">
-        Double-dummy solving sees all four hands on every sampled deal, so it
-        finds plays a human could not — read a small loss as "there was a
-        better card", not as a mistake.
-      </p>
+    </>
+  )
+}
+
+function SeatSection({ seat, status, result, error, selected, onSelect }: {
+  seat: Seat
+  status: SeatStatus | undefined
+  result: AnalyzeResponse | undefined
+  error: string | undefined
+  selected: number | null
+  onSelect: (decision: Decision, index: number) => void
+}) {
+  return (
+    <section className="play-seat-section" data-seat={seat} data-status={status ?? 'queued'}>
+      <h3 className="play-seat-heading">
+        {SEAT_NAME[seat]}
+        {status === 'solving' && (
+          <span className="play-seat-status"><span className="play-spinner" /> solving…</span>
+        )}
+        {status === 'queued' && <span className="play-seat-status">queued</span>}
+      </h3>
+      {status === 'failed' && <div className="banner banner-error">{error}</div>}
+      {result && <DecisionsTable result={result} selected={selected} onSelect={onSelect} />}
+    </section>
+  )
+}
+
+function PairCard({ pair, plan, results, statuses, errors, contractText, selected, onSelect }: {
+  pair: Pair
+  plan: AnalysisPlan
+  results: Partial<Record<Seat, AnalyzeResponse>>
+  statuses: Partial<Record<Seat, SeatStatus>>
+  errors: Partial<Record<Seat, string>>
+  contractText: string
+  selected: Selection | null
+  onSelect: (seat: Seat, decision: Decision, index: number) => void
+}) {
+  const role = pairRole(pair, plan.declarer)
+  const seats = seatsOfPair(pair, plan.declarer)
+  const sum = pairSummary(results, seats)
+  const partial = sum && sum.seats.length < seats.length
+  return (
+    <div className="play-panel" data-pair={pair}>
+      <h2 className="play-panel-title" style={{ marginBottom: '0.2rem' }}>
+        {PAIR_LABEL[pair]} · {role === 'declarer' ? `declaring ${contractText}` : 'defending'}
+      </h2>
+      {sum ? (
+        <div className="flex flex-wrap items-center gap-2 mb-2 text-xs" style={{ color: 'var(--muted)' }}>
+          <span style={{ color: 'var(--status-optimal)' }}>{sum.optimal}✓</span>
+          {sum.good > 0 && <span style={{ color: 'var(--status-good)' }}>{sum.good}~</span>}
+          {sum.suboptimal > 0 && <span style={{ color: 'var(--status-suboptimal)' }}>{sum.suboptimal}✗</span>}
+          <span>of {sum.graded} graded</span>
+          <span>·</span>
+          <span>
+            {role === 'defender' ? 'defensive tricks' : 'tricks'} given up{' '}
+            <b style={{ color: sum.total_trick_loss > 0 ? 'var(--status-suboptimal)' : 'var(--status-optimal)' }}>
+              {sum.total_trick_loss.toFixed(2)}
+            </b>
+          </span>
+          {partial && <span>· {sum.seats.join(' ')} so far</span>}
+        </div>
+      ) : (
+        <p className="caption tiny" style={{ margin: '0 0 0.4rem' }}>
+          {role === 'declarer'
+            ? 'Declarer is graded on both hands — the cards played from dummy are declarer’s decisions.'
+            : 'Each defender is graded on what they could see: their own hand and dummy.'}
+        </p>
+      )}
+      {seats.map((seat) => (
+        <SeatSection
+          key={seat}
+          seat={seat}
+          status={statuses[seat]}
+          result={results[seat]}
+          error={errors[seat]}
+          selected={selected?.seat === seat ? selected.index : null}
+          onSelect={(d, i) => onSelect(seat, d, i)}
+        />
+      ))}
     </div>
+  )
+}
+
+const SWINGS_SHOWN = 8
+
+/** The whole table's costliest decisions, any seat, worst first. */
+function Swings({ swings, results, done, onSelect }: {
+  swings: Swing[]
+  results: Partial<Record<Seat, AnalyzeResponse>>
+  done: boolean
+  onSelect: (seat: Seat, decision: Decision, index: number) => void
+}) {
+  const [all, setAll] = useState(false)
+  const shown = all ? swings : swings.slice(0, SWINGS_SHOWN)
+  return (
+    <div className="play-panel" data-swings>
+      <h2 className="play-panel-title" style={{ marginBottom: '0.2rem' }}>Biggest swings</h2>
+      {swings.length === 0 ? (
+        <p className="caption tiny" style={{ margin: 0 }}>
+          {done ? 'No decision cost a trick — a clean board all round.' : 'Nothing costly yet…'}
+        </p>
+      ) : (
+        <>
+          <table className="play-decisions">
+            <thead>
+              <tr>
+                <th>T#</th>
+                <th>Seat</th>
+                <th>Card</th>
+                <th title="Tricks given up against the best card">Cost</th>
+                <th style={{ textAlign: 'center' }}>Grade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((s) => {
+                const index = results[s.seat]?.decisions.indexOf(s.decision) ?? -1
+                return (
+                  <tr
+                    key={`${s.seat}-${s.decision.index}`}
+                    className="clickable"
+                    onClick={() => onSelect(s.seat, s.decision, index)}
+                  >
+                    <td style={{ color: 'var(--muted)' }}>{s.decision.trick}</td>
+                    <td>
+                      {s.seat}
+                      <span className="ml-1 text-[0.65rem]" style={{ color: 'var(--muted)' }}>
+                        {s.role === 'declarer' ? (s.decision.hand === s.seat ? 'decl' : 'dummy') : 'def'}
+                      </span>
+                    </td>
+                    <td><CardText card={s.decision.card} /></td>
+                    <td className="tabular-nums" style={{ color: 'var(--status-suboptimal)' }}>
+                      −{s.loss.toFixed(2)}
+                    </td>
+                    <td style={{ textAlign: 'center' }}><StatusBadge status={s.decision.status} /></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {swings.length > SWINGS_SHOWN && (
+            <button className="btn btn-small" style={{ marginTop: '0.4rem' }} onClick={() => setAll(!all)}>
+              {all ? 'Show fewer' : `Show all ${swings.length}`}
+            </button>
+          )}
+          {!done && <p className="caption tiny" style={{ margin: '0.3rem 0 0' }}>Still solving — the list grows as seats finish.</p>}
+        </>
+      )}
+    </div>
+  )
+}
+
+interface Props {
+  plan: AnalysisPlan | null
+  results: Partial<Record<Seat, AnalyzeResponse>>
+  statuses: Partial<Record<Seat, SeatStatus>>
+  errors: Partial<Record<Seat, string>>
+  /** e.g. "1NT" — for the declaring pair's heading. */
+  contractText: string
+  selected: Selection | null
+  /** Jump the viewer to the card this decision played. */
+  onSelect: (seat: Seat, decision: Decision, index: number) => void
+}
+
+export default function AnalysisPanel({
+  plan, results, statuses, errors, contractText, selected, onSelect,
+}: Props) {
+  if (!plan) {
+    return (
+      <div className="play-panel">
+        <h2 className="play-panel-title">Analysis</h2>
+        <p className="caption" style={{ textAlign: 'center' }}>
+          Choose a pair — or the whole table — and press <b>Analyze</b> to
+          price every card they played against every card they could have
+          played instead.
+        </p>
+      </div>
+    )
+  }
+
+  const done = plan.seats.every((s) => statuses[s] === 'done' || statuses[s] === 'failed')
+
+  return (
+    <>
+      {plan.action === 'table' && (
+        <Swings swings={rankSwings(results)} results={results} done={done} onSelect={onSelect} />
+      )}
+      {plan.pairs.map((pair) => (
+        <PairCard
+          key={pair}
+          pair={pair}
+          plan={plan}
+          results={results}
+          statuses={statuses}
+          errors={errors}
+          contractText={contractText}
+          selected={selected}
+          onSelect={onSelect}
+        />
+      ))}
+      {done && (
+        <p className="caption tiny" style={{ margin: 0 }}>
+          Double-dummy solving sees all four hands on every sampled deal, so it
+          finds plays a human could not — read a small loss as "there was a
+          better card", not as a mistake.
+        </p>
+      )}
+    </>
   )
 }

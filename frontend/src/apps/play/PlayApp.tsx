@@ -1,28 +1,39 @@
 /**
  * PlayApp — the play solver: load a completed hand, step through the recorded
- * play, and grade every decision one seat made.
+ * play, and grade every decision a pair — or the whole table — made.
  *
  * Composed from bridge_ai/src/App.jsx's upload and display screens, with the
  * tab bar, the BBO tab and the chatbot dropped. LIN is parsed here in the
  * browser (lib/lin.ts); the API only ever sees structured state.
+ *
+ * One Analyze press is a plan of one to three seats (see analysis.ts). The
+ * requests go out one after another — each is a DDS batch that would only
+ * queue behind the server's global lock anyway — and every result renders as
+ * it lands, so a three-seat analysis shows its first grades as early as a
+ * single seat used to.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Constraints, Quality, Seat, Suit } from '../../api/types'
+import type { Quality, Seat, Suit } from '../../api/types'
 import type { AnalyzeResponse, Decision, PlayMethod } from '../../api/playTypes'
 import { analyzePlay } from '../../api/play'
 import {
-  SEAT_NAME, SEATS, SUITS, applyQuality, dummySeat, fixedCardIssues,
-  holdingsToCards, leaderSeat, partnerSeat,
+  SEATS, SEAT_NAME, applyQuality, dummySeat, fixedCardIssues,
 } from '../../lib/bridge'
 import {
-  SUIT_NAMES, SUIT_OF, handSize, isAnalyzable, parseLIN, toAnalyzeRequest,
-  type GameState,
+  handSize, handToPbn, isAnalyzable, parseLIN, toAnalyzeRequest, type GameState,
 } from '../../lib/lin'
 import ConstraintsEditor, {
   defaultSeatConstraint, type SeatConstraint,
 } from '../../components/ConstraintsEditor'
 import Changelog from '../../components/Changelog'
-import AnalysisPanel, { buildAnalysisMap } from './AnalysisPanel'
+import AnalysisPanel, {
+  buildAnalysisMap, type AnalysisPlan, type SeatStatus, type Selection,
+} from './AnalysisPanel'
+import {
+  PAIR_LABEL, constrainableSeats, constraintsExcludeHand, constraintsForView,
+  hiddenFrom, mergeDecisions, pairRole, pairsFor, pinnedCardsNotHeld, seatsToGrade,
+  type AnalysisAction, type Pair,
+} from './analysis'
 import AuctionGrid from './AuctionGrid'
 import { RELEASES } from './changelog/releases'
 import PlayViewer, { stepForCard, totalStepsFor } from './PlayViewer'
@@ -55,63 +66,6 @@ function defaultConstraints(): Record<Seat, SeatConstraint> {
   return Object.fromEntries(
     SEATS.map((s) => [s, defaultSeatConstraint()]),
   ) as Record<Seat, SeatConstraint>
-}
-
-/** The hands the graded seat could see. Declarer sees dummy; a defender sees
- * dummy too (from trick one's second card onward). Everything else is
- * sampled — which is exactly what makes the grade "best given what you knew". */
-export function visibleSeats(seat: Seat, declarer: Seat): Seat[] {
-  const dummy = dummySeat(declarer)
-  if (seat === declarer) return [declarer, dummy]
-  return [seat, dummy]
-}
-
-/** The two hands the graded seat could NOT see, with a role label for the
- * constraint editor. Declaring: both defenders. Defending: declarer and your
- * own partner — dummy is face up, so it is never constrainable. */
-export function unseenSeats(seat: Seat, declarer: Seat): Array<[Seat, string]> {
-  if (seat === declarer) {
-    const lho = leaderSeat(declarer)
-    return [[lho, '  (opening leader)'], [partnerSeat(lho), '  (the other defender)']]
-  }
-  return [[declarer, '  (declarer)'], [partnerSeat(seat), '  (your partner)']]
-}
-
-/** Per-seat editor state → the API constraints dict, for the unseen seats only
- * (the backend 422s on a constraint aimed at a hand the grader can see). */
-function buildConstraints(
-  seats: Array<[Seat, string]>, state: Record<Seat, SeatConstraint>,
-): Constraints {
-  const out: Constraints = { hcp: {}, suit_length: {}, shapes: {}, quality: {}, fixed_cards: {} }
-  for (const [seat] of seats) {
-    const c = state[seat]
-    if (c.hcp[0] !== 0 || c.hcp[1] !== 40) out.hcp[seat] = c.hcp
-    const lengths: Record<string, [number, number]> = {}
-    for (const s of SUITS) {
-      const [lo, hi] = c.suits[s]
-      if (lo !== 0 || hi !== 13) lengths[s] = [lo, hi]
-    }
-    if (Object.keys(lengths).length) out.suit_length[seat] = lengths
-    if (c.shape.trim()) out.shapes[seat] = c.shape
-    const quality = Object.entries(c.quality).filter(([, level]) => level)
-    if (quality.length) out.quality[seat] = Object.fromEntries(quality)
-    const cards = holdingsToCards(c.cards)
-    if (cards.length) out.fixed_cards[seat] = cards
-  }
-  return out
-}
-
-/** Every card held by the seats the graded player can see, in endplay form. */
-function knownCards(game: GameState, seats: Seat[]): string[] {
-  const out: string[] = []
-  for (const seat of seats) {
-    const hand = game.hands[seat]
-    if (!hand) continue
-    for (const name of SUIT_NAMES) {
-      for (const rank of hand[name]) out.push(SUIT_OF[name] + rank)
-    }
-  }
-  return out
 }
 
 // ── Upload screen ───────────────────────────────────────────────────────────
@@ -184,25 +138,38 @@ function UploadScreen({ onLoad }: { onLoad: (text: string) => void }) {
 
 const VUL_LABEL: Record<string, string> = { none: 'None', NS: 'N–S', EW: 'E–W', both: 'Both' }
 
+const ACTIONS: AnalysisAction[] = ['NS', 'EW', 'table']
+
 export default function PlayApp() {
   const [light, setLight] = useState(false)
   const [whatsNew, setWhatsNew] = useState(false)
   const [game, setGame] = useState<GameState | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const [seat, setSeat] = useState<Seat>('S')
+  const [action, setAction] = useState<AnalysisAction>('NS')
   const [method, setMethod] = useState<PlayMethod>('single_dummy')
   const [numDeals, setNumDeals] = useState(20)
   const [constraints, setConstraints] = useState<Record<Seat, SeatConstraint>>(defaultConstraints)
 
-  const [result, setResult] = useState<AnalyzeResponse | null>(null)
+  const [plan, setPlan] = useState<AnalysisPlan | null>(null)
+  const [results, setResults] = useState<Partial<Record<Seat, AnalyzeResponse>>>({})
+  const [statuses, setStatuses] = useState<Partial<Record<Seat, SeatStatus>>>({})
+  const [errors, setErrors] = useState<Partial<Record<Seat, string>>>({})
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // Bumped whenever a run must be abandoned (new hand, new run); a loop that
+  // finds itself stale stops writing state.
+  const runRef = useRef(0)
 
   const [step, setStep] = useState(0)
-  const [selected, setSelected] = useState<number | null>(null)
+  const [selected, setSelected] = useState<Selection | null>(null)
 
   useEffect(() => { document.body.classList.toggle('light', light) }, [light])
+
+  const clearAnalysis = () => {
+    runRef.current += 1
+    setPlan(null); setResults({}); setStatuses({}); setErrors({})
+    setLoading(false); setSelected(null)
+  }
 
   const load = (text: string) => {
     if (!text.trim()) { setLoadError('Could not read that file.'); return }
@@ -217,16 +184,13 @@ export default function PlayApp() {
     }
     setLoadError(null)
     setGame(parsed)
-    setSeat(parsed.declarer ?? 'S')
-    setResult(null)
-    setError(null)
+    clearAnalysis()
     setStep(0)
-    setSelected(null)
     setConstraints(defaultConstraints())
   }
 
   const reset = () => {
-    setGame(null); setResult(null); setError(null); setLoadError(null)
+    setGame(null); setLoadError(null); clearAnalysis()
   }
 
   const setConstraint = (s: Seat, v: SeatConstraint) => {
@@ -237,7 +201,7 @@ export default function PlayApp() {
   }
 
   const analysis = useMemo(
-    () => (result ? buildAnalysisMap(result.decisions) : null), [result],
+    () => (plan ? buildAnalysisMap(mergeDecisions(results)) : null), [plan, results],
   )
 
   if (!game) {
@@ -258,44 +222,74 @@ export default function PlayApp() {
   const declarer = game.declarer
   const dummy = declarer ? dummySeat(declarer) : null
   const analyzable = isAnalyzable(game) && game.play.length > 0
-  const unseen = declarer ? unseenSeats(seat, declarer) : []
-  const visible = declarer ? visibleSeats(seat, declarer) : []
-  const cardIssues = fixedCardIssues(
-    unseen.map(([s]) => s), constraints, knownCards(game, visible),
-  )
-  const hasCardIssue = Object.keys(cardIssues).length > 0
+  const contractText = game.contract
+    ? `${game.contract.level}${game.contract.suit}${game.contract.doubled === 1 ? 'X' : game.contract.doubled === 2 ? 'XX' : ''}`
+    : ''
 
-  const chooseSeat = (next: Seat) => {
-    if (next === seat) return
-    setSeat(next)
-    // A grade belongs to one seat's view of the hand; keeping it after a switch
-    // would silently mislabel every row.
-    setResult(null)
-    setSelected(null)
-    setError(null)
+  // Constraints are per hand — what the auction revealed — and every request
+  // takes the slice its graded seat cannot see. Dummy is visible to every
+  // view, so it is never offered.
+  const editorSeats: Array<[Seat, string]> = declarer
+    ? constrainableSeats(declarer).map((s) => [s, s === declarer ? '  (declarer)' : '  (defender)'])
+    : []
+  const cardIssues = fixedCardIssues(editorSeats.map(([s]) => s), constraints, [])
+  const excluded: Array<[Seat, string[]]> = []
+  for (const [s] of editorSeats) {
+    const pbn = handToPbn(game.hands[s])
+    const notHeld = pinnedCardsNotHeld(constraints[s], pbn)
+    if (notHeld.length) {
+      const msg = `${notHeld.join(' ')} not in ${SEAT_NAME[s]}’s actual hand`
+      cardIssues[s] = cardIssues[s] ? `${cardIssues[s]}; ${msg}` : msg
+    }
+    const reasons = constraintsExcludeHand(constraints[s], pbn)
+    if (reasons.length) excluded.push([s, reasons])
   }
+  const hasCardIssue = Object.keys(cardIssues).length > 0
 
   async function runAnalysis() {
     if (!game || !declarer) return
-    setLoading(true)
-    setError(null)
+    const run = ++runRef.current
+    const seats = seatsToGrade(action, declarer)
+    setPlan({ action, declarer, pairs: pairsFor(action, declarer), seats })
+    setResults({})
+    setErrors({})
+    setStatuses(Object.fromEntries(seats.map((s) => [s, 'queued'])))
     setSelected(null)
-    try {
-      const req = toAnalyzeRequest(game, seat, {
-        method, numDeals, constraints: buildConstraints(unseen, constraints),
-      })
-      setResult(await analyzePlay(req))
-    } catch (e) {
-      setError((e as Error).message)
-      setResult(null)
-    } finally {
-      setLoading(false)
+    setLoading(true)
+    for (const seat of seats) {
+      if (runRef.current !== run) return
+      setStatuses((prev) => ({ ...prev, [seat]: 'solving' }))
+      try {
+        const req = toAnalyzeRequest(game, seat, {
+          method, numDeals,
+          constraints: constraintsForView(constraints, hiddenFrom(seat, declarer)),
+        })
+        const res = await analyzePlay(req)
+        if (runRef.current !== run) return
+        setResults((prev) => ({ ...prev, [seat]: res }))
+        setStatuses((prev) => ({ ...prev, [seat]: 'done' }))
+      } catch (e) {
+        if (runRef.current !== run) return
+        setErrors((prev) => ({ ...prev, [seat]: (e as Error).message }))
+        setStatuses((prev) => ({ ...prev, [seat]: 'failed' }))
+      }
     }
+    setLoading(false)
   }
 
-  const jumpTo = (decision: Decision, index: number) => {
-    setSelected(index)
+  const jumpTo = (seat: Seat, decision: Decision, index: number) => {
+    setSelected({ seat, index })
     setStep(Math.min(stepForCard(decision.index), totalStepsFor(game.play.length)))
+  }
+
+  const actionLabel = (a: AnalysisAction): [string, string] => {
+    if (a === 'table') return ['Whole table', declarer ? `${seatsToGrade(a, declarer).length} grades` : '']
+    const pair = a as Pair
+    if (!declarer) return [PAIR_LABEL[pair], '']
+    return [
+      PAIR_LABEL[pair],
+      pairRole(pair, declarer) === 'declarer' ? `declaring ${contractText}` : 'defending',
+    ]
   }
 
   return (
@@ -316,13 +310,7 @@ export default function PlayApp() {
         </span>
         {game.contract && declarer && (
           <span>
-            Contract{' '}
-            <b style={{ color: 'var(--text)' }}>
-              {game.contract.level}
-              {game.contract.suit}
-              {game.contract.doubled === 1 ? 'X' : game.contract.doubled === 2 ? 'XX' : ''}
-            </b>{' '}
-            by {declarer}
+            Contract <b style={{ color: 'var(--text)' }}>{contractText}</b> by {declarer}
           </span>
         )}
         <span>{game.play.length} cards played</span>
@@ -330,7 +318,7 @@ export default function PlayApp() {
 
       <div className="layout">
         <aside className="sidebar">
-          <h2 style={{ marginTop: 0 }}>Grade a seat</h2>
+          <h2 style={{ marginTop: 0 }}>Analyze</h2>
           {!analyzable && (
             <div className="banner banner-error">
               {game.play.length === 0
@@ -339,48 +327,44 @@ export default function PlayApp() {
             </div>
           )}
 
-          <div className="flex flex-col gap-0.5 my-2">
-            {SEATS.map((s) => {
-              const isDummy = s === dummy
+          <div className="flex flex-col gap-0.5 my-2" role="radiogroup" aria-label="Who to analyze">
+            {ACTIONS.map((a) => {
+              const [label, sub] = actionLabel(a)
               return (
                 <button
-                  key={s}
-                  className={`play-seat-btn${seat === s ? ' on' : ''}`}
-                  disabled={isDummy || !analyzable}
-                  onClick={() => chooseSeat(s)}
-                  title={isDummy
-                    ? 'Dummy makes no decisions — its cards are graded as part of declarer.'
-                    : undefined}
+                  key={a}
+                  className={`play-seat-btn${action === a ? ' on' : ''}`}
+                  disabled={!analyzable || loading}
+                  onClick={() => setAction(a)}
+                  data-action={a}
                 >
-                  <input type="radio" readOnly checked={seat === s} disabled={isDummy || !analyzable} />
-                  <span>{SEAT_NAME[s]}</span>
-                  <span style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>
-                    {s === declarer ? 'declarer' : isDummy ? 'dummy' : 'defender'}
-                  </span>
+                  <input type="radio" readOnly checked={action === a} disabled={!analyzable || loading} />
+                  <span>{label}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>{sub}</span>
                 </button>
               )
             })}
           </div>
           <p className="caption tiny">
-            {seat === declarer
-              ? 'Declarer is graded on both hands — the cards played from dummy are declarer’s decisions.'
-              : 'A defender is graded on what they could see: their own hand and dummy.'}
+            A pair is graded as a pair: the declaring side through declarer
+            (dummy{dummy ? ` — ${SEAT_NAME[dummy]} —` : ''} makes no decisions),
+            the defending side through each defender on what they could see.
           </p>
 
           <h2>Method</h2>
           <div className="seg">
             <button className={method === 'single_dummy' ? 'on' : ''}
-              onClick={() => { setMethod('single_dummy'); setResult(null) }}>
+              onClick={() => setMethod('single_dummy')}>
               Single dummy
             </button>
             <button className={method === 'double_dummy' ? 'on' : ''}
-              onClick={() => { setMethod('double_dummy'); setResult(null) }}>
+              onClick={() => setMethod('double_dummy')}>
               Double dummy
             </button>
           </div>
           <p className="caption tiny">
             {method === 'single_dummy'
-              ? 'Samples the two hands this seat could not see and solves every candidate card on each — “what was best given what you knew”.'
+              ? 'Samples the two hands each graded seat could not see and solves every candidate card on each — “what was best given what you knew”.'
               : 'Grades against the actual deal: one solve per decision, no sampling — hindsight’s answer, and much faster.'}
           </p>
 
@@ -393,19 +377,31 @@ export default function PlayApp() {
               />
               <span className="caption tiny" style={{ margin: 0 }}>
                 Every decision is its own batch, so cost is roughly deals ×
-                decisions — 100 deals over a full hand runs for minutes.
+                decisions × seats — 100 deals over a whole table runs for many minutes.
               </span>
             </label>
           )}
 
           {declarer && (
             <ConstraintsEditor
-              seats={unseen}
+              seats={editorSeats}
               constraints={constraints}
               setConstraint={setConstraint}
               setQuality={setQuality}
               cardIssues={cardIssues}
             />
+          )}
+          {excluded.length > 0 && (
+            <div className="banner" data-excludes-deal
+              style={{ background: 'var(--info-bg)', fontSize: '0.78rem', margin: '0.4rem 0' }}>
+              <b>These constraints rule out the hand actually held</b>, so every
+              sampled deal would be one that did not happen:
+              <ul style={{ margin: '0.3rem 0 0 1rem', padding: 0 }}>
+                {excluded.map(([s, reasons]) => (
+                  <li key={s}>{SEAT_NAME[s]}: {reasons.join('; ')}</li>
+                ))}
+              </ul>
+            </div>
           )}
 
           <button
@@ -426,7 +422,7 @@ export default function PlayApp() {
             <div className="play-felt flex-shrink-0">
               <PlayViewer
                 game={game} step={step} setStep={setStep}
-                analysis={analysis} gradedSeat={result ? result.seat : seat}
+                analysis={analysis} gradedSeats={plan?.seats ?? []}
               />
             </div>
 
@@ -436,14 +432,13 @@ export default function PlayApp() {
                 <AuctionGrid game={game} />
               </div>
               <AnalysisPanel
-                result={result}
-                loading={loading}
-                error={error}
+                plan={plan}
+                results={results}
+                statuses={statuses}
+                errors={errors}
+                contractText={contractText}
                 selected={selected}
-                onSelect={(d) => {
-                  const idx = result?.decisions.indexOf(d) ?? -1
-                  jumpTo(d, idx)
-                }}
+                onSelect={jumpTo}
               />
             </div>
           </div>

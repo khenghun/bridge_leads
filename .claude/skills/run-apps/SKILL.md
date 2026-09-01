@@ -46,11 +46,19 @@ Lead / contract app — http://localhost:5173/
 Play solver — http://localhost:5174/play.html
 - Console: only the `favicon.ico` 404 is acceptable. **A blank page with
   `504 (Outdated Optimize Dep)` is the shared-cache clash** (see below).
-- **Load example** → **Analyze** (West, single dummy, 20 deals). Expect the
-  deterministic result: **12 ✓ / 2 ~ / 1 ✗ of 15 graded, 3 forced**, total
-  loss 0.70; `/api/play/analyze` 200 in ~1 s.
-- Click the `5E ♥2` suboptimal row: the viewer jumps to 17/37 and the options
-  list opens with ♥K best at 7.80.
+- **Load example** → pick **E/W** (declaring 1NT — one grade, of West) →
+  **Analyze** (single dummy, 20 deals). Expect the deterministic result under
+  the "West" section: **12 ✓ / 2 ~ / 1 ✗ of 15 graded, 3 forced**, tricks
+  given up 0.70; one `/api/play/analyze` 200 in ~1 s with `seat: "W"`.
+- **Whole table** → Analyze: three sequential `/api/play/analyze` requests
+  (W, then N, then S), sections filling in as each lands, a *Biggest swings*
+  panel on top: `1 N ♠9 −0.35`, `2 S ♠T −0.35`, `5 W ♥2 −0.35` (ties by
+  trick). Clicking the first row jumps the viewer to 1/37, highlights North's
+  `1N ♠9` row and opens its options with ♦5 / ♦4 best at 5.80.
+- Constraint slicing: set North HCP min 8 and West HCP max 12, run the whole
+  table, and read the three request bodies — W's carries only `hcp.N`, N's
+  only `hcp.W`, S's both. Set West HCP min 12 → an amber "rule out the hand
+  actually held" note (non-blocking); pin ♥A on North → Analyze disabled.
 - Header **What's new · vX.Y** opens the play changelog panel.
 - Screenshots land in the repo root — delete them when done.
 
@@ -80,7 +88,7 @@ Play solver — http://localhost:5174/play.html
 
 ```
 cd backend  && ../.venv/Scripts/python.exe -m pytest -q      # 342 as of play v1.0
-cd frontend && npm run test && npm run build:lead && npm run build:play
+cd frontend && npm run test && npm run build:lead && npm run build:play   # 116 vitest as of play v1.1
 ```
 `build:play` must emit `dist/index.html` referencing `assets/play-*.js`; the
 lead CSS bundle must contain no Tailwind (`grep -c tailwind dist/assets/index-*.css` → 0).

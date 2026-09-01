@@ -16,6 +16,49 @@ export { KIND_LABEL } from '../../../components/Changelog'
 
 export const RELEASES: Release[] = [
   {
+    version: 'v1.1',
+    date: '2026-09-01',
+    title: 'Analyze a pair, or the whole table',
+    unreleased: true,
+    summary:
+      'Grade both members of a partnership in one go — or all four seats — '
+      + 'and see whose decisions cost the most.',
+    changes: [
+      {
+        kind: 'new',
+        text: 'Three ways to analyze instead of one seat at a time: N/S, E/W, '
+          + 'or the whole table. A pair is always graded as a pair — the '
+          + 'declaring side through declarer (dummy’s cards are declarer’s '
+          + 'decisions), the defending side through each defender in turn.',
+      },
+      {
+        kind: 'new',
+        text: 'Results arrive seat by seat, so the first grades appear as '
+          + 'quickly as a single seat used to. Each pair gets its own summary '
+          + 'of tricks given up.',
+      },
+      {
+        kind: 'new',
+        text: 'The whole-table view opens with the biggest swings: every '
+          + 'decision that cost tricks, from any seat, worst first — click one '
+          + 'to jump the table to that moment.',
+      },
+      {
+        kind: 'improved',
+        text: 'Constraints are now entered once per hand — what the bidding '
+          + 'revealed about each player — and applied to every grade that '
+          + 'could not see that hand. Because the real deal is known, the '
+          + 'editor warns when a constraint would rule out the hand a player '
+          + 'actually held.',
+      },
+      {
+        kind: 'improved',
+        text: 'The card table now follows dark mode instead of staying light '
+          + 'on its own; the light-mode look is unchanged.',
+      },
+    ],
+  },
+  {
     version: 'v1.0',
     date: '2026-08-27',
     title: 'Replay a hand and grade every card',

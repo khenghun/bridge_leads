@@ -39,7 +39,7 @@ function Hand({ seat, game, played, analysis, graded }: {
   game: GameState
   played?: Set<string>
   analysis: AnalysisMap | null
-  graded: Seat | null
+  graded: Seat[]
 }) {
   const hand = game.hands[seat]
   if (!hand) return null
@@ -50,19 +50,19 @@ function Hand({ seat, game, played, analysis, graded }: {
     <div
       className="flex flex-col gap-0.5 px-3 py-2 rounded-lg font-mono text-sm leading-tight"
       style={{
-        background: isDeclarer ? '#dceafb' : '#f7fbff',
-        boxShadow: graded === seat
-          ? '0 0 0 2px #2563eb'
-          : isDeclarer ? '0 0 0 1px #93b4de' : '0 0 0 1px #d9e6f5',
+        background: isDeclarer ? 'var(--felt-hand-bg-declarer)' : 'var(--felt-hand-bg)',
+        boxShadow: graded.includes(seat)
+          ? '0 0 0 2px var(--accent)'
+          : isDeclarer ? '0 0 0 1px var(--felt-hand-ring-declarer)' : '0 0 0 1px var(--felt-hand-ring)',
       }}
     >
       <div
         className="text-xs font-bold tracking-widest mb-1 text-center"
-        style={{ color: vul ? '#c0392b' : '#475569' }}
+        style={{ color: vul ? 'var(--felt-vul)' : 'var(--felt-muted)' }}
       >
         {seat}
-        {isDeclarer && <span className="ml-1 font-normal" style={{ color: '#2563eb' }}>(decl)</span>}
-        {graded === seat && <span className="ml-1 font-normal" style={{ color: '#2563eb' }}>◆</span>}
+        {isDeclarer && <span className="ml-1 font-normal" style={{ color: 'var(--accent)' }}>(decl)</span>}
+        {graded.includes(seat) && <span className="ml-1 font-normal" style={{ color: 'var(--accent)' }}>◆</span>}
       </div>
 
       {SUIT_NAMES.map((name) => {
@@ -74,7 +74,7 @@ function Hand({ seat, game, played, analysis, graded }: {
               {SUIT_SYMBOL[letter]}
             </span>
             <span className="tracking-wide">
-              {ranks.length === 0 ? <span style={{ color: '#94a3b8' }}>—</span> : ranks.map((rank) => {
+              {ranks.length === 0 ? <span style={{ color: 'var(--felt-faded)' }}>—</span> : ranks.map((rank) => {
                 const code = letter + rank
                 const isPlayed = played?.has(code)
                 const decision = analysis?.get(code)
@@ -86,7 +86,7 @@ function Hand({ seat, game, played, analysis, graded }: {
                     <span
                       key={rank}
                       className="line-through font-bold cursor-help"
-                      style={{ color: STATUS_COLOR[decision.status] ?? '#94a3b8' }}
+                      style={{ color: STATUS_COLOR[decision.status] ?? 'var(--felt-faded)' }}
                       title={
                         `Trick ${decision.trick} · ${STATUS_LABEL[decision.status] ?? decision.status}`
                         + ` · ${loss}`
@@ -101,7 +101,7 @@ function Hand({ seat, game, played, analysis, graded }: {
                   <span
                     key={rank}
                     className={isPlayed ? 'line-through' : ''}
-                    style={{ color: isPlayed ? '#94a3b8' : SUIT_COLOR[letter] }}
+                    style={{ color: isPlayed ? 'var(--felt-faded)' : SUIT_COLOR[letter] }}
                   >
                     {rank}
                   </span>
@@ -133,8 +133,8 @@ function CompassLabel({ seat, game }: { seat: Seat; game: GameState }) {
     <span
       className="font-bold text-sm px-1.5 py-0.5 rounded select-none text-white"
       style={{
-        background: vul ? '#c0392b' : '#64748b',
-        boxShadow: seat === game.dealer ? '0 0 0 2px #eab308' : undefined,
+        background: vul ? 'var(--felt-vul)' : 'var(--felt-seat-bg)',
+        boxShadow: seat === game.dealer ? '0 0 0 2px var(--felt-dealer)' : undefined,
       }}
       title={seat === game.dealer ? 'dealer' : undefined}
     >
@@ -178,7 +178,7 @@ function Compass({ game, currentTrick }: {
           <CompassLabel seat="W" game={game} />
           {slot('W', 'w-12 h-8')}
         </div>
-        <div className="flex flex-col items-center gap-0.5" style={{ color: '#cbd5e1' }}>
+        <div className="flex flex-col items-center gap-0.5" style={{ color: 'var(--felt-lines)' }}>
           <div className="w-px h-4 bg-current" />
           <div className="w-4 h-px bg-current" />
           <div className="w-px h-4 bg-current" />
@@ -196,12 +196,12 @@ function Compass({ game, currentTrick }: {
 
       {label && (
         <div className="mt-2 text-center">
-          <div className="text-[0.65rem] uppercase tracking-widest" style={{ color: '#64748b' }}>
+          <div className="text-[0.65rem] uppercase tracking-widest" style={{ color: 'var(--felt-muted)' }}>
             contract
           </div>
-          <div className="text-base font-bold leading-tight" style={{ color: '#1e293b' }}>{label}</div>
+          <div className="text-base font-bold leading-tight" style={{ color: 'var(--felt-text)' }}>{label}</div>
           {game.declarer && (
-            <div className="text-xs" style={{ color: '#64748b' }}>by {game.declarer}</div>
+            <div className="text-xs" style={{ color: 'var(--felt-muted)' }}>by {game.declarer}</div>
           )}
         </div>
       )}
@@ -214,24 +214,24 @@ interface Props {
   playInfo: PlayInfo | null
   analysis: AnalysisMap | null
   /** The seat whose decisions are being graded, marked on the table. */
-  gradedSeat?: Seat | null
+  gradedSeats?: Seat[]
 }
 
-export default function PlayTable({ game, playInfo, analysis, gradedSeat = null }: Props) {
+export default function PlayTable({ game, playInfo, analysis, gradedSeats = [] }: Props) {
   const cell = (seat: Seat) => (
     <Hand
       seat={seat}
       game={game}
       played={playInfo?.playedByPlayer[seat]}
       analysis={analysis}
-      graded={gradedSeat}
+      graded={gradedSeats}
     />
   )
 
   return (
     <div className="flex flex-col items-center gap-2">
       {game.board && (
-        <div className="text-sm font-semibold tracking-wide" style={{ color: '#475569' }}>
+        <div className="text-sm font-semibold tracking-wide" style={{ color: 'var(--felt-muted)' }}>
           {game.board}
         </div>
       )}
