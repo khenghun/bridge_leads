@@ -6,7 +6,7 @@ changelog:
 | Product | Roadmap | Plan docs | In-app changelog (source of truth) |
 | --- | --- | --- | --- |
 | Opening Lead Simulator & Optimal Contract Calculator (`v2.2`) | [`docs/lead/ROADMAP.md`](docs/lead/ROADMAP.md) | `docs/lead/` | `frontend/src/apps/changelog/releases.ts` |
-| Play Solver (`v1.2`) | [`docs/play/ROADMAP.md`](docs/play/ROADMAP.md) | `docs/play/` | `frontend/src/apps/play/changelog/releases.ts` |
+| Play Solver (`v1.3`) | [`docs/play/ROADMAP.md`](docs/play/ROADMAP.md) | `docs/play/` | `frontend/src/apps/play/changelog/releases.ts` |
 
 Why one repo, and what the products share (engine, frontend components, the
 backend image) versus what stays separate (versions, images, deploy stacks,

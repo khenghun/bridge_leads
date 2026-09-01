@@ -16,6 +16,55 @@ export { KIND_LABEL } from '../../../components/Changelog'
 
 export const RELEASES: Release[] = [
   {
+    version: 'v1.3',
+    date: '2026-09-01',
+    title: 'Expert opponents',
+    unreleased: true,
+    summary:
+      'Let the opponents’ earlier plays shape the deals that are sampled — '
+      + 'a card they did not play tells you something about what they hold.',
+    changes: [
+      {
+        kind: 'new',
+        text: 'A new Expert opponents switch. With it on, every sampled deal '
+          + 'must also be one on which each earlier play by an opponent was a '
+          + 'best play given what that opponent could see at the time — judged '
+          + 'the same way your own cards are graded, from their seat, with the '
+          + 'hands they could not see dealt out many ways. A defender who did '
+          + 'not give partner a ruff when, from their seat, the ruff was there '
+          + 'to find is taken not to hold that card. The grades move with the '
+          + 'sample, the way a good player’s inference does.',
+      },
+      {
+        kind: 'new',
+        text: 'Each graded card says how many of the sampled deals passed that '
+          + 'test, and the filter states its own bar: it drops a deal only when '
+          + 'an opponent’s play is shown to be clearly worse than an alternative '
+          + '— a missed ruff, not a matter of taste — and the bar tightens as '
+          + 'you raise the deal count. When no deal at all passes, the card is '
+          + 'graded as before and marked: the opponents probably erred earlier.',
+      },
+      {
+        kind: 'new',
+        text: 'A Strict option under Advanced judges every opponent decision, '
+          + 'not only the ones that lost a trick on the sampled deal. It is '
+          + 'several times slower and it is the only way to catch a play that '
+          + 'happened to work — an anti-percentage guess that found the queen.',
+      },
+      {
+        kind: 'improved',
+        text: 'Slow analyses now arrive one decision at a time, so the first '
+          + 'grades show within seconds while the rest are still being solved '
+          + '— and a run the browser gave up on (a laptop that went to sleep, '
+          + 'a tab left in the background) keeps what it had and offers '
+          + 'Resume, which picks up where it stopped without redoing the '
+          + 'finished decisions. Expert opponents is a much slower mode by '
+          + 'nature — minutes per seat rather than a second — so the deal '
+          + 'count switches to 60 when you turn it on.',
+      },
+    ],
+  },
+  {
     version: 'v1.2',
     date: '2026-09-01',
     title: 'What it cost in IMPs, and more example hands',

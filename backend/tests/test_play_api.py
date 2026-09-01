@@ -297,3 +297,89 @@ def test_vulnerability_reaches_the_grader_and_the_cache_key():
     sa = [o['score'] for o in a['options']]
     sb = [o['score'] for o in b['options']]
     assert sa != sb
+
+
+# --- expert opponents (v1.3) and chunked decisions ---------------------------
+
+def test_expert_settings_are_ignored_when_the_toggle_is_off():
+    r = analyze(seat='N', method='single_dummy', num_deals=5, play=PLAY[:8],
+                expert={'strict': True})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body['expert'] is None
+    assert all(d['expert'] is None for d in body['decisions'])
+
+
+def test_expert_toggle_fills_defaults_and_reports_counts():
+    r = analyze(seat='N', method='single_dummy', num_deals=5, play=PLAY[:8],
+                expert_opponents=True)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body['expert'] == {'inner_ratio': 0.5, 'tolerance': 0.1, 'confidence': 2.0,
+                              'budget': 20, 'strict': False, 'depth': 1}
+    graded = [d for d in body['decisions'] if not d['forced']]
+    assert graded
+    for d in graded:
+        e = d['expert']
+        assert e['consistent'] == 5 and e['sampled'] >= 5
+        assert e['inference'] in ('filtered', 'trivial')
+        assert e['threshold'] > 0.1
+
+
+def test_expert_settings_change_the_cache_key():
+    a = analyze(seat='N', method='single_dummy', num_deals=5, play=PLAY[:8],
+                expert_opponents=True).json()
+    b = analyze(seat='N', method='single_dummy', num_deals=5, play=PLAY[:8],
+                expert_opponents=True, expert={'strict': True}).json()
+    c = analyze(seat='N', method='single_dummy', num_deals=5, play=PLAY[:8]).json()
+    assert b['expert']['strict'] is True and a['expert']['strict'] is False
+    assert c['expert'] is None
+    # strict traces nothing; the default traces every examined layout
+    assert all(d['expert']['traced'] == 0 for d in b['decisions'] if d['expert'])
+    assert any(d['expert']['traced'] > 0 for d in a['decisions'] if d['expert'])
+
+
+def test_expert_constraints_cover_all_four_seats():
+    """Constraints on the graded seat's own hand are rejected in `constraints`
+    but welcome in `expert_constraints` — they describe what the opponents
+    knew from the auction."""
+    r = analyze(seat='N', method='single_dummy', num_deals=5, play=PLAY[:8],
+                constraints={'hcp': {'N': [8, 14]}})
+    assert r.status_code == 422
+    r = analyze(seat='N', method='single_dummy', num_deals=5, play=PLAY[:8],
+                expert_opponents=True,
+                expert_constraints={'hcp': {'N': [8, 14], 'W': [15, 17]}})
+    assert r.status_code == 200, r.text
+
+
+def test_expert_option_bounds_are_validated():
+    for bad in ({'tolerance': 2}, {'confidence': 0.5}, {'budget': 100},
+                {'depth': 3}, {'inner_ratio': 0}):
+        r = analyze(seat='N', method='single_dummy', num_deals=5, play=PLAY[:8],
+                    expert_opponents=True, expert=bad)
+        assert r.status_code == 422, bad
+
+
+def test_decisions_chunk_returns_only_those_indices():
+    r = analyze(seat='W', decisions=[1, 3, 5])
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert [d['index'] for d in body['decisions']] == [1, 3, 5]
+    assert body['summary']['decisions'] == 3
+
+
+def test_decisions_chunks_are_cached_separately():
+    a = analyze(seat='W', decisions=[1, 3]).json()
+    b = analyze(seat='W', decisions=[5]).json()
+    whole = analyze(seat='W').json()
+    merged = {d['index']: d for d in a['decisions'] + b['decisions']}
+    for d in whole['decisions']:
+        if d['index'] in merged:
+            assert merged[d['index']] == d
+
+
+def test_position_endpoint_takes_the_expert_toggle():
+    r = position(method='single_dummy', num_deals=5, play=PLAY[:8],
+                 expert_opponents=True)
+    assert r.status_code == 200, r.text
+    assert r.json()['expert']['consistent'] == 5

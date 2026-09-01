@@ -17,9 +17,11 @@ from app.common.cache import ResultCache
 from app.common.constraints import build_constraints
 
 # A graded full hand is 26 decisions x an options list — far smaller than a
-# 1000-deal lead matrix, so a roomier cache is cheap. Re-grading the same hand
-# for a different seat is the common case and misses anyway.
-_cache = ResultCache(max_entries=64, ttl=3600)
+# 1000-deal lead matrix, so a roomier cache is cheap. An expert-opponents run
+# arrives as one request per decision, and a client that dropped (a sleeping
+# laptop) resumes by re-requesting them: every chunk of a whole-table run must
+# still be here an hour later, so the cache is sized for hundreds of entries.
+_cache = ResultCache(max_entries=1024, ttl=3600)
 
 CONSTRAINT_BLOCKS = ('hcp', 'suit_length', 'shapes', 'quality', 'fixed_cards')
 
@@ -45,8 +47,27 @@ def _key(req, extra: dict) -> str:
         'v': req.vul, 'p': req.penalty, 'play': list(req.play),
         'm': req.method, 'n': req.num_deals,
         'c': build_constraints(req.constraints.model_dump()),
+        'x': req.expert.model_dump() if req.expert_opponents else None,
+        'xc': _expert_constraints(req),
         **extra,
     }, sort_keys=True, default=list)
+
+
+def _expert_constraints(req):
+    """The all-seat constraints the expert filter judges opponents under:
+    `expert_constraints` when given, else the request's own (which only cover
+    the seats hidden from the graded view)."""
+    if not req.expert_opponents:
+        return None
+    src = req.expert_constraints if req.expert_constraints is not None else req.constraints
+    return build_constraints(src.model_dump())
+
+
+def _expert_kwargs(req) -> dict:
+    if not req.expert_opponents:
+        return {}
+    return {'expert': req.expert.model_dump(),
+            'expert_constraints': _expert_constraints(req)}
 
 
 def run_analysis(req) -> dict:
@@ -68,9 +89,11 @@ def run_analysis(req) -> dict:
             hands=req.hands, level=req.level, strain=req.strain,
             declarer=req.declarer, play=list(req.play), seat=req.seat,
             method=req.method, num_deals=req.num_deals,
-            constraints=constraints, seed=0, vul=req.vul, penalty=req.penalty)
+            constraints=constraints, seed=0, vul=req.vul, penalty=req.penalty,
+            decisions=req.decisions, **_expert_kwargs(req))
 
-    return _cache.get_or_compute(_key(req, {'seat': req.seat}), compute)
+    return _cache.get_or_compute(
+        _key(req, {'seat': req.seat, 'dec': req.decisions}), compute)
 
 
 def run_position(req) -> dict:
@@ -92,6 +115,6 @@ def run_position(req) -> dict:
             hands=req.hands, level=req.level, strain=req.strain,
             declarer=req.declarer, play=list(req.play), method=req.method,
             num_deals=req.num_deals, constraints=constraints, seed=0,
-            vul=req.vul, penalty=req.penalty)
+            vul=req.vul, penalty=req.penalty, **_expert_kwargs(req))
 
     return _cache.get_or_compute(_key(req, {'seat': None}), compute)

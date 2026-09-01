@@ -263,3 +263,143 @@ describe('mergeDecisions', () => {
     expect(mergeDecisions({ W: w, N: n }).map((d) => d.card)).toEqual(['SK', 'SJ'])
   })
 })
+
+// ── expert opponents: chunking and merging (v1.3) ───────────────────────────
+
+import {
+  EXPERT_DEFAULTS, chunkByTrick, decisionIndices, expertDigest, mergeChunks, summarize,
+} from './analysis'
+import type { CardPlay } from '../../lib/lin'
+
+function playOf(players: Seat[]): CardPlay[] {
+  return players.map((player, i) => ({ player, suit: 'S', rank: String(i) }))
+}
+
+describe('decisionIndices', () => {
+  // W declares (dummy E); N leads: N E S W repeating.
+  const play = playOf(['N', 'E', 'S', 'W', 'N', 'E', 'S', 'W', 'N'])
+
+  it("declarer's indices include dummy's cards", () => {
+    expect(decisionIndices(play, 'W', 'W')).toEqual([1, 3, 5, 7])
+  })
+
+  it('a defender gets only its own cards', () => {
+    expect(decisionIndices(play, 'N', 'W')).toEqual([0, 4, 8])
+    expect(decisionIndices(play, 'S', 'W')).toEqual([2, 6])
+  })
+})
+
+describe('chunkByTrick', () => {
+  it('groups indices four to a trick, in order', () => {
+    expect(chunkByTrick([1, 3, 5, 7, 9])).toEqual([[1, 3], [5, 7], [9]])
+    expect(chunkByTrick([0, 4, 8])).toEqual([[0], [4], [8]])
+  })
+
+  it('is empty for no decisions', () => {
+    expect(chunkByTrick([])).toEqual([])
+  })
+})
+
+function xdec(index: number, status: Decision['status'], diff: number | null, imp = 0): Decision {
+  return {
+    index, trick: Math.floor(index / 4) + 1, position: index % 4, hand: 'W', card: `S${index}`,
+    forced: status === 'forced', actual_tricks: null, best_tricks: null, diff,
+    actual_score: null, best_score: null, score_diff: diff == null ? null : diff * 30,
+    imp_diff: imp, status, options: [], best_cards: [],
+    expert: status === 'forced' ? null
+      : { sampled: 24, consistent: 20, traced: 24, judged: 3, memo_hits: 1,
+          threshold: 0.48, sigma: 0.6, inference: 'filtered' },
+  }
+}
+
+function expertResponse(decisions: Decision[]): AnalyzeResponse {
+  return {
+    seat: 'W', role: 'declarer', visible: ['W', 'E'], tricks_needed: 7,
+    decisions, summary: summarize(decisions), method: 'single_dummy', num_deals: 30,
+    expert: EXPERT_DEFAULTS,
+  }
+}
+
+describe('summarize / mergeChunks', () => {
+  it('rebuilds the summary the way the backend does', () => {
+    const s = summarize([xdec(1, 'optimal', 0), xdec(3, 'good', -0.2, -0.5),
+                         xdec(5, 'suboptimal', -1, -3), xdec(7, 'forced', null)])
+    expect(s).toEqual({
+      decisions: 4, graded: 3, optimal: 1, good: 1, suboptimal: 1,
+      total_trick_loss: 1.2, avg_trick_loss: 0.4, total_score_loss: 36, total_imp_loss: 3.5,
+    })
+  })
+
+  it('merges chunks into one result in play order with a whole-run summary', () => {
+    const a = expertResponse([xdec(5, 'good', -0.2)])
+    const b = expertResponse([xdec(1, 'optimal', 0), xdec(3, 'forced', null)])
+    const m = mergeChunks([a, b])!
+    expect(m.decisions.map((d) => d.index)).toEqual([1, 3, 5])
+    expect(m.summary.decisions).toBe(3)
+    expect(m.summary.graded).toBe(2)
+    expect(m.summary.total_trick_loss).toBe(0.2)
+    expect(m.seat).toBe('W')
+  })
+
+  it('is null with nothing to merge', () => {
+    expect(mergeChunks([])).toBeNull()
+  })
+})
+
+describe('expertDigest', () => {
+  it('rolls the per-decision counts up and reads the threshold', () => {
+    const d = expertDigest(expertResponse([xdec(1, 'optimal', 0), xdec(3, 'good', -0.2), xdec(5, 'forced', null)]))!
+    expect(d).toEqual({ decisions: 2, sampled: 48, consistent: 40, none: 0, threshold: 0.48 })
+  })
+
+  it('is null when the result was not graded under expert opponents', () => {
+    const r = { ...expertResponse([xdec(1, 'optimal', 0)]), expert: null }
+    expect(expertDigest(r)).toBeNull()
+  })
+})
+
+// ── resumable runs: per-decision chunks and retry (v1.3) ────────────────────
+
+import { chunkByDecision, isTransient, withRetry } from './analysis'
+
+describe('chunkByDecision', () => {
+  it('is one request per decision, in order', () => {
+    expect(chunkByDecision([1, 3, 8])).toEqual([[1], [3], [8]])
+    expect(chunkByDecision([])).toEqual([])
+  })
+})
+
+describe('isTransient', () => {
+  it('treats a dropped fetch and gateway errors as retryable', () => {
+    expect(isTransient(new TypeError('Failed to fetch'))).toBe(true)
+    expect(isTransient(new Error('HTTP 504'))).toBe(true)
+    expect(isTransient(new Error('Gateway Time-out'))).toBe(true)
+    expect(isTransient(new Error('net::ERR_NETWORK_IO_SUSPENDED'))).toBe(true)
+  })
+
+  it('does not retry a validation error', () => {
+    expect(isTransient(new Error("N's hand is visible here, so there is nothing to infer"))).toBe(false)
+    expect(isTransient(new Error('HTTP 422'))).toBe(false)
+  })
+})
+
+describe('withRetry', () => {
+  it('returns the first success', async () => {
+    let calls = 0
+    const v = await withRetry(async () => { calls++; if (calls < 3) throw new TypeError('Failed to fetch'); return 'ok' }, 4, 0)
+    expect(v).toBe('ok')
+    expect(calls).toBe(3)
+  })
+
+  it('gives up after the attempts and rethrows the last error', async () => {
+    let calls = 0
+    await expect(withRetry(async () => { calls++; throw new TypeError('down') }, 3, 0)).rejects.toThrow('down')
+    expect(calls).toBe(3)
+  })
+
+  it('does not retry what is not transient', async () => {
+    let calls = 0
+    await expect(withRetry(async () => { calls++; throw new Error('HTTP 422') }, 3, 0)).rejects.toThrow('422')
+    expect(calls).toBe(1)
+  })
+})

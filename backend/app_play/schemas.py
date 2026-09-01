@@ -11,8 +11,8 @@ far. That is what makes every call stateless and cacheable.
 
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
-from pydantic.types import conint
+from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic.types import confloat, conint
 from typing_extensions import Annotated
 
 from app.common.schemas import Card, Constraints, Penalty, Seat, Strain, Vul
@@ -53,6 +53,18 @@ def _validate_hands(hands: dict[str, str]) -> dict[str, str]:
     return {s: hands[s] for s in SEATS}
 
 
+class ExpertOptions(BaseModel):
+    """Expert opponents (v1.3): sampled layouts must be consistent with the
+    opponents' earlier plays being best plays given what they could see.
+    Defaults mirror `engine.play.expert.ExpertSettings`."""
+    inner_ratio: confloat(ge=0.1, le=1.0) = 0.5
+    tolerance: confloat(ge=0.0, le=1.0) = 0.10
+    confidence: confloat(ge=1.0, le=4.0) = 2.0
+    budget: conint(ge=5, le=50) = 20
+    strict: bool = False
+    depth: conint(ge=1, le=2) = 1
+
+
 class PlayStateRequest(BaseModel):
     """The board plus the play so far — shared by both solve endpoints."""
     hands: dict[Seat, str] = Field(
@@ -66,17 +78,38 @@ class PlayStateRequest(BaseModel):
         default_factory=list,
         description="Cards played from the opening lead onwards, in order")
     method: Method = 'single_dummy'
-    num_deals: conint(ge=5, le=100) = 20
+    num_deals: conint(ge=5, le=200) = 40
     constraints: Constraints = Field(default_factory=Constraints)
+    expert_opponents: bool = False
+    expert: Optional[ExpertOptions] = Field(
+        default=None,
+        description="Expert-opponents settings; only read when expert_opponents is on")
+    expert_constraints: Optional[Constraints] = Field(
+        default=None,
+        description="The user's constraints on all four seats (the auction was "
+                    "public), sliced per opponent view when judging their plays")
 
     @field_validator('hands')
     @classmethod
     def _hands_are_a_deal(cls, v):
         return _validate_hands(v)
 
+    @model_validator(mode='after')
+    def _expert_defaults(self):
+        if self.expert_opponents and self.expert is None:
+            self.expert = ExpertOptions()
+        if not self.expert_opponents:
+            self.expert = None
+            self.expert_constraints = None
+        return self
+
 
 class AnalyzeRequest(PlayStateRequest):
     seat: Seat = Field(description="Whose decisions to grade (dummy is rejected)")
+    decisions: Optional[list[conint(ge=0, le=51)]] = Field(
+        default=None,
+        description="Play indices to grade in this call (a chunk of a slow "
+                    "analysis); omitted = every decision of the seat")
 
 
 class PositionRequest(PlayStateRequest):
@@ -89,6 +122,17 @@ class PlayOption(BaseModel):
     success_rate: float             # make rate (declarer) / defeat rate (defender)
     score: float                    # mean duplicate score for the graded side
     imps: float                     # mean per-deal IMP swing vs the best card (<= 0 for best)
+
+
+class ExpertStats(BaseModel):
+    sampled: int                    # layouts examined
+    consistent: int                 # layouts graded on
+    traced: int                     # layouts that went through the double-dummy trace
+    judged: int                     # inner judgements run (memo hits excluded)
+    memo_hits: int = 0              # judgements answered from the memo
+    threshold: float                # rejects plays shown at least this many tricks worse
+    sigma: Optional[float]          # observed sd of the paired difference, if any judgement ran
+    inference: str                  # filtered | none | trivial
 
 
 class Decision(BaseModel):
@@ -108,6 +152,7 @@ class Decision(BaseModel):
     status: str                     # optimal | good | suboptimal | forced
     options: list[PlayOption]       # best first
     best_cards: list[str]
+    expert: Optional[ExpertStats] = None
 
 
 class AnalysisSummary(BaseModel):
@@ -131,6 +176,7 @@ class AnalyzeResponse(BaseModel):
     summary: AnalysisSummary
     method: str
     num_deals: int
+    expert: Optional[ExpertOptions] = None
 
 
 class PositionResponse(BaseModel):
@@ -147,6 +193,7 @@ class PositionResponse(BaseModel):
     options: list[PlayOption]
     method: str
     num_deals: int                  # deals actually sampled (1 for double_dummy)
+    expert: Optional[ExpertStats] = None
 
 
 class HealthResponse(BaseModel):

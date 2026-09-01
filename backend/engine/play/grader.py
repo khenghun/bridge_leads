@@ -24,8 +24,17 @@ If the user's constraints contradict the play, the merge raises `ValueError`.
 
 `method='double_dummy'` skips sampling entirely and grades against the actual
 deal — hindsight, one board per decision.
+
+**Expert opponents** (`expert=ExpertSettings(...)`) adds a second condition on
+every sampled deal: the opponents' earlier plays must have been best plays
+given what they could see — `engine.play.expert`, which judges each suspect
+card by a Monte-Carlo from that opponent's own view. `expert_constraints` are
+the user's constraints on *all four* seats (the auction was public), sliced per
+judging view; `decisions` restricts `grade_play` to some play indices so a
+slow analysis can be fetched trick by trick.
 """
 
+import json
 import random
 from collections import defaultdict
 
@@ -37,6 +46,7 @@ from ..sampling import (
     build_known_and_constraints, check_hcp_feasibility, check_length_feasibility,
     generate_layouts,
 )
+from .expert import ExpertSettings, expert_layouts
 from .state import (
     SEATS, SUITS, Position, card_sort_key, legal_cards, next_seat, replay, walk,
 )
@@ -197,6 +207,11 @@ def _sample_layouts(position, view, constraints, num_deals, rng):
     return layouts
 
 
+def _position_on(layout_hands, strain, declarer, play) -> Position:
+    """The position after `play` on a (sampled or real) layout."""
+    return replay(layout_hands, strain, declarer, play)
+
+
 def _build_deal(layout, position):
     deal = Deal('N:' + ' '.join(layout[s] for s in SEATS))
     deal.trump = STRAIN_DENOM[position.strain]
@@ -302,17 +317,34 @@ def _options(position, view, totals, makes, counts, per_board=None, scoring=None
 
 
 def _grade(position, view, level, method, num_deals, constraints, rng,
-           scoring=None):
-    """Price every legal card at `position` through `view`'s eyes."""
+           scoring=None, expert=None, all_constraints=None, context_key=None,
+           memo=None):
+    """Price every legal card at `position` through `view`'s eyes.
+
+    Returns `(options, deals_used, expert_stats)`; `expert_stats` is None
+    unless expert opponents are on (and sampling)."""
     if method not in METHODS:
         raise ValueError(f"method must be one of {METHODS}, got {method!r}")
+    stats = None
     if method == 'double_dummy':
         layouts = [position.layout()]
+    elif expert is not None:
+        layouts, st = expert_layouts(
+            position, view, constraints, all_constraints or {}, num_deals, expert,
+            rng, level=level, context_key=context_key, memo=memo)
+        stats = st.as_dict(expert, expert.inner_cap(num_deals))
     else:
         layouts = _sample_layouts(position, view, constraints, num_deals, rng)
     totals, makes, counts, per_board = _solve(position, layouts, level)
     return (_options(position, view, totals, makes, counts, per_board, scoring),
-            len(layouts))
+            len(layouts), stats)
+
+
+def _context_key(hands, level, strain, declarer, play, all_constraints):
+    """Names everything a judgement verdict depends on besides the opponent's
+    holding — the memo key's fixed part."""
+    return (json.dumps(hands, sort_keys=True), level, strain, declarer, tuple(play),
+            json.dumps(all_constraints or {}, sort_keys=True, default=list))
 
 
 def tricks_needed_for(role: str, level: int) -> int:
@@ -324,7 +356,8 @@ def tricks_needed_for(role: str, level: int) -> int:
 # --- public entry points ----------------------------------------------------
 
 def grade_position(hands, level, strain, declarer, play=(), *,
-                   method='single_dummy', num_deals=20, constraints=None,
+                   method='single_dummy', num_deals=40, constraints=None,
+                   expert=None, expert_constraints=None, memo=None,
                    seed=None, vul='none', penalty='none'):
     """Grade the legal cards for whoever is on play, from that player's view.
 
@@ -344,8 +377,11 @@ def grade_position(hands, level, strain, declarer, play=(), *,
 
     forced = len(legal) == 1
     scoring = Scoring(level, strain, position.declarer, vul, penalty)
-    options, sampled = ([], 0) if forced else _grade(
-        position, view, level, method, num_deals, constraints, rng, scoring)
+    expert = _expert_settings(expert)
+    ctx = _context_key(hands, level, strain, declarer, list(play), expert_constraints)
+    options, sampled, stats = ([], 0, None) if forced else _grade(
+        position, view, level, method, num_deals, constraints, rng, scoring,
+        expert=expert, all_constraints=expert_constraints, context_key=ctx, memo=memo)
 
     return {
         'to_play': to_play,
@@ -361,12 +397,21 @@ def grade_position(hands, level, strain, declarer, play=(), *,
         'options': options,
         'method': method,
         'num_deals': sampled,
+        'expert': stats,
     }
 
 
+def _expert_settings(expert):
+    """`None`, an `ExpertSettings`, or a dict of its fields."""
+    if expert is None or isinstance(expert, ExpertSettings):
+        return expert
+    return ExpertSettings(**expert)
+
+
 def grade_play(hands, level, strain, declarer, play, seat, *,
-               method='single_dummy', num_deals=20, constraints=None, seed=None,
-               vul='none', penalty='none'):
+               method='single_dummy', num_deals=40, constraints=None, seed=None,
+               vul='none', penalty='none', expert=None, expert_constraints=None,
+               decisions=None, memo=None):
     """Grade every decision `seat` made in the recorded play.
 
     For declarer that includes the cards played from dummy; dummy itself makes
@@ -381,6 +426,12 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
     given away in 3NT and a game let through both read "−1 trick" but price
     very differently. The status badge is classified on tricks and then
     demoted by the IMP cost (`classify_with_imps`).
+
+    `decisions`, when given, is the set of play indices to grade — the others
+    are left out of the result entirely (the caller merges chunks); the
+    summary then covers the chunk. `expert` turns on the expert-opponents
+    filter (`engine.play.expert`) and each graded decision carries its
+    sampling counts under `expert`.
     """
     if method not in METHODS:
         raise ValueError(f"method must be one of {METHODS}, got {method!r}")
@@ -399,10 +450,15 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
     graded_seats = final.declarer_side if role == 'declarer' else {seat}
     rng = random.Random(seed) if seed is not None else random
     scoring = Scoring(level, strain, final.declarer, vul, penalty)
+    expert = _expert_settings(expert)
+    ctx = _context_key(hands, level, strain, declarer, list(play), expert_constraints)
+    wanted = None if decisions is None else set(decisions)
 
     decisions = []
     for position, card in walk(hands, strain, declarer, play):
         if position.to_play not in graded_seats:
+            continue
+        if wanted is not None and position.index not in wanted:
             continue
         legal = legal_cards(position)
         record = {
@@ -422,10 +478,14 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
             'status': 'forced',
             'options': [],
             'best_cards': [],
+            'expert': None,
         }
         if not record['forced']:
-            options, _ = _grade(position, seat, level, method, num_deals,
-                                constraints, rng, scoring)
+            options, _, stats = _grade(
+                position, seat, level, method, num_deals, constraints, rng, scoring,
+                expert=expert, all_constraints=expert_constraints, context_key=ctx,
+                memo=memo)
+            record['expert'] = stats
             by_card = {o['card']: o for o in options}
             best = options[0]['tricks'] if options else None
             best_cards = [o['card'] for o in options
@@ -473,4 +533,5 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
         'summary': summary,
         'method': method,
         'num_deals': 1 if method == 'double_dummy' else num_deals,
+        'expert': expert.__dict__ if expert is not None else None,
     }

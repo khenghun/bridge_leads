@@ -48,21 +48,38 @@ Play solver — http://localhost:5174/play.html
   `504 (Outdated Optimize Dep)` is the shared-cache clash** (see below).
 - Click the first example, **Board 17 · 1NT by West** (six are listed) → pick
   **E/W** (declaring 1NT — one grade, of West) →
-  **Analyze** (single dummy, 20 deals). Expect the deterministic result under
-  the "West" section: **12 ✓ / 2 ~ / 1 ✗ of 15 graded, 3 forced**, tricks
-  given up 0.70 · **1.00 IMPs (32 points)**; one `/api/play/analyze` 200 in
-  ~1 s with `seat: "W"`. Every decisions/options table has an IMPs column.
+  **Analyze** (single dummy, 40 deals — the default since the 2× scaling).
+  Expect the deterministic result under the "West" section: **13 ✓ / 2 ~ /
+  0 ✗ of 15 graded, 3 forced**, tricks given up 0.45 · **0.82 IMPs (27
+  points)**; one `/api/play/analyze` 200 in ~1 s with `seat: "W"`,
+  `num_deals: 40`. Every decisions/options table has an IMPs column.
 - **Whole table** → Analyze: three sequential `/api/play/analyze` requests
   (W, then N, then S), sections filling in as each lands, a *Biggest swings*
-  panel on top, **ranked by IMPs**: `8 S ♣3 −0.60 IMPs / −0.30 tricks`,
-  `2 S ♠T −0.45 / −0.35`, `5 W ♥2 −0.35 / −0.35`, … ; pair lines read
-  `E/W … 0.70 · 1.00 IMPs` and `N/S … 1.25 · 1.45 IMPs`. Clicking a swing
+  panel on top, **ranked by IMPs**: `1 N ♠9 −0.55 IMPs / −0.50 tricks`,
+  `7 W ♥4 −0.50 / −0.20`, `8 S ♣3 −0.40 / −0.20`, `4 N ♦5 −0.40 / −0.17`,
+  … ; pair lines read `E/W … 0.45 · 0.82 IMPs` and `N/S … 1.32 · 1.83
+  IMPs`. Clicking a swing
   row jumps the viewer to that card, highlights the row in its seat's table
   and opens the options list (Score and IMPs columns present).
 - Constraint slicing: set North HCP min 8 and West HCP max 12, run the whole
   table, and read the three request bodies — W's carries only `hcp.N`, N's
   only `hcp.W`, S's both. Set West HCP min 12 → an amber "rule out the hand
   actually held" note (non-blocking); pin ♥A on North → Analyze disabled.
+- **Expert opponents** (v1.3): Board 17 → E/W → tick *Expert opponents*
+  (the deal slider jumps 40 → 60; *Advanced* shows Strict / Margin 0.1 /
+  Confidence 2 / Inner sample ratio 0.5 and "about 0.32 tricks") → Analyze.
+  **Eighteen** `/api/play/analyze` requests, one per decision (forced ones
+  included), each with `expert_opponents: true`, the default `expert` block,
+  `expert_constraints` and a one-element `decisions` (`[1]`, `[3]`, …); the
+  West heading reads *solving… decision 4 of 18 done* while they arrive
+  (~70 s in all on a 4-thread laptop). Kill the API mid-run: the seat
+  shows the error with "what was graded is kept; press Resume", and
+  **Resume** continues from the first missing decision (the finished ones
+  come straight back from the server cache). Deterministic result: header `60 deals · saw W + E ·
+  expert opponents`, seat line **Graded on 900 of 1412 sampled deals … ≥
+  0.32 tricks worse**, **13 ✓ / 2 ~ / 0 ✗ of 15 graded (3 forced)**,
+  tricks given up **0.48 · 0.96 IMPs (32 points)**; every graded row shows
+  `c/s deals` under its badge (60/60 early, more examined later).
 - Header **What's new · vX.Y** opens the play changelog panel.
 - Screenshots land in the repo root — delete them when done.
 
@@ -91,8 +108,8 @@ Play solver — http://localhost:5174/play.html
 ## Before declaring it working
 
 ```
-cd backend  && ../.venv/Scripts/python.exe -m pytest -q      # 342 as of play v1.0
-cd frontend && npm run test && npm run build:lead && npm run build:play   # 116 vitest as of play v1.1
+cd backend  && ../.venv/Scripts/python.exe -m pytest -q      # 385 as of play v1.3
+cd frontend && npm run test && npm run build:lead && npm run build:play   # 135 vitest as of play v1.3
 ```
 `build:play` must emit `dist/index.html` referencing `assets/play-*.js`; the
 lead CSS bundle must contain no Tailwind (`grep -c tailwind dist/assets/index-*.css` → 0).

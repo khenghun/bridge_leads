@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Quality, Seat, Suit } from '../../api/types'
-import type { AnalyzeResponse, Decision, PlayMethod } from '../../api/playTypes'
+import type { AnalyzeResponse, Decision, ExpertOptions, PlayMethod } from '../../api/playTypes'
 import { analyzePlay } from '../../api/play'
 import {
   SEATS, SEAT_NAME, applyQuality, dummySeat, fixedCardIssues,
@@ -30,8 +30,9 @@ import AnalysisPanel, {
   buildAnalysisMap, type AnalysisPlan, type SeatStatus, type Selection,
 } from './AnalysisPanel'
 import {
-  PAIR_LABEL, constrainableSeats, constraintsExcludeHand, constraintsForView,
-  hiddenFrom, mergeDecisions, pairRole, pairsFor, pinnedCardsNotHeld, seatsToGrade,
+  DEFAULT_DEALS, EXPERT_DEALS, EXPERT_DEFAULTS, PAIR_LABEL, chunkByDecision, constrainableSeats,
+  constraintsExcludeHand, constraintsForView, decisionIndices, hiddenFrom, mergeChunks,
+  mergeDecisions, pairRole, pairsFor, pinnedCardsNotHeld, seatsToGrade, withRetry,
   type AnalysisAction, type Pair,
 } from './analysis'
 import AuctionGrid from './AuctionGrid'
@@ -143,8 +144,14 @@ export default function PlayApp() {
 
   const [action, setAction] = useState<AnalysisAction>('NS')
   const [method, setMethod] = useState<PlayMethod>('single_dummy')
-  const [numDeals, setNumDeals] = useState(20)
+  const [numDeals, setNumDeals] = useState(DEFAULT_DEALS)
   const [constraints, setConstraints] = useState<Record<Seat, SeatConstraint>>(defaultConstraints)
+  // Expert opponents (v1.3): the toggle, its knobs, and the Advanced disclosure.
+  const [expert, setExpert] = useState(false)
+  const [expertOpts, setExpertOpts] = useState<ExpertOptions>(EXPERT_DEFAULTS)
+  const [advanced, setAdvanced] = useState(false)
+  // Per-seat "trick 5 of 13" while a chunked analysis is arriving.
+  const [progress, setProgress] = useState<Partial<Record<Seat, string>>>({})
 
   const [plan, setPlan] = useState<AnalysisPlan | null>(null)
   const [results, setResults] = useState<Partial<Record<Seat, AnalyzeResponse>>>({})
@@ -154,6 +161,16 @@ export default function PlayApp() {
   // Bumped whenever a run must be abandoned (new hand, new run); a loop that
   // finds itself stale stops writing state.
   const runRef = useRef(0)
+  // What an interrupted run still owes, so Resume can pick it up: the
+  // settings it was started with, and per seat the chunks done and left.
+  interface Pending {
+    signature: string
+    seats: Seat[]
+    parts: Partial<Record<Seat, AnalyzeResponse[]>>
+    remaining: Partial<Record<Seat, Array<number[] | undefined>>>
+  }
+  const pendingRef = useRef<Pending | null>(null)
+  const [canResume, setCanResume] = useState(false)
 
   const [step, setStep] = useState(0)
   const [selected, setSelected] = useState<Selection | null>(null)
@@ -162,8 +179,22 @@ export default function PlayApp() {
 
   const clearAnalysis = () => {
     runRef.current += 1
-    setPlan(null); setResults({}); setStatuses({}); setErrors({})
+    pendingRef.current = null
+    setCanResume(false)
+    setPlan(null); setResults({}); setStatuses({}); setErrors({}); setProgress({})
     setLoading(false); setSelected(null)
+  }
+
+  /** The toggle swaps the deal-count default with it: 30 is what the filter
+   * needs to be worth running; 20 is the plain default. A count the user has
+   * set to anything else is left alone. */
+  const toggleExpert = (on: boolean) => {
+    setExpert(on)
+    if (on && numDeals === DEFAULT_DEALS) setNumDeals(EXPERT_DEALS)
+    if (!on && numDeals === EXPERT_DEALS) setNumDeals(DEFAULT_DEALS)
+  }
+  const setExpertOpt = <K extends keyof ExpertOptions>(key: K, value: ExpertOptions[K]) => {
+    setExpertOpts((prev) => ({ ...prev, [key]: value }))
   }
 
   const load = (text: string) => {
@@ -241,34 +272,97 @@ export default function PlayApp() {
   }
   const hasCardIssue = Object.keys(cardIssues).length > 0
 
-  async function runAnalysis() {
+  /** The settings a run is made of — a resume must match them exactly. */
+  const runSignature = () => JSON.stringify({
+    action, method, numDeals, expert, expertOpts, constraints, play: game?.play.length,
+  })
+
+  /** Start an analysis, or — with `resume` — continue the interrupted one.
+   *
+   * Expert opponents is slow by nature, so its requests go out one decision
+   * at a time and the table fills in as each lands (`decisions` chunks,
+   * merged here); the plain run stays a single request per seat. A request
+   * that fails on the network is retried, because the server keeps computing
+   * after the client drops and caches every chunk — so a retry, or a Resume
+   * after the browser gave up (a sleeping laptop, a throttled tab), mostly
+   * collects answers that are already there. A screen wake-lock is held for
+   * the duration where the browser allows it. */
+  async function runAnalysis(resume = false) {
     if (!game || !declarer) return
+    const signature = runSignature()
+    const pending = resume && pendingRef.current?.signature === signature ? pendingRef.current : null
     const run = ++runRef.current
-    const seats = seatsToGrade(action, declarer)
-    setPlan({ action, declarer, pairs: pairsFor(action, declarer), seats })
-    setResults({})
-    setErrors({})
-    setStatuses(Object.fromEntries(seats.map((s) => [s, 'queued'])))
-    setSelected(null)
-    setLoading(true)
-    for (const seat of seats) {
-      if (runRef.current !== run) return
-      setStatuses((prev) => ({ ...prev, [seat]: 'solving' }))
-      try {
-        const req = toAnalyzeRequest(game, seat, {
-          method, numDeals,
-          constraints: constraintsForView(constraints, hiddenFrom(seat, declarer)),
-        })
-        const res = await analyzePlay(req)
-        if (runRef.current !== run) return
-        setResults((prev) => ({ ...prev, [seat]: res }))
-        setStatuses((prev) => ({ ...prev, [seat]: 'done' }))
-      } catch (e) {
-        if (runRef.current !== run) return
-        setErrors((prev) => ({ ...prev, [seat]: (e as Error).message }))
-        setStatuses((prev) => ({ ...prev, [seat]: 'failed' }))
-      }
+    const seats = pending?.seats ?? seatsToGrade(action, declarer)
+    if (!pending) {
+      setPlan({ action, declarer, pairs: pairsFor(action, declarer), seats })
+      setResults({})
+      setStatuses(Object.fromEntries(seats.map((s) => [s, 'queued'])))
+      setSelected(null)
+      pendingRef.current = { signature, seats, parts: {}, remaining: {} }
     }
+    const state = pendingRef.current!
+    setErrors({})
+    setProgress({})
+    setCanResume(false)
+    setLoading(true)
+    let wakeLock: { release: () => Promise<void> } | null = null
+    try {
+      wakeLock = await (navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } })
+        .wakeLock?.request('screen') ?? null
+    } catch { /* not available (hidden tab, http, old browser) — carry on */ }
+
+    const expertOn = expert && method === 'single_dummy'
+    let interrupted = false
+    try {
+      for (const seat of seats) {
+        if (runRef.current !== run) return
+        if (state.remaining[seat]?.length === 0) continue          // finished before the interruption
+        setStatuses((prev) => ({ ...prev, [seat]: 'solving' }))
+        try {
+          const options = {
+            method, numDeals,
+            constraints: constraintsForView(constraints, hiddenFrom(seat, declarer)),
+            expert: expertOn ? expertOpts : null,
+            expertConstraints: expertOn
+              ? constraintsForView(constraints, constrainableSeats(declarer)) : undefined,
+          }
+          if (!state.remaining[seat]) {
+            const chunks: Array<number[] | undefined> = expertOn
+              ? chunkByDecision(decisionIndices(game.play, seat, declarer)) : []
+            if (!chunks.length) chunks.push(undefined)
+            state.remaining[seat] = chunks
+            state.parts[seat] = []
+          }
+          const parts = state.parts[seat]!
+          const total = parts.length + state.remaining[seat]!.length
+          while (state.remaining[seat]!.length) {
+            const decisions = state.remaining[seat]![0]
+            const res = await withRetry(() =>
+              analyzePlay(toAnalyzeRequest(game, seat, { ...options, decisions })))
+            if (runRef.current !== run) return
+            parts.push(res)
+            state.remaining[seat]!.shift()
+            const merged = total > 1 ? mergeChunks(parts)! : res
+            setResults((prev) => ({ ...prev, [seat]: merged }))
+            if (total > 1 && state.remaining[seat]!.length) {
+              setProgress((prev) => ({ ...prev, [seat]: `decision ${parts.length} of ${total} done` }))
+            }
+          }
+          setProgress((prev) => ({ ...prev, [seat]: undefined }))
+          setStatuses((prev) => ({ ...prev, [seat]: 'done' }))
+        } catch (e) {
+          if (runRef.current !== run) return
+          interrupted = true
+          setErrors((prev) => ({ ...prev, [seat]: `${(e as Error).message} — what was graded is kept; press Resume to continue.` }))
+          setStatuses((prev) => ({ ...prev, [seat]: 'failed' }))
+          break
+        }
+      }
+    } finally {
+      try { await wakeLock?.release() } catch { /* ignore */ }
+    }
+    setCanResume(interrupted)
+    if (!interrupted) pendingRef.current = null
     setLoading(false)
   }
 
@@ -367,14 +461,78 @@ export default function PlayApp() {
             <label className="field">
               Deals per decision: <b>{numDeals}</b>
               <input
-                type="range" min={5} max={100} step={5} value={numDeals}
+                type="range" min={5} max={200} step={5} value={numDeals}
                 onChange={(e) => setNumDeals(Number(e.target.value))}
               />
               <span className="caption tiny" style={{ margin: 0 }}>
                 Every decision is its own batch, so cost is roughly deals ×
-                decisions × seats — 100 deals over a whole table runs for many minutes.
+                decisions × seats — 200 deals over a whole table runs for many minutes.
               </span>
             </label>
+          )}
+
+          {method === 'single_dummy' && (
+            <div className="field" data-expert>
+              <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                <input type="checkbox" checked={expert} onChange={(e) => toggleExpert(e.target.checked)} />
+                <b>Expert opponents</b>
+              </label>
+              <span className="caption tiny" style={{ margin: 0 }}>
+                Assumes the opponents found the best play at every earlier turn,
+                judged by what they could see — sampled deals on which an earlier
+                play of theirs was clearly wrong are thrown out. Much slower:
+                minutes per seat, arriving trick by trick.
+              </span>
+              {expert && (
+                <>
+                  <button
+                    type="button" className="btn btn-small" style={{ alignSelf: 'flex-start' }}
+                    onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}
+                  >
+                    {advanced ? '▾' : '▸'} Advanced
+                  </button>
+                  {advanced && (
+                    <div className="flex flex-col gap-1.5 text-xs" data-expert-advanced>
+                      <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                        <input type="checkbox" checked={expertOpts.strict}
+                          onChange={(e) => setExpertOpt('strict', e.target.checked)} />
+                        <span>
+                          <b>Strict</b> — judge every opponent decision, not only the ones
+                          that lost a trick on the sampled deal. Several times slower; the
+                          only way to catch a play that happened to work.
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <span style={{ minWidth: '9rem' }}>Margin (tricks)</span>
+                        <input type="number" min={0} max={1} step={0.05} value={expertOpts.tolerance}
+                          style={{ width: '5rem' }}
+                          onChange={(e) => setExpertOpt('tolerance', Number(e.target.value))} />
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <span style={{ minWidth: '9rem' }}>Confidence (σ)</span>
+                        <input type="number" min={1} max={4} step={0.5} value={expertOpts.confidence}
+                          style={{ width: '5rem' }}
+                          onChange={(e) => setExpertOpt('confidence', Number(e.target.value))} />
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <span style={{ minWidth: '9rem' }}>Inner sample ratio</span>
+                        <input type="number" min={0.1} max={1} step={0.1} value={expertOpts.inner_ratio}
+                          style={{ width: '5rem' }}
+                          onChange={(e) => setExpertOpt('inner_ratio', Number(e.target.value))} />
+                      </label>
+                      <span className="caption tiny" style={{ margin: 0 }}>
+                        A play is rejected only when an alternative is shown better by
+                        more than the margin plus the sampling noise — at {numDeals} deals
+                        that is about{' '}
+                        {(expertOpts.tolerance + expertOpts.confidence * 0.6
+                          / Math.sqrt(Math.max(8, Math.round(expertOpts.inner_ratio * numDeals)))).toFixed(2)}{' '}
+                        tricks. Raise the deal count to tighten it.
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           )}
 
           {declarer && (
@@ -403,10 +561,20 @@ export default function PlayApp() {
             className="btn btn-primary"
             style={{ width: '100%' }}
             disabled={loading || !analyzable || hasCardIssue}
-            onClick={runAnalysis}
+            onClick={() => runAnalysis(false)}
           >
             {loading ? <><span className="play-spinner" /> Analyzing…</> : 'Analyze'}
           </button>
+          {canResume && !loading && (
+            <button
+              className="btn"
+              style={{ width: '100%', marginTop: '0.4rem' }}
+              onClick={() => runAnalysis(true)}
+              data-resume
+            >
+              ▶ Resume — continue where it stopped
+            </button>
+          )}
           {hasCardIssue && (
             <p className="err">Fix the pinned cards above before analyzing.</p>
           )}
@@ -430,6 +598,7 @@ export default function PlayApp() {
                 plan={plan}
                 results={results}
                 statuses={statuses}
+                progress={progress}
                 errors={errors}
                 contractText={contractText}
                 selected={selected}

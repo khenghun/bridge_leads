@@ -6,7 +6,7 @@
 // `toAnalyzeRequest` below is the bridge between the two representations.
 
 import type { Constraints, Seat, Suit } from '../api/types'
-import type { AnalyzeRequest, PlayMethod } from '../api/playTypes'
+import type { AnalyzeRequest, ExpertOptions, PlayMethod } from '../api/playTypes'
 
 /** Clockwise around the table: N -> E -> S -> W -> N. */
 export const CLOCKWISE: Seat[] = ['N', 'E', 'S', 'W']
@@ -363,6 +363,12 @@ export interface AnalyzeOptions {
   constraints: Constraints
   /** Grade only the first N cards of the recorded play (default: all of it). */
   playLength?: number
+  /** Expert opponents (v1.3); null/undefined = off. */
+  expert?: ExpertOptions | null
+  /** Constraints on every seat, for judging the opponents' plays. */
+  expertConstraints?: Constraints
+  /** Only these play indices — one chunk of a trick-by-trick analysis. */
+  decisions?: number[]
 }
 
 /** True when the parse produced everything the API needs. */
@@ -387,6 +393,7 @@ export function toAnalyzeRequest(
   }
 
   const cards = game.play.slice(0, options.playLength ?? game.play.length)
+  const expert = options.expert && options.method === 'single_dummy' ? options.expert : null
   return {
     hands: {
       N: handToPbn(game.hands.N), E: handToPbn(game.hands.E),
@@ -402,5 +409,11 @@ export function toAnalyzeRequest(
     method: options.method,
     num_deals: options.numDeals,
     constraints: options.constraints,
+    ...(expert ? {
+      expert_opponents: true,
+      expert,
+      expert_constraints: options.expertConstraints ?? options.constraints,
+    } : {}),
+    ...(options.decisions ? { decisions: options.decisions } : {}),
   }
 }

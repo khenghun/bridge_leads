@@ -15,6 +15,48 @@ export type DecisionStatus = 'optimal' | 'good' | 'suboptimal' | 'forced'
 /** The role the graded seat plays. Dummy is not gradable (the backend 422s). */
 export type PlayRole = 'declarer' | 'defender'
 
+/** Expert opponents (v1.3): sampled layouts must also be consistent with the
+ * opponents' earlier plays having been best plays *given what they could
+ * see* — judged by a Monte-Carlo from each opponent's own view. Mirrors the
+ * engine's `ExpertSettings`; the backend fills defaults when omitted. */
+export interface ExpertOptions {
+  /** Inner sample cap as a fraction of `num_deals` (floor 8). */
+  inner_ratio: number
+  /** tol₀: how much better an alternative must be shown to be, in tricks. */
+  tolerance: number
+  /** z: standard errors of evidence a rejection needs. */
+  confidence: number
+  /** Outer layouts examined per consistent layout wanted before giving up. */
+  budget: number
+  /** Judge every opponent decision, not only the ones that lost a
+   * double-dummy trick on the layout — slower, catches a play that worked on
+   * the actual hand but was wrong single-dummy. */
+  strict: boolean
+  /** Recursion depth; 1 is the design, 2 exists as a knob. */
+  depth: number
+}
+
+/** What the expert filter did for one decision. */
+export interface ExpertStats {
+  /** Layouts examined (accepted + rejected). */
+  sampled: number
+  /** Layouts the decision was graded on. */
+  consistent: number
+  /** Layouts that went through the double-dummy trace (0 in strict mode). */
+  traced: number
+  /** Inner judgements run; `memo_hits` were answered from the memo. */
+  judged: number
+  memo_hits: number
+  /** The filter rejects a play shown at least this many tricks worse. */
+  threshold: number
+  /** Observed sd of the paired difference, when any judgement ran. */
+  sigma: number | null
+  /** `filtered` normally; `none` when nothing survived (graded on the
+   * unfiltered sample — the opponents may have erred); `trivial` when there
+   * was nothing to judge yet (the opening lead). */
+  inference: 'filtered' | 'none' | 'trivial'
+}
+
 /** The state every play request carries. */
 export interface PlayState {
   /** All four hands as PBN 'spades.hearts.diamonds.clubs' — 52 distinct cards. */
@@ -30,16 +72,27 @@ export interface PlayState {
   /** Cards in endplay form ('HK', 'DT'), from the opening lead, in order. */
   play: string[]
   method: PlayMethod
-  /** 5–100; ignored for double_dummy. */
+  /** 5–200; ignored for double_dummy. */
   num_deals: number
   /** Only the seats the graded player cannot see may be constrained. */
   constraints: Constraints
+  /** Expert opponents (v1.3). Off by default; `expert` and
+   * `expert_constraints` are read only when on. */
+  expert_opponents?: boolean
+  expert?: ExpertOptions | null
+  /** The user's constraints on every seat — the auction was public, so an
+   * opponent judging their own play knew them too. Unlike `constraints`,
+   * the graded seat's own hand may appear here. */
+  expert_constraints?: Constraints | null
 }
 
 export interface AnalyzeRequest extends PlayState {
   /** Whose decisions to grade. Dummy → 422; for the declarer this includes
    * the cards played from dummy. */
   seat: Seat
+  /** Play indices to grade in this call — a chunk of a slow analysis, merged
+   * client-side (`mergeChunks`). Omitted = every decision of the seat. */
+  decisions?: number[]
 }
 
 /** One legal card at a decision point, priced in tricks for the graded side. */
@@ -92,6 +145,8 @@ export interface Decision {
   /** Every legal card, best first. */
   options: CardOption[]
   best_cards: string[]
+  /** Present when expert opponents were on and the decision was sampled. */
+  expert?: ExpertStats | null
 }
 
 export interface AnalyzeSummary {
@@ -124,6 +179,8 @@ export interface AnalyzeResponse {
   method: PlayMethod
   /** Echoed back as 1 for double_dummy, which does no sampling. */
   num_deals: number
+  /** The expert settings the grade was made under; null when off. */
+  expert?: ExpertOptions | null
 }
 
 /** The interactive primitive: grade whoever is on play at this position.
@@ -148,4 +205,5 @@ export interface PositionResponse {
   options: CardOption[]
   method: PlayMethod
   num_deals: number
+  expert?: ExpertStats | null
 }

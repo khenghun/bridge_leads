@@ -98,7 +98,7 @@ to the end, a competitive 2♠ after a weak two, a 3NT from a teams practice)
 so a first-time visitor can see the grader at work without a `.lin` of
 their own.
 
-## v1.3 — Expert opponents ⚪
+## v1.3 — Expert opponents 🟡 (built 2026-09-01, not yet deployed)
 
 Design: [`v1.3-expert-opponents-plan.md`](v1.3-expert-opponents-plan.md).
 

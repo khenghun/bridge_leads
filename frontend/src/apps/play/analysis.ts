@@ -10,7 +10,10 @@
  * results back as pairs.
  */
 import type { Constraints, Seat, Suit } from '../../api/types'
-import type { AnalyzeResponse, AnalyzeSummary, Decision, PlayRole } from '../../api/playTypes'
+import type {
+  AnalyzeResponse, AnalyzeSummary, Decision, ExpertOptions, PlayRole,
+} from '../../api/playTypes'
+import type { CardPlay } from '../../lib/lin'
 import type { SeatConstraint } from '../../components/ConstraintsEditor'
 import {
   RANKS, SEATS, SUITS, SUIT_SYMBOL, dummySeat, handHcp, handSuitLength,
@@ -222,4 +225,125 @@ export function pairSummary(
   }
   sum.avg_trick_loss = sum.graded ? sum.total_trick_loss / sum.graded : 0
   return sum
+}
+
+// ── expert opponents and trick-by-trick requests (v1.3) ─────────────────────
+
+/** The engine's defaults, kept here so the UI and the request agree. */
+export const EXPERT_DEFAULTS: ExpertOptions = {
+  inner_ratio: 0.5, tolerance: 0.1, confidence: 2, budget: 20, strict: false, depth: 1,
+}
+/** Deals per decision the toggle switches to (and back from) — the plan's
+ * default, because the filter needs a few more layouts to be worth it. */
+export const EXPERT_DEALS = 60
+export const DEFAULT_DEALS = 40
+
+/** The play indices at which `seat` decided — for declarer, dummy's cards
+ * too — in play order. What a chunked analysis is split over. */
+export function decisionIndices(play: CardPlay[], seat: Seat, declarer: Seat): number[] {
+  const graded = seat === declarer ? [declarer, SEATS[(SEATS.indexOf(declarer) + 2) % 4]] : [seat]
+  const out: number[] = []
+  play.forEach((c, i) => { if (graded.includes(c.player)) out.push(i) })
+  return out
+}
+
+/** Group play indices by trick (four cards each), so a slow analysis can be
+ * fetched — and shown — one trick at a time. */
+export function chunkByTrick(indices: number[]): number[][] {
+  const byTrick = new Map<number, number[]>()
+  for (const i of indices) {
+    const t = Math.floor(i / 4)
+    byTrick.set(t, [...(byTrick.get(t) ?? []), i])
+  }
+  return [...byTrick.keys()].sort((a, b) => a - b).map((t) => byTrick.get(t)!)
+}
+
+const r2 = (x: number) => Math.round(x * 100) / 100
+const r3 = (x: number) => Math.round(x * 1000) / 1000
+
+/** The backend's summary formula, applied to any set of decisions. */
+export function summarize(decisions: Decision[]): AnalyzeSummary {
+  const graded = decisions.filter((d) => !d.forced && d.diff != null)
+  const loss = graded.reduce((s, d) => s + Math.max(0, -(d.diff ?? 0)), 0)
+  const scoreLoss = graded.reduce((s, d) => s + Math.max(0, -(d.score_diff ?? 0)), 0)
+  const impLoss = graded.reduce((s, d) => s + Math.max(0, -(d.imp_diff ?? 0)), 0)
+  return {
+    decisions: decisions.length,
+    graded: graded.length,
+    optimal: graded.filter((d) => d.status === 'optimal').length,
+    good: graded.filter((d) => d.status === 'good').length,
+    suboptimal: graded.filter((d) => d.status === 'suboptimal').length,
+    total_trick_loss: r2(loss),
+    avg_trick_loss: graded.length ? r3(loss / graded.length) : 0,
+    total_score_loss: Math.round(scoreLoss * 10) / 10,
+    total_imp_loss: r2(impLoss),
+  }
+}
+
+/** The chunks of one seat's analysis as a single result: decisions in play
+ * order, the summary rebuilt over all of them. Null with no chunks. */
+export function mergeChunks(chunks: AnalyzeResponse[]): AnalyzeResponse | null {
+  if (!chunks.length) return null
+  const decisions = chunks.flatMap((c) => c.decisions).sort((a, b) => a.index - b.index)
+  return { ...chunks[0], decisions, summary: summarize(decisions) }
+}
+
+export interface ExpertDigest {
+  /** Sampled decisions the filter ran on. */
+  decisions: number
+  sampled: number
+  consistent: number
+  /** Decisions on which nothing survived. */
+  none: number
+  threshold: number | null
+}
+
+/** One seat's expert-filter counts rolled up, for the section header. Null
+ * when the result was not graded under expert opponents. */
+export function expertDigest(result: AnalyzeResponse): ExpertDigest | null {
+  const stats = result.decisions.map((d) => d.expert).filter((e): e is NonNullable<typeof e> => !!e)
+  if (!result.expert || !stats.length) return null
+  return {
+    decisions: stats.length,
+    sampled: stats.reduce((s, e) => s + e.sampled, 0),
+    consistent: stats.reduce((s, e) => s + e.consistent, 0),
+    none: stats.filter((e) => e.inference === 'none').length,
+    threshold: stats[0].threshold ?? null,
+  }
+}
+
+/** One request per decision. Expert-opponents requests can run for minutes
+ * each, and a browser drops a fetch when the machine sleeps or the tab is
+ * throttled (`ERR_NETWORK_IO_SUSPENDED`), so the smaller each request the
+ * less is lost — and the server caches every chunk, so a resumed run replays
+ * finished decisions instantly. */
+export function chunkByDecision(indices: number[]): number[][] {
+  return indices.map((i) => [i])
+}
+
+/** A network failure or a gateway error is worth retrying: the server keeps
+ * computing after the client drops, so a retry mostly just collects the
+ * cached answer. A 4xx (validation) is not. */
+export function isTransient(e: unknown): boolean {
+  if (e instanceof TypeError) return true          // fetch: network error / suspended
+  const msg = e instanceof Error ? e.message : String(e)
+  return /\b(502|503|504)\b|gateway|timed? ?out|network|suspended|load failed/i.test(msg)
+}
+
+/** Call `fn`, retrying transient failures with growing delays. */
+export async function withRetry<T>(
+  fn: () => Promise<T>, attempts = 4, baseDelayMs = 3000,
+  retryable: (e: unknown) => boolean = isTransient,
+): Promise<T> {
+  let last: unknown
+  for (let k = 0; k < attempts; k++) {
+    try {
+      return await fn()
+    } catch (e) {
+      last = e
+      if (!retryable(e) || k + 1 === attempts) throw e
+      await new Promise((r) => setTimeout(r, baseDelayMs * 2 ** k))
+    }
+  }
+  throw last
 }

@@ -15,7 +15,7 @@ import type { Seat, Suit } from '../../api/types'
 import type { AnalyzeResponse, CardOption, Decision, DecisionStatus } from '../../api/playTypes'
 import { SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL } from '../../lib/bridge'
 import {
-  PAIR_LABEL, pairRole, pairSummary, rankSwings, seatsOfPair,
+  PAIR_LABEL, expertDigest, pairRole, pairSummary, rankSwings, seatsOfPair,
   type AnalysisAction, type Pair, type Swing,
 } from './analysis'
 
@@ -184,7 +184,9 @@ function DecisionsTable({ result, selected, onSelect }: {
         <span>·</span>
         <span>{result.method === 'double_dummy' ? 'double dummy' : `${result.num_deals} deals`}</span>
         {result.visible?.length > 0 && <span>· saw {result.visible.join(' + ')}</span>}
+        {result.expert && <span>· expert opponents{result.expert.strict ? ' (strict)' : ''}</span>}
       </div>
+      <ExpertLine result={result} />
 
       <div className="overflow-y-auto" style={{ maxHeight: '24rem' }}>
         <table className="play-decisions">
@@ -233,6 +235,7 @@ function DecisionsTable({ result, selected, onSelect }: {
                       {d.forced
                         ? <span className="text-[0.68rem]" style={{ color: 'var(--muted)' }}>forced</span>
                         : <StatusBadge status={d.status} />}
+                      {d.expert && <Consistency stats={d.expert} />}
                     </td>
                   </tr>
                   {isOpen && <Options options={d.options} played={d.card} />}
@@ -267,9 +270,52 @@ function DecisionsTable({ result, selected, onSelect }: {
   )
 }
 
-function SeatSection({ seat, status, result, error, selected, onSelect }: {
+/** How many sampled deals passed the expert filter for one decision — and a
+ * flag when none did. */
+function Consistency({ stats }: { stats: NonNullable<Decision['expert']> }) {
+  if (stats.inference === 'none') {
+    return (
+      <span className="block text-[0.6rem]" style={{ color: 'var(--status-good)' }}
+        title="No sampled deal was consistent with the opponents' earlier plays — graded on the unfiltered sample; they may have erred earlier">
+        ⚠ none consistent
+      </span>
+    )
+  }
+  if (stats.inference === 'trivial') return null
+  return (
+    <span className="block text-[0.6rem] tabular-nums" style={{ color: 'var(--muted)' }}
+      title={`Graded on ${stats.consistent} of ${stats.sampled} sampled deals consistent with expert play by the opponents (${stats.judged} judged, ${stats.memo_hits} from memory)`}>
+      {stats.consistent}/{stats.sampled} deals
+    </span>
+  )
+}
+
+/** The seat-level line for an expert-opponents grade: what survived, and the
+ * bar the filter applied. */
+function ExpertLine({ result }: { result: AnalyzeResponse }) {
+  const digest = expertDigest(result)
+  if (!digest) return null
+  return (
+    <div className="mb-1 text-[0.68rem]" style={{ color: 'var(--muted)' }} data-expert-line>
+      Graded on <b>{digest.consistent}</b> of {digest.sampled} sampled deals consistent with
+      expert play by the opponents
+      {digest.threshold != null && (
+        <> · rejects a play shown ≥ {digest.threshold.toFixed(2)} tricks worse</>
+      )}
+      {digest.none > 0 && (
+        <span style={{ color: 'var(--status-good)' }}>
+          {' '}· {digest.none} decision{digest.none > 1 ? 's' : ''} with no consistent deal — the
+          opponents may have erred earlier
+        </span>
+      )}
+    </div>
+  )
+}
+
+function SeatSection({ seat, status, progress, result, error, selected, onSelect }: {
   seat: Seat
   status: SeatStatus | undefined
+  progress: string | undefined
   result: AnalyzeResponse | undefined
   error: string | undefined
   selected: number | null
@@ -280,7 +326,9 @@ function SeatSection({ seat, status, result, error, selected, onSelect }: {
       <h3 className="play-seat-heading">
         {SEAT_NAME[seat]}
         {status === 'solving' && (
-          <span className="play-seat-status"><span className="play-spinner" /> solving…</span>
+          <span className="play-seat-status">
+            <span className="play-spinner" /> solving…{progress ? ` ${progress}` : ''}
+          </span>
         )}
         {status === 'queued' && <span className="play-seat-status">queued</span>}
       </h3>
@@ -290,11 +338,12 @@ function SeatSection({ seat, status, result, error, selected, onSelect }: {
   )
 }
 
-function PairCard({ pair, plan, results, statuses, errors, contractText, selected, onSelect }: {
+function PairCard({ pair, plan, results, statuses, progress, errors, contractText, selected, onSelect }: {
   pair: Pair
   plan: AnalysisPlan
   results: Partial<Record<Seat, AnalyzeResponse>>
   statuses: Partial<Record<Seat, SeatStatus>>
+  progress: Partial<Record<Seat, string>>
   errors: Partial<Record<Seat, string>>
   contractText: string
   selected: Selection | null
@@ -342,6 +391,7 @@ function PairCard({ pair, plan, results, statuses, errors, contractText, selecte
           key={seat}
           seat={seat}
           status={statuses[seat]}
+          progress={progress[seat]}
           result={results[seat]}
           error={errors[seat]}
           selected={selected?.seat === seat ? selected.index : null}
@@ -432,6 +482,7 @@ interface Props {
   plan: AnalysisPlan | null
   results: Partial<Record<Seat, AnalyzeResponse>>
   statuses: Partial<Record<Seat, SeatStatus>>
+  progress?: Partial<Record<Seat, string>>
   errors: Partial<Record<Seat, string>>
   /** e.g. "1NT" — for the declaring pair's heading. */
   contractText: string
@@ -441,7 +492,7 @@ interface Props {
 }
 
 export default function AnalysisPanel({
-  plan, results, statuses, errors, contractText, selected, onSelect,
+  plan, results, statuses, progress = {}, errors, contractText, selected, onSelect,
 }: Props) {
   if (!plan) {
     return (
@@ -470,6 +521,7 @@ export default function AnalysisPanel({
           plan={plan}
           results={results}
           statuses={statuses}
+          progress={progress}
           errors={errors}
           contractText={contractText}
           selected={selected}
