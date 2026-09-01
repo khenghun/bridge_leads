@@ -1,0 +1,35 @@
+{
+  "v": 1,
+  "tool": "lead",
+  "request": {
+    "leader_hand": "KJ973.A5.T82.J64",
+    "level": 3,
+    "strain": "N",
+    "declarer": "S",
+    "vul": "none",
+    "penalty": "none",
+    "num_simulations": 300,
+    "constraints": {
+      "hcp": {
+        "S": [
+          15,
+          17
+        ],
+        "N": [
+          10,
+          14
+        ]
+      },
+      "suit_length": {},
+      "shapes": {
+        "S": "(2-4s,2-4h,2-5d,2-5c) or (5h,2-3s,2-4d,2-4c) or (5s,2-3h,2-4d,2-4c) or (6c,2-3s,2-3h,2-3d) or (6d,2-3s,2-3h,2-3c)",
+        "N": "(2-3s,2-3h,2-6d,2-6c) or (4s,3h,3d,3c) or (4h,3s,3d,3c)"
+      },
+      "quality": {},
+      "fixed_cards": {}
+    }
+  },
+  "view": {
+    "mode": "imps"
+  }
+}

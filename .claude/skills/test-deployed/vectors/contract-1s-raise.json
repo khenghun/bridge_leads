@@ -1,0 +1,39 @@
+{
+  "v": 1,
+  "tool": "contract",
+  "request": {
+    "hand": "AKJ73.K5.Q82.J64",
+    "seat": "S",
+    "vul": "none",
+    "num_deals": 150,
+    "strains": [
+      "N",
+      "S",
+      "H",
+      "D",
+      "C"
+    ],
+    "constraints": {
+      "hcp": {
+        "N": [
+          10,
+          14
+        ]
+      },
+      "suit_length": {
+        "N": {
+          "S": [
+            3,
+            13
+          ]
+        }
+      },
+      "shapes": {},
+      "quality": {},
+      "fixed_cards": {}
+    }
+  },
+  "view": {
+    "mode": "imps"
+  }
+}
