@@ -48,7 +48,7 @@ v1.3 changes what it samples, v1.4 and v1.5 drive it from new places. The
 order is value-per-effort: v1.1 and v1.2 are small and land quickly; v1.3 is
 the one deep engine feature and the thing no free tool does.
 
-## v1.1 — Analyze a pair, or the whole table 🟡 (built 2026-09-01, not yet deployed)
+## v1.1 — Analyze a pair, or the whole table ✅ (built and deployed 2026-09-01)
 
 Design: [`v1.1-pair-analysis-plan.md`](v1.1-pair-analysis-plan.md).
 
@@ -71,7 +71,7 @@ holds the pure parts (23 vitest cases) and the UI was verified with Playwright
 (request bodies carry exactly the per-view constraint slice; E/W on the example
 reproduces v1.0's West result).
 
-## v1.2 — Cost in points and IMPs, and more example hands 🟡 (built 2026-09-01, not yet deployed)
+## v1.2 — Cost in points and IMPs, and more example hands ✅ (built and deployed 2026-09-01)
 
 Every decision's cost is a trick count today, so losing an overtrick in 3NT
 and letting 4♠ make both read "−1". Price each option through

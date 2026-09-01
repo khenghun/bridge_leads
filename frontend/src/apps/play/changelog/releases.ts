@@ -19,7 +19,6 @@ export const RELEASES: Release[] = [
     version: 'v1.2',
     date: '2026-09-01',
     title: 'What it cost in IMPs, and more example hands',
-    unreleased: true,
     summary:
       'Every decision is now priced in points and IMPs, not only tricks — '
       + 'and there are six real hands to start from.',
@@ -60,7 +59,6 @@ export const RELEASES: Release[] = [
     version: 'v1.1',
     date: '2026-09-01',
     title: 'Analyze a pair, or the whole table',
-    unreleased: true,
     summary:
       'Grade both members of a partnership in one go — or all four seats — '
       + 'and see whose decisions cost the most.',
