@@ -71,14 +71,24 @@ holds the pure parts (23 vitest cases) and the UI was verified with Playwright
 (request bodies carry exactly the per-view constraint slice; E/W on the example
 reproduces v1.0's West result).
 
-## v1.2 — Cost in points and IMPs, and more example hands ⚪ (examples built 2026-09-01; costs pending)
+## v1.2 — Cost in points and IMPs, and more example hands 🟡 (built 2026-09-01, not yet deployed)
 
 Every decision's cost is a trick count today, so losing an overtrick in 3NT
 and letting 4♠ make both read "−1". Price each option through
 `engine/scoring.py` (contract, vulnerability, doubling) and show the swing in
 points and IMPs beside the tricks; rank v1.1's biggest-swings list by IMPs.
 Small and engine-ready. Moved ahead of *Expert opponents* (2026-09-01) so the
-swings list means something in points before the slow mode lands.
+swings list means something in points before the slow mode lands. Built: the
+grader keeps each sampled deal's trick count per card and prices it through
+`engine/scoring.py` (vulnerability and doubling now reach the engine from the
+request), so every option carries a mean `score` and a per-deal-converted
+`imps` against the trick-best card, every decision an `imp_diff` /
+`score_diff`, and the summary a `total_imp_loss`. Ranking by tricks is
+unchanged, but the badge is then **demoted by the IMP cost** (≥ 0.5 IMPs
+given up caps it at *good*, ≥ 2 makes it *suboptimal*; the trick-best card
+stays optimal) — the 7NT example's ♦Q, 0.05 tricks but a full IMP, was the
+case that decided it. The UI adds an IMPs column to every table, points in
+the tooltip, and the swings list and pair summaries rank by IMPs.
 
 Alongside it, **more built-in example hands**: the upload screen offers a
 short list instead of one board — real hands from the user's own BBO

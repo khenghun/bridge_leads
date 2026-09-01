@@ -151,7 +151,8 @@ def test_no_play_at_all_grades_nothing_for_a_seat_yet_to_play():
     assert res['decisions'] == []
     assert res['summary'] == {'decisions': 0, 'graded': 0, 'optimal': 0,
                               'good': 0, 'suboptimal': 0,
-                              'total_trick_loss': 0.0, 'avg_trick_loss': 0.0}
+                              'total_trick_loss': 0.0, 'avg_trick_loss': 0.0,
+                              'total_score_loss': 0.0, 'total_imp_loss': 0.0}
 
 
 def _full_play():
@@ -363,3 +364,107 @@ def test_no_play_yet_grades_the_opening_lead_only():
     assert d['card'] == 'HA'
     assert d['status'] == 'optimal'          # the one lead that beats 3NT
     assert d['actual_tricks'] == 5.0
+
+
+# --- v1.2: cost in points and IMPs ------------------------------------------
+
+def test_options_are_priced_in_points_and_imps_from_the_defenders_view():
+    """WIDE_OPEN, W on lead, nobody vul: a heart lead beats 3NT (+50 for the
+    defence), anything else lets it make with two overtricks (-460). The swing
+    between them is 510 points = 11 IMPs, charged per deal against the best."""
+    res = grader.grade_position(WIDE_OPEN, 3, 'N', 'S', [], method='double_dummy')
+    by_card = {o['card']: o for o in res['options']}
+    assert by_card['HA']['score'] == 50.0
+    assert by_card['HA']['imps'] == 0.0
+    assert by_card['S2']['score'] == -460.0
+    assert by_card['S2']['imps'] == -11.0
+
+
+def test_vulnerability_changes_the_price_not_the_tricks():
+    flat = grader.grade_position(WIDE_OPEN, 3, 'N', 'S', [], method='double_dummy')
+    vul = grader.grade_position(WIDE_OPEN, 3, 'N', 'S', [], method='double_dummy',
+                                vul='ns')
+    f = {o['card']: o for o in flat['options']}
+    v = {o['card']: o for o in vul['options']}
+    assert f['S2']['tricks'] == v['S2']['tricks']
+    # Vulnerable: down one is +100 to the defence, 3NT+2 is -660; 760 = 13 IMPs.
+    assert v['HA']['score'] == 100.0
+    assert v['S2']['score'] == -660.0
+    assert v['S2']['imps'] == -13.0
+
+
+def test_declarer_view_prices_from_declarers_side():
+    """After W cashes the ace, declarer is held to 8: every dummy card scores
+    -50 for declarer and none is an IMP swing against another."""
+    res = grader.grade_position(WIDE_OPEN, 3, 'N', 'S', ['HA'], method='double_dummy')
+    assert res['role'] == 'declarer'
+    assert {o['score'] for o in res['options']} == {-50.0}
+    assert {o['imps'] for o in res['options']} == {0.0}
+
+
+def test_doubled_contracts_are_priced_doubled():
+    """The price comes from engine.scoring (endplay), so check against it."""
+    from engine.scoring import declarer_score
+    res = grader.grade_position(WIDE_OPEN, 3, 'N', 'S', [], method='double_dummy',
+                                penalty='doubled')
+    by_card = {o['card']: o for o in res['options']}
+    # Defender's view: the negative of declarer's score.
+    assert by_card['HA']['score'] == -declarer_score(3, 'N', 'S', 8, 'none', 'doubled')
+    assert by_card['S2']['score'] == -declarer_score(3, 'N', 'S', 11, 'none', 'doubled')
+    assert by_card['HA']['score'] == 100.0        # 3NTx down one, not vul
+    assert by_card['S2']['score'] == -750.0       # 3NTx+2 not vul: 200+300+50+2x100
+
+
+def test_grade_play_decision_and_summary_carry_costs():
+    res = grader.grade_play(HANDS, 1, 'N', 'W', PLAY, 'W', method='double_dummy')
+    graded = [d for d in res['decisions'] if not d['forced']]
+    assert graded
+    for d in graded:
+        assert d['best_score'] is not None and d['actual_score'] is not None
+        assert d['score_diff'] == pytest.approx(d['actual_score'] - d['best_score'], abs=0.11)
+        assert d['imp_diff'] <= 0
+        played = next(o for o in d['options'] if o['card'] == d['card'])
+        assert d['imp_diff'] == played['imps']
+        assert d['options'][0]['imps'] == 0.0            # the best card is the datum
+    for d in res['decisions']:
+        if d['forced']:
+            assert d['imp_diff'] is None and d['score_diff'] is None
+    s = res['summary']
+    assert s['total_imp_loss'] == pytest.approx(
+        sum(max(0.0, -d['imp_diff']) for d in graded), abs=0.01)
+    assert s['total_score_loss'] >= 0
+    # A trick lost that does not change the result costs no IMPs; one that does
+    # costs something — so the two totals need not move together.
+    assert s['total_trick_loss'] >= 0
+
+
+def test_status_is_demoted_by_imps_but_never_promoted():
+    c = grader.classify_with_imps
+    # Trick thresholds alone, IMPs quiet: unchanged from classify.
+    assert c(-0.05, False, 0.0) == 'optimal'
+    assert c(-0.2, False, 0.0) == 'good'
+    assert c(-0.5, False, 0.0) == 'suboptimal'
+    # The 7NT case: a twentieth of a trick, a whole IMP -> good, not optimal.
+    assert c(-0.05, False, -1.0) == 'good'
+    # Two IMPs or more is suboptimal whatever the tricks said.
+    assert c(-0.05, False, -2.0) == 'suboptimal'
+    assert c(-0.2, False, -2.5) == 'suboptimal'
+    # Just under the thresholds: nothing happens.
+    assert c(-0.05, False, -0.49) == 'optimal'
+    assert c(-0.2, False, -1.99) == 'good'
+    # The best card is optimal by definition; no IMP data means no demotion.
+    assert c(0.0, True, 0.0) == 'optimal'
+    assert c(-0.05, False, None) == 'optimal'
+
+
+def test_grade_play_status_reflects_imps(monkeypatch):
+    """Grade the constructed 3NT with W leading a spade: one trick short of
+    beating it double-dummy would read 'suboptimal' either way, so check the
+    plumbing on the numbers instead — the recorded status must equal
+    classify_with_imps of the recorded diff and imp_diff."""
+    res = grader.grade_play(HANDS, 1, 'N', 'W', PLAY, 'W', method='double_dummy')
+    for d in res['decisions']:
+        if d['forced']:
+            continue
+        assert d['status'] == grader.classify_with_imps(
+            d['diff'], d['card'] in d['best_cards'], d['imp_diff'])

@@ -18,12 +18,34 @@ export const RELEASES: Release[] = [
   {
     version: 'v1.2',
     date: '2026-09-01',
-    title: 'More example hands',
+    title: 'What it cost in IMPs, and more example hands',
     unreleased: true,
     summary:
-      'Six real hands to start from instead of one, each with a different '
-      + 'story to grade.',
+      'Every decision is now priced in points and IMPs, not only tricks — '
+      + 'and there are six real hands to start from.',
     changes: [
+      {
+        kind: 'new',
+        text: 'Each graded card shows what it cost in IMPs beside the tricks, '
+          + 'using the contract, the vulnerability and any double. A trick '
+          + 'that only costs an overtrick and one that lets a game through '
+          + 'both read "−1 trick"; now they read very differently. Points are '
+          + 'in the tooltip, and every alternative in the options list carries '
+          + 'its own score and IMPs.',
+      },
+      {
+        kind: 'improved',
+        text: 'The biggest-swings list and the pair summaries rank by IMPs, so '
+          + 'the decision that actually decided the board comes first.',
+      },
+      {
+        kind: 'improved',
+        text: 'The optimal / good / suboptimal badge now listens to IMPs as '
+          + 'well as tricks: a card that costs almost nothing on average but '
+          + 'half an IMP or more is at best "good", and two IMPs or more is '
+          + '"suboptimal". Tricks alone can no longer call a slam-losing card '
+          + 'optimal.',
+      },
       {
         kind: 'new',
         text: 'The upload screen now offers six example hands — a grand slam '

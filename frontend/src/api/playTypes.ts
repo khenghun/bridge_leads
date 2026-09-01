@@ -49,6 +49,13 @@ export interface CardOption {
   tricks: number
   /** Make rate for a declarer, defeat rate for a defender. */
   success_rate: number
+  /** Mean duplicate score for the graded side (contract, vulnerability and
+   * doubling applied), in points. */
+  score: number
+  /** Mean per-deal IMP swing of this card against the trick-best card on the
+   * same deal — 0 for the best card, ≤ 0 below it, and occasionally > 0 for
+   * a card that scores better than the trick-best one. */
+  imps: number
 }
 
 export interface Decision {
@@ -73,6 +80,14 @@ export interface Decision {
   best_tricks: number | null
   /** actual − best, so ≤ 0; the classifier's input. null when forced. */
   diff: number | null
+  /** Mean duplicate score (graded side) of the card played / of the best card. */
+  actual_score: number | null
+  best_score: number | null
+  /** Points, actual − best. */
+  score_diff: number | null
+  /** Mean per-deal IMPs, actual − best (≤ 0). The cost that distinguishes an
+   * overtrick from a game. */
+  imp_diff: number | null
   status: DecisionStatus
   /** Every legal card, best first. */
   options: CardOption[]
@@ -90,6 +105,9 @@ export interface AnalyzeSummary {
   total_trick_loss: number
   /** total_trick_loss / graded. */
   avg_trick_loss: number
+  /** Points and IMPs given up across the graded decisions. */
+  total_score_loss: number
+  total_imp_loss: number
 }
 
 export interface AnalyzeResponse {

@@ -166,11 +166,14 @@ export interface Swing {
   decision: Decision
   /** Tricks given up: −diff, so ≥ 0. */
   loss: number
+  /** IMPs given up: −imp_diff, so ≥ 0. */
+  imps: number
 }
 
 /** Every decision that cost tricks, across every graded seat, worst first —
- * the whole-table "whose fault was it" list. Ties break by trick, then seat
- * order, so the list is stable between renders. */
+ * the whole-table "whose fault was it" list. Ranked by IMPs given up (a
+ * game let through outranks an overtrick), then by tricks, then trick number
+ * and seat order so the list is stable between renders. */
 export function rankSwings(results: Partial<Record<Seat, AnalyzeResponse>>): Swing[] {
   const swings: Swing[] = []
   for (const seat of SEATS) {
@@ -180,11 +183,12 @@ export function rankSwings(results: Partial<Record<Seat, AnalyzeResponse>>): Swi
       if (d.forced || d.diff == null) continue
       const loss = -d.diff
       if (loss < 0.005) continue
-      swings.push({ seat, role: r.role, decision: d, loss })
+      swings.push({ seat, role: r.role, decision: d, loss, imps: -(d.imp_diff ?? 0) })
     }
   }
   return swings.sort((a, b) =>
-    b.loss - a.loss
+    b.imps - a.imps
+    || b.loss - a.loss
     || a.decision.trick - b.decision.trick
     || SEATS.indexOf(a.seat) - SEATS.indexOf(b.seat))
 }
@@ -203,7 +207,7 @@ export function pairSummary(
   if (!have.length) return null
   const sum: PairSummary = {
     seats: have, decisions: 0, graded: 0, optimal: 0, good: 0, suboptimal: 0,
-    total_trick_loss: 0, avg_trick_loss: 0,
+    total_trick_loss: 0, avg_trick_loss: 0, total_score_loss: 0, total_imp_loss: 0,
   }
   for (const s of have) {
     const x = results[s]!.summary
@@ -213,6 +217,8 @@ export function pairSummary(
     sum.good += x.good
     sum.suboptimal += x.suboptimal
     sum.total_trick_loss += x.total_trick_loss
+    sum.total_score_loss += x.total_score_loss ?? 0
+    sum.total_imp_loss += x.total_imp_loss ?? 0
   }
   sum.avg_trick_loss = sum.graded ? sum.total_trick_loss / sum.graded : 0
   return sum

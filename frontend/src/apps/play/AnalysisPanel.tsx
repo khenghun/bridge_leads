@@ -65,6 +65,17 @@ function CardText({ card }: { card: string }) {
   )
 }
 
+/** Signed number with a fixed number of decimals; '—' for zero. */
+function signed(n: number | null | undefined, digits: number): string {
+  if (n == null || Math.abs(n) < 0.005) return '—'
+  return `${n > 0 ? '+' : '−'}${Math.abs(n).toFixed(digits)}`
+}
+
+function impColor(n: number | null | undefined): string {
+  if (n == null || Math.abs(n) < 0.005) return 'var(--muted)'
+  return n < 0 ? 'var(--status-suboptimal)' : 'var(--status-optimal)'
+}
+
 function StatusBadge({ status }: { status: DecisionStatus }) {
   return (
     <span className="play-badge" style={{ color: STATUS_COLOR[status] ?? 'var(--muted)' }}>
@@ -79,7 +90,7 @@ function Options({ options, played }: { options: CardOption[]; played: string })
   const best = options.reduce((m, o) => Math.max(m, o.tricks), options[0].tricks)
   return (
     <tr>
-      <td colSpan={5} style={{ padding: 0, borderBottom: '1px solid var(--border)' }}>
+      <td colSpan={6} style={{ padding: 0, borderBottom: '1px solid var(--border)' }}>
         <div
           className="my-1 rounded-lg overflow-hidden"
           style={{ background: 'var(--panel-2)', borderLeft: '2px solid var(--accent)' }}
@@ -96,6 +107,8 @@ function Options({ options, played }: { options: CardOption[]; played: string })
                 <th title="Mean tricks for the graded side">Tricks</th>
                 <th title="Make rate for declarer, defeat rate for a defender">Success</th>
                 <th title="Expected tricks against the best card">vs best</th>
+                <th title="Mean duplicate score for your side, with vulnerability and doubling">Score</th>
+                <th title="IMPs against the best card, converted deal by deal">IMPs</th>
               </tr>
             </thead>
             <tbody>
@@ -125,6 +138,12 @@ function Options({ options, played }: { options: CardOption[]; played: string })
                       }}
                     >
                       {diff >= -0.005 ? '—' : diff.toFixed(2)}
+                    </td>
+                    <td className="tabular-nums" style={{ color: 'var(--muted)' }}>
+                      {o.score == null ? '—' : signed(o.score, 0)}
+                    </td>
+                    <td className="tabular-nums" style={{ color: impColor(o.imps) }}>
+                      {signed(o.imps, 2)}
                     </td>
                   </tr>
                 )
@@ -175,6 +194,7 @@ function DecisionsTable({ result, selected, onSelect }: {
               <th>Card</th>
               <th title={`Expected ${sideLabel} after the card played`}>Act</th>
               <th title={`Expected ${sideLabel} after the best card`}>Best</th>
+              <th title="IMPs given up against the best card, converted deal by deal">IMPs</th>
               <th style={{ textAlign: 'center' }}>Grade</th>
             </tr>
           </thead>
@@ -203,6 +223,10 @@ function DecisionsTable({ result, selected, onSelect }: {
                     <td><CardText card={d.card} /></td>
                     <td>{d.actual_tricks == null ? '—' : d.actual_tricks.toFixed(2)}</td>
                     <td>{d.best_tricks == null ? '—' : d.best_tricks.toFixed(2)}</td>
+                    <td className="tabular-nums" style={{ color: impColor(d.imp_diff) }}
+                      title={d.score_diff == null ? undefined : `${signed(d.score_diff, 0)} points`}>
+                      {d.forced ? '—' : signed(d.imp_diff, 2)}
+                    </td>
                     <td style={{ textAlign: 'center' }}>
                       {/* A forced card is not a decision — grading it would
                           read as praise for having no alternative. */}
@@ -226,6 +250,17 @@ function DecisionsTable({ result, selected, onSelect }: {
         </b>
         {summary.graded > 0 && (
           <> · {summary.avg_trick_loss.toFixed(2)} per graded decision</>
+        )}
+        {summary.total_imp_loss != null && (
+          <>
+            {' · '}
+            <b style={{ color: summary.total_imp_loss > 0 ? 'var(--status-suboptimal)' : 'var(--status-optimal)' }}>
+              {summary.total_imp_loss.toFixed(2)} IMPs
+            </b>
+            {summary.total_score_loss > 0 && (
+              <span> ({Math.round(summary.total_score_loss)} points)</span>
+            )}
+          </>
         )}
       </div>
     </>
@@ -287,6 +322,12 @@ function PairCard({ pair, plan, results, statuses, errors, contractText, selecte
               {sum.total_trick_loss.toFixed(2)}
             </b>
           </span>
+          <span>·</span>
+          <span>
+            <b style={{ color: sum.total_imp_loss > 0 ? 'var(--status-suboptimal)' : 'var(--status-optimal)' }}>
+              {sum.total_imp_loss.toFixed(2)} IMPs
+            </b>
+          </span>
           {partial && <span>· {sum.seats.join(' ')} so far</span>}
         </div>
       ) : (
@@ -325,6 +366,9 @@ function Swings({ swings, results, done, onSelect }: {
   return (
     <div className="play-panel" data-swings>
       <h2 className="play-panel-title" style={{ marginBottom: '0.2rem' }}>Biggest swings</h2>
+      <p className="caption tiny" style={{ margin: '0 0 0.4rem' }}>
+        Ranked by IMPs — a game let through outranks an overtrick, whatever the trick count says.
+      </p>
       {swings.length === 0 ? (
         <p className="caption tiny" style={{ margin: 0 }}>
           {done ? 'No decision cost a trick — a clean board all round.' : 'Nothing costly yet…'}
@@ -337,7 +381,8 @@ function Swings({ swings, results, done, onSelect }: {
                 <th>T#</th>
                 <th>Seat</th>
                 <th>Card</th>
-                <th title="Tricks given up against the best card">Cost</th>
+                <th title="IMPs given up against the best card, converted deal by deal">IMPs</th>
+                <th title="Tricks given up against the best card">Tricks</th>
                 <th style={{ textAlign: 'center' }}>Grade</th>
               </tr>
             </thead>
@@ -358,6 +403,10 @@ function Swings({ swings, results, done, onSelect }: {
                       </span>
                     </td>
                     <td><CardText card={s.decision.card} /></td>
+                    <td className="tabular-nums" style={{ color: impColor(-s.imps) }}
+                      title={s.decision.score_diff == null ? undefined : `${signed(s.decision.score_diff, 0)} points`}>
+                      {signed(-s.imps, 2)}
+                    </td>
                     <td className="tabular-nums" style={{ color: 'var(--status-suboptimal)' }}>
                       −{s.loss.toFixed(2)}
                     </td>

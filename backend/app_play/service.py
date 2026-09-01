@@ -68,7 +68,7 @@ def run_analysis(req) -> dict:
             hands=req.hands, level=req.level, strain=req.strain,
             declarer=req.declarer, play=list(req.play), seat=req.seat,
             method=req.method, num_deals=req.num_deals,
-            constraints=constraints, seed=0)
+            constraints=constraints, seed=0, vul=req.vul, penalty=req.penalty)
 
     return _cache.get_or_compute(_key(req, {'seat': req.seat}), compute)
 
@@ -91,6 +91,7 @@ def run_position(req) -> dict:
         return grader.grade_position(
             hands=req.hands, level=req.level, strain=req.strain,
             declarer=req.declarer, play=list(req.play), method=req.method,
-            num_deals=req.num_deals, constraints=constraints, seed=0)
+            num_deals=req.num_deals, constraints=constraints, seed=0,
+            vul=req.vul, penalty=req.penalty)
 
     return _cache.get_or_compute(_key(req, {'seat': None}), compute)

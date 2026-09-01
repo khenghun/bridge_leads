@@ -32,6 +32,7 @@ from collections import defaultdict
 from endplay.types import Deal, Denom, Player
 
 from ..dds_runtime import solve_all
+from ..scoring import declarer_score, imps
 from ..sampling import (
     build_known_and_constraints, check_hcp_feasibility, check_length_feasibility,
     generate_layouts,
@@ -67,6 +68,33 @@ def classify(diff: float, is_best: bool) -> str:
     if diff >= GOOD_BAND:
         return 'good'
     return 'suboptimal'
+
+
+# IMP demotion thresholds: a card that gives up this much in IMPs cannot wear
+# a better badge than the one named, whatever the trick count said.
+IMP_GOOD = 0.5          # >= this many IMPs given up: at most "good"
+IMP_SUBOPTIMAL = 2.0    # >= this many: "suboptimal"
+
+
+def classify_with_imps(diff: float, is_best: bool, imp_diff=None) -> str:
+    """`classify` by tricks, then demoted by the IMP cost.
+
+    Tricks alone misread the play that costs almost nothing on average but
+    swings a game or slam on the deals where it matters: 0.05 tricks and a
+    full IMP both come from "one deal in twenty goes down". The trick
+    thresholds are unchanged (v1.0 grades stay comparable); the IMP cost can
+    only lower a badge, never raise one, and the trick-best card is always
+    optimal because its IMP cost is zero by construction.
+    """
+    status = classify(diff, is_best)
+    if is_best or imp_diff is None:
+        return status
+    lost = -imp_diff
+    if lost >= IMP_SUBOPTIMAL:
+        return 'suboptimal'
+    if lost >= IMP_GOOD and status == 'optimal':
+        return 'good'
+    return status
 
 
 def visible_seats(position: Position, view: str) -> list[str]:
@@ -199,6 +227,7 @@ def _solve(position, layouts, level):
     totals = defaultdict(float)
     makes = defaultdict(int)
     counts = defaultdict(int)
+    per_board = defaultdict(list)     # card -> declarer tricks on each board
     for board in boards:
         for card, tricks in board:
             name = card_to_str(card)
@@ -210,14 +239,44 @@ def _solve(position, layouts, level):
                                else won + (remaining - tricks))
             totals[name] += declarer_tricks
             counts[name] += 1
+            per_board[name].append(declarer_tricks)
             if declarer_tricks >= needed:
                 makes[name] += 1
-    return totals, makes, counts
+    return totals, makes, counts, per_board
 
 
-def _options(position, view, totals, makes, counts):
-    """Per-card means, in the *graded side's* perspective, best first."""
+class Scoring:
+    """The contract's scoring context, so a trick count can be priced.
+
+    `score(declarer_tricks)` is the duplicate score for **declarer**; the grader
+    flips the sign for a defender's view. Memoised per trick count because a
+    position prices at most 14 distinct outcomes, however many deals it samples.
+    """
+
+    def __init__(self, level, strain, declarer, vul='none', penalty='none'):
+        self.level, self.strain, self.declarer = level, strain, declarer
+        self.vul, self.penalty = vul or 'none', penalty or 'none'
+        self._cache = {}
+
+    def score(self, declarer_tricks):
+        t = int(round(declarer_tricks))
+        if t not in self._cache:
+            self._cache[t] = declarer_score(
+                self.level, self.strain, self.declarer, t, self.vul, self.penalty)
+        return self._cache[t]
+
+
+def _options(position, view, totals, makes, counts, per_board=None, scoring=None):
+    """Per-card means, in the *graded side's* perspective, best first.
+
+    Ranking is by expected tricks (then success rate). When `scoring` is given,
+    each option also carries its mean duplicate `score` for the graded side and
+    `imps`: the mean, over the sampled deals, of the IMP swing between this card
+    and the **trick-best** card on the same deal — a per-deal conversion, so a
+    single game swing is not averaged away.
+    """
     graded_is_declarer = view in position.declarer_side
+    sign = 1 if graded_is_declarer else -1
     out = []
     for card, n in counts.items():
         if not n:
@@ -231,10 +290,19 @@ def _options(position, view, totals, makes, counts):
             'success_rate': round(rate if graded_is_declarer else 1 - rate, 3),
         })
     out.sort(key=lambda o: (-o['tricks'], -o['success_rate'], card_sort_key(o['card'])))
+    if scoring is not None and per_board and out:
+        best = per_board[out[0]['card']]
+        best_scores = [sign * scoring.score(t) for t in best]
+        for o in out:
+            mine = [sign * scoring.score(t) for t in per_board[o['card']]]
+            o['score'] = round(sum(mine) / len(mine), 1)
+            o['imps'] = round(
+                sum(imps(a - b) for a, b in zip(mine, best_scores)) / len(mine), 2)
     return out
 
 
-def _grade(position, view, level, method, num_deals, constraints, rng):
+def _grade(position, view, level, method, num_deals, constraints, rng,
+           scoring=None):
     """Price every legal card at `position` through `view`'s eyes."""
     if method not in METHODS:
         raise ValueError(f"method must be one of {METHODS}, got {method!r}")
@@ -242,8 +310,9 @@ def _grade(position, view, level, method, num_deals, constraints, rng):
         layouts = [position.layout()]
     else:
         layouts = _sample_layouts(position, view, constraints, num_deals, rng)
-    totals, makes, counts = _solve(position, layouts, level)
-    return _options(position, view, totals, makes, counts), len(layouts)
+    totals, makes, counts, per_board = _solve(position, layouts, level)
+    return (_options(position, view, totals, makes, counts, per_board, scoring),
+            len(layouts))
 
 
 def tricks_needed_for(role: str, level: int) -> int:
@@ -256,7 +325,7 @@ def tricks_needed_for(role: str, level: int) -> int:
 
 def grade_position(hands, level, strain, declarer, play=(), *,
                    method='single_dummy', num_deals=20, constraints=None,
-                   seed=None):
+                   seed=None, vul='none', penalty='none'):
     """Grade the legal cards for whoever is on play, from that player's view.
 
     The interactive primitive: no `seat`, `play` is simply the history up to the
@@ -274,8 +343,9 @@ def grade_position(hands, level, strain, declarer, play=(), *,
     rng = random.Random(seed) if seed is not None else random
 
     forced = len(legal) == 1
+    scoring = Scoring(level, strain, position.declarer, vul, penalty)
     options, sampled = ([], 0) if forced else _grade(
-        position, view, level, method, num_deals, constraints, rng)
+        position, view, level, method, num_deals, constraints, rng, scoring)
 
     return {
         'to_play': to_play,
@@ -295,13 +365,22 @@ def grade_position(hands, level, strain, declarer, play=(), *,
 
 
 def grade_play(hands, level, strain, declarer, play, seat, *,
-               method='single_dummy', num_deals=20, constraints=None, seed=None):
+               method='single_dummy', num_deals=20, constraints=None, seed=None,
+               vul='none', penalty='none'):
     """Grade every decision `seat` made in the recorded play.
 
     For declarer that includes the cards played from dummy; dummy itself makes
     no decisions and is rejected. `actual_tricks` / `best_tricks` are for the
     **graded side** (13 - declarer tricks for a defender), and `success_rate` is
     the make rate for declarer, the defeat rate for a defender.
+
+    Each decision is also priced: `actual_score` / `best_score` are mean
+    duplicate scores for the graded side under `vul` / `penalty`, `score_diff`
+    their difference in points, and `imp_diff` the mean per-deal IMP swing of
+    the card played against the best card (≤ 0, like `diff`). So an overtrick
+    given away in 3NT and a game let through both read "−1 trick" but price
+    very differently. The status badge is classified on tricks and then
+    demoted by the IMP cost (`classify_with_imps`).
     """
     if method not in METHODS:
         raise ValueError(f"method must be one of {METHODS}, got {method!r}")
@@ -319,6 +398,7 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
     role = role_of(final, seat)
     graded_seats = final.declarer_side if role == 'declarer' else {seat}
     rng = random.Random(seed) if seed is not None else random
+    scoring = Scoring(level, strain, final.declarer, vul, penalty)
 
     decisions = []
     for position, card in walk(hands, strain, declarer, play):
@@ -335,18 +415,23 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
             'actual_tricks': None,
             'best_tricks': None,
             'diff': None,
+            'actual_score': None,
+            'best_score': None,
+            'score_diff': None,
+            'imp_diff': None,
             'status': 'forced',
             'options': [],
             'best_cards': [],
         }
         if not record['forced']:
             options, _ = _grade(position, seat, level, method, num_deals,
-                                constraints, rng)
+                                constraints, rng, scoring)
             by_card = {o['card']: o for o in options}
             best = options[0]['tricks'] if options else None
             best_cards = [o['card'] for o in options
                           if best is not None and abs(o['tricks'] - best) < 0.01]
-            actual = by_card.get(card, {}).get('tricks')
+            played = by_card.get(card, {})
+            actual = played.get('tricks')
             record['options'] = options
             record['best_cards'] = best_cards
             record['best_tricks'] = best
@@ -354,11 +439,18 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
             if actual is not None and best is not None:
                 diff = round(actual - best, 3)
                 record['diff'] = diff
-                record['status'] = classify(diff, card in best_cards)
+                record['best_score'] = options[0]['score']
+                record['actual_score'] = played['score']
+                record['score_diff'] = round(played['score'] - options[0]['score'], 1)
+                record['imp_diff'] = played['imps']
+                record['status'] = classify_with_imps(
+                    diff, card in best_cards, played['imps'])
         decisions.append(record)
 
     graded = [d for d in decisions if not d['forced'] and d['diff'] is not None]
     loss = sum(max(0.0, -d['diff']) for d in graded)
+    score_loss = sum(max(0.0, -d['score_diff']) for d in graded)
+    imp_loss = sum(max(0.0, -d['imp_diff']) for d in graded)
     summary = {
         'decisions': len(decisions),
         'graded': len(graded),
@@ -367,6 +459,8 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
         'suboptimal': sum(1 for d in graded if d['status'] == 'suboptimal'),
         'total_trick_loss': round(loss, 2),
         'avg_trick_loss': round(loss / len(graded), 3) if graded else 0.0,
+        'total_score_loss': round(score_loss, 1),
+        'total_imp_loss': round(imp_loss, 2),
     }
 
     return {

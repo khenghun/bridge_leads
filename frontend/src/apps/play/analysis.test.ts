@@ -160,6 +160,7 @@ function decision(over: Partial<Decision>): Decision {
   return {
     index, trick: Math.floor(index / 4) + 1, position: index % 4, hand: 'W', card: `C${index + 2}`,
     forced: false, actual_tricks: 7, best_tricks: 7, diff: 0, status: 'optimal',
+    actual_score: 90, best_score: 90, score_diff: 0, imp_diff: 0,
     options: [], best_cards: [], ...over,
   }
 }
@@ -167,6 +168,7 @@ function decision(over: Partial<Decision>): Decision {
 function response(seat: Seat, role: 'declarer' | 'defender', decisions: Decision[]): AnalyzeResponse {
   const graded = decisions.filter((d) => !d.forced)
   const loss = graded.reduce((s, d) => s - (d.diff ?? 0), 0)
+  const impLoss = graded.reduce((s, d) => s - (d.imp_diff ?? 0), 0)
   return {
     seat, role, visible: [seat], tricks_needed: 7, decisions, method: 'single_dummy', num_deals: 20,
     summary: {
@@ -175,6 +177,7 @@ function response(seat: Seat, role: 'declarer' | 'defender', decisions: Decision
       good: graded.filter((d) => d.status === 'good').length,
       suboptimal: graded.filter((d) => d.status === 'suboptimal').length,
       total_trick_loss: loss, avg_trick_loss: graded.length ? loss / graded.length : 0,
+      total_score_loss: 0, total_imp_loss: impLoss,
     },
   }
 }
@@ -211,6 +214,15 @@ describe('rankSwings', () => {
   it('is empty with no results', () => {
     expect(rankSwings({})).toEqual([])
   })
+
+  it('ranks by IMPs given up before tricks — a game let through beats an overtrick', () => {
+    const w = response('W', 'declarer', [
+      decision({ index: 1, card: 'SJ', diff: -1.0, imp_diff: -0.2, status: 'suboptimal' }),   // an overtrick
+      decision({ index: 5, card: 'S4', diff: -0.6, imp_diff: -6.5, status: 'suboptimal' }),   // the game
+    ])
+    const swings = rankSwings({ W: w })
+    expect(swings.map((s) => [s.decision.card, s.imps])).toEqual([['S4', 6.5], ['SJ', 0.2]])
+  })
 })
 
 describe('pairSummary', () => {
@@ -234,6 +246,7 @@ describe('pairSummary', () => {
     expect(sum.suboptimal).toBe(1)
     expect(sum.total_trick_loss).toBeCloseTo(0.7)
     expect(sum.avg_trick_loss).toBeCloseTo(0.175)
+    expect(sum.total_imp_loss).toBe(0)
   })
 
   it('covers a partial pair while the second seat is still solving', () => {

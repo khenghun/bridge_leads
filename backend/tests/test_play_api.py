@@ -261,3 +261,39 @@ def test_validate_shape_is_served_for_the_shared_constraints_editor():
     assert r.json()['ok'] is True
     r = client.post('/api/validate/shape', json={'text': '((('})
     assert r.status_code == 422
+
+
+# --- v1.2: costs in the payload ---------------------------------------------
+
+def test_analyze_response_carries_scores_and_imps():
+    r = analyze(seat='W')
+    assert r.status_code == 200
+    body = r.json()
+    s = body['summary']
+    assert s['total_imp_loss'] >= 0 and s['total_score_loss'] >= 0
+    graded = [d for d in body['decisions'] if not d['forced']]
+    assert graded
+    for d in graded:
+        assert d['imp_diff'] <= 0
+        assert d['best_score'] is not None
+        assert all('score' in o and 'imps' in o for o in d['options'])
+        assert d['options'][0]['imps'] == 0.0
+    forced = [d for d in body['decisions'] if d['forced']]
+    assert all(d['imp_diff'] is None and d['score_diff'] is None for d in forced)
+
+
+def test_vulnerability_reaches_the_grader_and_the_cache_key():
+    """Same position, different vulnerability: same tricks, different prices —
+    and two distinct cache entries, not one served twice."""
+    # 1NT making scores the same at any vulnerability, so use a position that
+    # ends in undertricks: the constructed 3NT where West's hearts beat it.
+    wide = {'N': 'T98.765.JT9.T987', 'E': '765.432.8765.654',
+            'S': 'AKQJ.98.AKQ.AKQJ', 'W': '432.AKQJT.432.32'}
+    a = position(hands=wide, level=3, declarer='S', play=[], vul='none').json()
+    b = position(hands=wide, level=3, declarer='S', play=[], vul='both').json()
+    ta = [o['tricks'] for o in a['options']]
+    tb = [o['tricks'] for o in b['options']]
+    assert ta == tb
+    sa = [o['score'] for o in a['options']]
+    sb = [o['score'] for o in b['options']]
+    assert sa != sb

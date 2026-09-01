@@ -50,12 +50,15 @@ Play solver — http://localhost:5174/play.html
   **E/W** (declaring 1NT — one grade, of West) →
   **Analyze** (single dummy, 20 deals). Expect the deterministic result under
   the "West" section: **12 ✓ / 2 ~ / 1 ✗ of 15 graded, 3 forced**, tricks
-  given up 0.70; one `/api/play/analyze` 200 in ~1 s with `seat: "W"`.
+  given up 0.70 · **1.00 IMPs (32 points)**; one `/api/play/analyze` 200 in
+  ~1 s with `seat: "W"`. Every decisions/options table has an IMPs column.
 - **Whole table** → Analyze: three sequential `/api/play/analyze` requests
   (W, then N, then S), sections filling in as each lands, a *Biggest swings*
-  panel on top: `1 N ♠9 −0.35`, `2 S ♠T −0.35`, `5 W ♥2 −0.35` (ties by
-  trick). Clicking the first row jumps the viewer to 1/37, highlights North's
-  `1N ♠9` row and opens its options with ♦5 / ♦4 best at 5.80.
+  panel on top, **ranked by IMPs**: `8 S ♣3 −0.60 IMPs / −0.30 tricks`,
+  `2 S ♠T −0.45 / −0.35`, `5 W ♥2 −0.35 / −0.35`, … ; pair lines read
+  `E/W … 0.70 · 1.00 IMPs` and `N/S … 1.25 · 1.45 IMPs`. Clicking a swing
+  row jumps the viewer to that card, highlights the row in its seat's table
+  and opens the options list (Score and IMPs columns present).
 - Constraint slicing: set North HCP min 8 and West HCP max 12, run the whole
   table, and read the three request bodies — W's carries only `hcp.N`, N's
   only `hcp.W`, S's both. Set West HCP min 12 → an amber "rule out the hand

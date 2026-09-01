@@ -87,6 +87,8 @@ class PlayOption(BaseModel):
     card: str                       # endplay input form, e.g. 'HK'
     tricks: float                   # mean tricks for the graded side
     success_rate: float             # make rate (declarer) / defeat rate (defender)
+    score: float                    # mean duplicate score for the graded side
+    imps: float                     # mean per-deal IMP swing vs the best card (<= 0 for best)
 
 
 class Decision(BaseModel):
@@ -99,6 +101,10 @@ class Decision(BaseModel):
     actual_tricks: Optional[float]
     best_tricks: Optional[float]
     diff: Optional[float]           # actual - best
+    actual_score: Optional[float]   # mean duplicate score of the card played
+    best_score: Optional[float]     # ... and of the best card
+    score_diff: Optional[float]     # points, actual - best
+    imp_diff: Optional[float]       # mean per-deal IMPs, actual - best (<= 0)
     status: str                     # optimal | good | suboptimal | forced
     options: list[PlayOption]       # best first
     best_cards: list[str]
@@ -112,6 +118,8 @@ class AnalysisSummary(BaseModel):
     suboptimal: int
     total_trick_loss: float
     avg_trick_loss: float
+    total_score_loss: float         # points given up across graded decisions
+    total_imp_loss: float           # IMPs given up across graded decisions
 
 
 class AnalyzeResponse(BaseModel):
