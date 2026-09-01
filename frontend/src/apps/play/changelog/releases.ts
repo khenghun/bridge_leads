@@ -16,6 +16,25 @@ export { KIND_LABEL } from '../../../components/Changelog'
 
 export const RELEASES: Release[] = [
   {
+    version: 'v1.2',
+    date: '2026-09-01',
+    title: 'More example hands',
+    unreleased: true,
+    summary:
+      'Six real hands to start from instead of one, each with a different '
+      + 'story to grade.',
+    changes: [
+      {
+        kind: 'new',
+        text: 'The upload screen now offers six example hands — a grand slam '
+          + 'played out and lost, a 3NT down three, a quiet 1NT, a competitive '
+          + 'part-score, a championship small slam — so you can see the grader '
+          + 'at work before loading a hand of your own. Player names are '
+          + 'replaced by seats throughout.',
+      },
+    ],
+  },
+  {
     version: 'v1.1',
     date: '2026-09-01',
     title: 'Analyze a pair, or the whole table',

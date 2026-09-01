@@ -43,10 +43,10 @@ its DNS record, and the edge vhost in the FBO repo.
 ## Planned — the order and why
 
 Everything below grades from the same primitive: one Monte-Carlo grade of one
-seat's decisions (`grade_play`). v1.1 composes it, v1.2 changes what it
-samples, v1.3 changes how it prices, v1.4 and v1.5 drive it from new places.
-The order is value-per-effort: v1.1 is a frontend composition of what exists,
-v1.2 is the one deep engine feature and the thing no free tool does.
+seat's decisions (`grade_play`). v1.1 composes it, v1.2 changes how it prices,
+v1.3 changes what it samples, v1.4 and v1.5 drive it from new places. The
+order is value-per-effort: v1.1 and v1.2 are small and land quickly; v1.3 is
+the one deep engine feature and the thing no free tool does.
 
 ## v1.1 — Analyze a pair, or the whole table 🟡 (built 2026-09-01, not yet deployed)
 
@@ -71,9 +71,26 @@ holds the pure parts (23 vitest cases) and the UI was verified with Playwright
 (request bodies carry exactly the per-view constraint slice; E/W on the example
 reproduces v1.0's West result).
 
-## v1.2 — Expert opponents ⚪
+## v1.2 — Cost in points and IMPs, and more example hands ⚪ (examples built 2026-09-01; costs pending)
 
-Design: [`v1.2-expert-opponents-plan.md`](v1.2-expert-opponents-plan.md).
+Every decision's cost is a trick count today, so losing an overtrick in 3NT
+and letting 4♠ make both read "−1". Price each option through
+`engine/scoring.py` (contract, vulnerability, doubling) and show the swing in
+points and IMPs beside the tricks; rank v1.1's biggest-swings list by IMPs.
+Small and engine-ready. Moved ahead of *Expert opponents* (2026-09-01) so the
+swings list means something in points before the slow mode lands.
+
+Alongside it, **more built-in example hands**: the upload screen offers a
+short list instead of one board — real hands from the user's own BBO
+sessions with the player names replaced by seats, chosen to cover different
+stories (a grand slam played out to the last card, a 1NT partscore defended
+to the end, a competitive 2♠ after a weak two, a 3NT from a teams practice)
+so a first-time visitor can see the grader at work without a `.lin` of
+their own.
+
+## v1.3 — Expert opponents ⚪
+
+Design: [`v1.3-expert-opponents-plan.md`](v1.3-expert-opponents-plan.md).
 
 A toggle that assumes the opponents play as well as possible **and lets their
 earlier plays shape the deals that are sampled**. Today a sampled layout only
@@ -94,15 +111,6 @@ holding at that point, and late holdings repeat) — so it defaults to fewer
 deals, exposes the ratios, and reports how many layouts survived. Partner is
 deliberately **not** judged: partner's cards are signals, not trick-maximising
 plays (see *Partnership signalling* under Later).
-
-## v1.3 — Cost in points and IMPs ⚪
-
-Every decision's cost is a trick count today, so losing an overtrick in 3NT
-and letting 4♠ make both read "−1". Price each option through
-`engine/scoring.py` (contract, vulnerability, doubling) and show the swing in
-points and IMPs beside the tricks; rank v1.1's biggest-swings list by IMPs.
-Small, engine-ready, deliberately after v1.2 so both grading modes get it at
-once.
 
 ## v1.4 — Trace the optimal line ⚪
 

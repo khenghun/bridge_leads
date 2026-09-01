@@ -46,7 +46,8 @@ Lead / contract app — http://localhost:5173/
 Play solver — http://localhost:5174/play.html
 - Console: only the `favicon.ico` 404 is acceptable. **A blank page with
   `504 (Outdated Optimize Dep)` is the shared-cache clash** (see below).
-- **Load example** → pick **E/W** (declaring 1NT — one grade, of West) →
+- Click the first example, **Board 17 · 1NT by West** (six are listed) → pick
+  **E/W** (declaring 1NT — one grade, of West) →
   **Analyze** (single dummy, 20 deals). Expect the deterministic result under
   the "West" section: **12 ✓ / 2 ~ / 1 ✗ of 15 graded, 3 forced**, tricks
   given up 0.70; one `/api/play/analyze` 200 in ~1 s with `seat: "W"`.

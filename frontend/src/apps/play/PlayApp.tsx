@@ -36,31 +36,11 @@ import {
 } from './analysis'
 import AuctionGrid from './AuctionGrid'
 import { RELEASES } from './changelog/releases'
+import { EXAMPLES } from './examples'
 import PlayViewer, { stepForCard, totalStepsFor } from './PlayViewer'
 
 /** The lead/contract simulator, a separate product on its own domain. */
 const LEAD_APP_URL = 'https://bridge-leads.icycookie.xyz'
-
-/** Board 17 from the source repo's own test fixture
- * (bridge_ai/tests/test_bridge_tools.py) — 1NT by West, nine tricks recorded,
- * player names replaced with the seat they sat in. Small enough to grade
- * quickly, and it has both a defensive and a declarer story. */
-const EXAMPLE_LIN = (
-  'pn|South,West,North,East|st||'
-  + 'md|3SKT3HJT7D87CKQ843,SA54HQ94DT963CAT2,S9872HK85DAJ542C5,SQJ6HA632DKQCJ976|'
-  + 'rh||ah|Board 17|sv|o|'
-  + 'mb|p|mb|1C|mb|p|mb|1N|mb|p|mb|p|mb|p|pg||'
-  + 'pc|S9|pc|SJ|pc|SK|pc|S5|pg||'
-  + 'pc|ST|pc|S4|pc|S2|pc|SQ|pg||'
-  + 'pc|C6|pc|C4|pc|CT|pc|C5|pg||'
-  + 'pc|D3|pc|D5|pc|DQ|pc|D7|pg||'
-  + 'pc|H2|pc|HT|pc|HQ|pc|HK|pg||'
-  + 'pc|S8|pc|S6|pc|S3|pc|SA|pg||'
-  + 'pc|H4|pc|H8|pc|H3|pc|H7|pg||'
-  + 'pc|S7|pc|C7|pc|C3|pc|C2|pg||'
-  + 'pc|DA|pc|DK|pc|D8|pc|D6|pg||'
-  + 'pc|DJ|mc|7|'
-)
 
 function defaultConstraints(): Record<Seat, SeatConstraint> {
   return Object.fromEntries(
@@ -117,12 +97,27 @@ function UploadScreen({ onLoad }: { onLoad: (text: string) => void }) {
             onChange={(e) => setPasted(e.target.value)}
           />
         </label>
-        <div className="flex gap-2 items-center">
-          <button className="btn btn-primary" style={{ margin: '0.6rem 0' }}
-            disabled={!pasted.trim()} onClick={() => onLoad(pasted)}>
-            Load this hand
-          </button>
-          <button className="btn" onClick={() => onLoad(EXAMPLE_LIN)}>Load example</button>
+        <button className="btn btn-primary" style={{ margin: '0.6rem 0' }}
+          disabled={!pasted.trim()} onClick={() => onLoad(pasted)}>
+          Load this hand
+        </button>
+      </div>
+
+      <div className="w-full max-w-xl mt-4" data-examples>
+        <p className="caption" style={{ margin: '0 0 0.4rem' }}>Or start from an example hand:</p>
+        <div className="flex flex-col gap-1">
+          {EXAMPLES.map((ex) => (
+            <button
+              key={ex.id}
+              className="play-seat-btn play-example-btn"
+              data-example={ex.id}
+              onClick={() => onLoad(ex.lin)}
+              title={ex.blurb}
+            >
+              <span style={{ fontWeight: 600 }}>{ex.title}</span>
+              <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>{ex.blurb}</span>
+            </button>
+          ))}
         </div>
       </div>
 

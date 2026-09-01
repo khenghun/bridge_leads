@@ -129,6 +129,8 @@ body.light .play-felt {
 .play-seat-btn:hover { border-color: var(--border); }
 .play-seat-btn.on { background: var(--panel-2); border-color: var(--accent); }
 .play-seat-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.play-example-btn { flex-direction: column; align-items: flex-start; gap: 0.1rem; padding: 0.45rem 0.6rem; border-color: var(--border); }
+.play-example-btn:hover { border-color: var(--accent); background: var(--panel-2); }
 
 /* v1.1 — one section per graded seat inside a pair card */
 .play-seat-section { margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid var(--border); }
