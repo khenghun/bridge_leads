@@ -80,8 +80,16 @@ as **deploy**.
 
 ## 4. App directory + config
 
+One directory per product stack, owned by `deploy`. `/opt` itself is
+root-owned, and the deploy workflow's `scp-action` runs as `deploy` and does
+**not** sudo — if a stack's directory is missing it fails at
+`create folder /opt/bridge_play` with `Process exited with status 1`. So this
+step is required before the *first* deploy of each stack (the lead stack got it
+at initial provisioning; the play stack was added later and needs it too):
+
 ```bash
-sudo mkdir -p /opt/bridge_leads && sudo chown deploy:deploy /opt/bridge_leads
+sudo mkdir -p /opt/bridge_leads /opt/bridge_play
+sudo chown deploy:deploy /opt/bridge_leads /opt/bridge_play
 cd /opt/bridge_leads
 ```
 

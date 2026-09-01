@@ -19,7 +19,6 @@ export const RELEASES: Release[] = [
     version: 'v1.0',
     date: '2026-08-27',
     title: 'Replay a hand and grade every card',
-    unreleased: true,
     summary:
       'The first version of the play solver: load a hand you played, step '
       + 'through it, and see what each decision cost — judged by what you '
