@@ -1,0 +1,2328 @@
+{
+ "meta": {
+  "lin": "board7.lin",
+  "qx": "o7",
+  "board": "Board 7",
+  "contract": "3N",
+  "declarer": "N",
+  "vul": "both",
+  "penalty": "none",
+  "cards_played": 52,
+  "mode": "plain",
+  "num_deals": 100,
+  "api": "http://127.0.0.1:8001",
+  "request_template": {
+   "hands": {
+    "N": "AQ4.K4.KJT5.JT65",
+    "E": "KT5.J97.Q93.KQ84",
+    "S": "983.AQ6.A762.A72",
+    "W": "J762.T8532.84.93"
+   },
+   "level": 3,
+   "strain": "N",
+   "declarer": "N",
+   "vul": "both",
+   "penalty": "none",
+   "play": [
+    "H7",
+    "H6",
+    "H2",
+    "HK",
+    "D5",
+    "D3",
+    "DA",
+    "D4",
+    "D2",
+    "D8",
+    "DT",
+    "DQ",
+    "HJ",
+    "HQ",
+    "H8",
+    "H4",
+    "C2",
+    "C3",
+    "CT",
+    "CK",
+    "H9",
+    "HA",
+    "H5",
+    "S4",
+    "S3",
+    "S7",
+    "SQ",
+    "SK",
+    "ST",
+    "S8",
+    "S2",
+    "SA",
+    "DK",
+    "D9",
+    "D7",
+    "H3",
+    "DJ",
+    "C4",
+    "D6",
+    "S6",
+    "C5",
+    "C8",
+    "CA",
+    "C9",
+    "C7",
+    "HT",
+    "C6",
+    "CQ",
+    "S5",
+    "S9",
+    "SJ",
+    "CJ"
+   ],
+   "method": "single_dummy",
+   "num_deals": 100,
+   "constraints": {
+    "hcp": {},
+    "suit_length": {},
+    "shapes": {},
+    "quality": {},
+    "fixed_cards": {}
+   }
+  },
+  "machine": "dev-laptop",
+  "cpu_count": 16,
+  "python": "3.10.7",
+  "dds_threads_env": "(unset: min(cpu,4))",
+  "timestamp": "2026-09-03T04:37:41+00:00",
+  "total_time_s": 6.9
+ },
+ "seats": {
+  "N": {
+   "role": "declarer",
+   "summary": {
+    "decisions": 26,
+    "graded": 20,
+    "optimal": 18,
+    "good": 1,
+    "suboptimal": 1,
+    "total_trick_loss": 0.59,
+    "total_imp_loss": 5.08,
+    "total_time_s": 3.5,
+    "mean_s_per_graded": 0.17,
+    "max_decision_s": 0.805
+   },
+   "decisions": [
+    {
+     "index": 1,
+     "trick": 1,
+     "hand": "S",
+     "card": "H6",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "H6"
+     ],
+     "options": [
+      {
+       "card": "H6",
+       "tricks": 10.63,
+       "success_rate": 1.0,
+       "score": 648.9,
+       "imps": 0.0
+      },
+      {
+       "card": "HA",
+       "tricks": 10.61,
+       "success_rate": 1.0,
+       "score": 648.3,
+       "imps": -0.02
+      },
+      {
+       "card": "HQ",
+       "tricks": 10.61,
+       "success_rate": 1.0,
+       "score": 648.3,
+       "imps": -0.02
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.605
+    },
+    {
+     "index": 3,
+     "trick": 1,
+     "hand": "N",
+     "card": "HK",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "HK"
+     ],
+     "options": [
+      {
+       "card": "HK",
+       "tricks": 10.7,
+       "success_rate": 1.0,
+       "score": 651.0,
+       "imps": 0.0
+      },
+      {
+       "card": "H4",
+       "tricks": 9.57,
+       "success_rate": 0.97,
+       "score": 597.0,
+       "imps": -1.44
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.468
+    },
+    {
+     "index": 4,
+     "trick": 2,
+     "hand": "N",
+     "card": "D5",
+     "forced": false,
+     "status": "good",
+     "diff": -0.19,
+     "imp_diff": -0.19,
+     "score_diff": -5.7,
+     "best_cards": [
+      "H4"
+     ],
+     "options": [
+      {
+       "card": "H4",
+       "tricks": 10.59,
+       "success_rate": 1.0,
+       "score": 647.7,
+       "imps": 0.0
+      },
+      {
+       "card": "DJ",
+       "tricks": 10.57,
+       "success_rate": 1.0,
+       "score": 647.1,
+       "imps": -0.02
+      },
+      {
+       "card": "DT",
+       "tricks": 10.57,
+       "success_rate": 1.0,
+       "score": 647.1,
+       "imps": -0.02
+      },
+      {
+       "card": "C6",
+       "tricks": 10.55,
+       "success_rate": 1.0,
+       "score": 646.5,
+       "imps": -0.04
+      },
+      {
+       "card": "C5",
+       "tricks": 10.55,
+       "success_rate": 1.0,
+       "score": 646.5,
+       "imps": -0.04
+      },
+      {
+       "card": "CJ",
+       "tricks": 10.5,
+       "success_rate": 1.0,
+       "score": 645.0,
+       "imps": -0.09
+      },
+      {
+       "card": "CT",
+       "tricks": 10.5,
+       "success_rate": 1.0,
+       "score": 645.0,
+       "imps": -0.09
+      },
+      {
+       "card": "D5",
+       "tricks": 10.4,
+       "success_rate": 1.0,
+       "score": 642.0,
+       "imps": -0.19
+      },
+      {
+       "card": "DK",
+       "tricks": 10.26,
+       "success_rate": 0.98,
+       "score": 624.4,
+       "imps": -0.54
+      },
+      {
+       "card": "SA",
+       "tricks": 10.11,
+       "success_rate": 1.0,
+       "score": 633.3,
+       "imps": -0.48
+      },
+      {
+       "card": "S4",
+       "tricks": 10.1,
+       "success_rate": 0.99,
+       "score": 626.3,
+       "imps": -0.6
+      },
+      {
+       "card": "SQ",
+       "tricks": 9.41,
+       "success_rate": 0.97,
+       "score": 592.2,
+       "imps": -1.49
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.805
+    },
+    {
+     "index": 6,
+     "trick": 2,
+     "hand": "S",
+     "card": "DA",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "DA"
+     ],
+     "options": [
+      {
+       "card": "DA",
+       "tricks": 10.3,
+       "success_rate": 0.98,
+       "score": 625.6,
+       "imps": 0.0
+      },
+      {
+       "card": "D7",
+       "tricks": 9.56,
+       "success_rate": 0.95,
+       "score": 583.3,
+       "imps": -1.05
+      },
+      {
+       "card": "D6",
+       "tricks": 9.56,
+       "success_rate": 0.95,
+       "score": 583.3,
+       "imps": -1.05
+      },
+      {
+       "card": "D2",
+       "tricks": 9.56,
+       "success_rate": 0.95,
+       "score": 583.3,
+       "imps": -1.05
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.261
+    },
+    {
+     "index": 8,
+     "trick": 3,
+     "hand": "S",
+     "card": "D2",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "D7",
+      "D6",
+      "D2"
+     ],
+     "options": [
+      {
+       "card": "D7",
+       "tricks": 10.17,
+       "success_rate": 0.98,
+       "score": 621.7,
+       "imps": 0.0
+      },
+      {
+       "card": "D6",
+       "tricks": 10.17,
+       "success_rate": 0.98,
+       "score": 621.7,
+       "imps": 0.0
+      },
+      {
+       "card": "D2",
+       "tricks": 10.17,
+       "success_rate": 0.98,
+       "score": 621.7,
+       "imps": 0.0
+      },
+      {
+       "card": "C7",
+       "tricks": 10.05,
+       "success_rate": 0.98,
+       "score": 618.1,
+       "imps": -0.12
+      },
+      {
+       "card": "C2",
+       "tricks": 10.05,
+       "success_rate": 0.98,
+       "score": 618.1,
+       "imps": -0.12
+      },
+      {
+       "card": "HA",
+       "tricks": 9.98,
+       "success_rate": 0.98,
+       "score": 616.0,
+       "imps": -0.19
+      },
+      {
+       "card": "HQ",
+       "tricks": 9.98,
+       "success_rate": 0.98,
+       "score": 616.0,
+       "imps": -0.19
+      },
+      {
+       "card": "S9",
+       "tricks": 9.92,
+       "success_rate": 0.98,
+       "score": 614.2,
+       "imps": -0.25
+      },
+      {
+       "card": "S8",
+       "tricks": 9.92,
+       "success_rate": 0.98,
+       "score": 614.2,
+       "imps": -0.25
+      },
+      {
+       "card": "S3",
+       "tricks": 9.85,
+       "success_rate": 0.94,
+       "score": 585.3,
+       "imps": -0.76
+      },
+      {
+       "card": "CA",
+       "tricks": 9.82,
+       "success_rate": 0.98,
+       "score": 611.2,
+       "imps": -0.35
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.18
+    },
+    {
+     "index": 10,
+     "trick": 3,
+     "hand": "N",
+     "card": "DT",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "DJ",
+      "DT"
+     ],
+     "options": [
+      {
+       "card": "DJ",
+       "tricks": 9.99,
+       "success_rate": 0.97,
+       "score": 609.6,
+       "imps": 0.0
+      },
+      {
+       "card": "DT",
+       "tricks": 9.99,
+       "success_rate": 0.97,
+       "score": 609.6,
+       "imps": 0.0
+      },
+      {
+       "card": "DK",
+       "tricks": 9.68,
+       "success_rate": 0.95,
+       "score": 586.9,
+       "imps": -0.51
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.132
+    },
+    {
+     "index": 13,
+     "trick": 4,
+     "hand": "S",
+     "card": "HQ",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "HA",
+      "HQ"
+     ],
+     "options": [
+      {
+       "card": "HA",
+       "tricks": 9.38,
+       "success_rate": 0.97,
+       "score": 591.3,
+       "imps": 0.0
+      },
+      {
+       "card": "HQ",
+       "tricks": 9.38,
+       "success_rate": 0.97,
+       "score": 591.3,
+       "imps": 0.0
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.081
+    },
+    {
+     "index": 15,
+     "trick": 4,
+     "hand": "N",
+     "card": "H4",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.022
+    },
+    {
+     "index": 16,
+     "trick": 5,
+     "hand": "S",
+     "card": "C2",
+     "forced": false,
+     "status": "optimal",
+     "diff": -0.03,
+     "imp_diff": -0.47,
+     "score_diff": -27.7,
+     "best_cards": [
+      "D7",
+      "D6"
+     ],
+     "options": [
+      {
+       "card": "D7",
+       "tricks": 9.31,
+       "success_rate": 0.94,
+       "score": 569.1,
+       "imps": 0.0
+      },
+      {
+       "card": "D6",
+       "tricks": 9.31,
+       "success_rate": 0.94,
+       "score": 569.1,
+       "imps": 0.0
+      },
+      {
+       "card": "C7",
+       "tricks": 9.28,
+       "success_rate": 0.9,
+       "score": 541.4,
+       "imps": -0.47
+      },
+      {
+       "card": "C2",
+       "tricks": 9.28,
+       "success_rate": 0.9,
+       "score": 541.4,
+       "imps": -0.47
+      },
+      {
+       "card": "HA",
+       "tricks": 9.12,
+       "success_rate": 0.88,
+       "score": 523.2,
+       "imps": -0.85
+      },
+      {
+       "card": "S9",
+       "tricks": 8.99,
+       "success_rate": 0.83,
+       "score": 485.8,
+       "imps": -1.53
+      },
+      {
+       "card": "S8",
+       "tricks": 8.99,
+       "success_rate": 0.83,
+       "score": 485.8,
+       "imps": -1.53
+      },
+      {
+       "card": "CA",
+       "tricks": 8.96,
+       "success_rate": 0.82,
+       "score": 478.2,
+       "imps": -1.67
+      },
+      {
+       "card": "S3",
+       "tricks": 8.91,
+       "success_rate": 0.75,
+       "score": 429.8,
+       "imps": -2.49
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.095
+    },
+    {
+     "index": 18,
+     "trick": 5,
+     "hand": "N",
+     "card": "CT",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "CJ",
+      "CT"
+     ],
+     "options": [
+      {
+       "card": "CJ",
+       "tricks": 9.34,
+       "success_rate": 0.97,
+       "score": 590.1,
+       "imps": 0.0
+      },
+      {
+       "card": "CT",
+       "tricks": 9.34,
+       "success_rate": 0.97,
+       "score": 590.1,
+       "imps": 0.0
+      },
+      {
+       "card": "C6",
+       "tricks": 9.21,
+       "success_rate": 0.89,
+       "score": 532.6,
+       "imps": -0.99
+      },
+      {
+       "card": "C5",
+       "tricks": 9.21,
+       "success_rate": 0.89,
+       "score": 532.6,
+       "imps": -0.99
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.054
+    },
+    {
+     "index": 21,
+     "trick": 6,
+     "hand": "S",
+     "card": "HA",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.009
+    },
+    {
+     "index": 23,
+     "trick": 6,
+     "hand": "N",
+     "card": "S4",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": -0.22,
+     "score_diff": -13.4,
+     "best_cards": [
+      "DK",
+      "DJ",
+      "S4"
+     ],
+     "options": [
+      {
+       "card": "DK",
+       "tricks": 9.19,
+       "success_rate": 0.95,
+       "score": 572.2,
+       "imps": 0.0
+      },
+      {
+       "card": "DJ",
+       "tricks": 9.19,
+       "success_rate": 0.95,
+       "score": 572.2,
+       "imps": 0.0
+      },
+      {
+       "card": "S4",
+       "tricks": 9.19,
+       "success_rate": 0.93,
+       "score": 558.8,
+       "imps": -0.22
+      },
+      {
+       "card": "C6",
+       "tricks": 8.86,
+       "success_rate": 0.79,
+       "score": 455.1,
+       "imps": -2.09
+      },
+      {
+       "card": "C5",
+       "tricks": 8.86,
+       "success_rate": 0.79,
+       "score": 455.1,
+       "imps": -2.09
+      },
+      {
+       "card": "SQ",
+       "tricks": 8.75,
+       "success_rate": 0.75,
+       "score": 425.0,
+       "imps": -2.64
+      },
+      {
+       "card": "CJ",
+       "tricks": 8.7,
+       "success_rate": 0.7,
+       "score": 390.0,
+       "imps": -3.24
+      },
+      {
+       "card": "SA",
+       "tricks": 7.87,
+       "success_rate": 0.17,
+       "score": -11.0,
+       "imps": -9.93
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.063
+    },
+    {
+     "index": 24,
+     "trick": 7,
+     "hand": "S",
+     "card": "S3",
+     "forced": false,
+     "status": "suboptimal",
+     "diff": -0.37,
+     "imp_diff": -4.2,
+     "score_diff": -245.6,
+     "best_cards": [
+      "D7",
+      "D6"
+     ],
+     "options": [
+      {
+       "card": "D7",
+       "tricks": 9.13,
+       "success_rate": 0.93,
+       "score": 557.0,
+       "imps": 0.0
+      },
+      {
+       "card": "D6",
+       "tricks": 9.13,
+       "success_rate": 0.93,
+       "score": 557.0,
+       "imps": 0.0
+      },
+      {
+       "card": "CA",
+       "tricks": 9.04,
+       "success_rate": 0.92,
+       "score": 547.6,
+       "imps": -0.2
+      },
+      {
+       "card": "C7",
+       "tricks": 8.78,
+       "success_rate": 0.72,
+       "score": 405.8,
+       "imps": -2.62
+      },
+      {
+       "card": "S9",
+       "tricks": 8.76,
+       "success_rate": 0.58,
+       "score": 311.4,
+       "imps": -4.2
+      },
+      {
+       "card": "S8",
+       "tricks": 8.76,
+       "success_rate": 0.58,
+       "score": 311.4,
+       "imps": -4.2
+      },
+      {
+       "card": "S3",
+       "tricks": 8.76,
+       "success_rate": 0.58,
+       "score": 311.4,
+       "imps": -4.2
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.058
+    },
+    {
+     "index": 26,
+     "trick": 7,
+     "hand": "N",
+     "card": "SQ",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "SQ"
+     ],
+     "options": [
+      {
+       "card": "SQ",
+       "tricks": 8.78,
+       "success_rate": 0.54,
+       "score": 285.2,
+       "imps": 0.0
+      },
+      {
+       "card": "SA",
+       "tricks": 8.3,
+       "success_rate": 0.3,
+       "score": 110.0,
+       "imps": -3.01
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.062
+    },
+    {
+     "index": 29,
+     "trick": 8,
+     "hand": "S",
+     "card": "S8",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "S9",
+      "S8"
+     ],
+     "options": [
+      {
+       "card": "S9",
+       "tricks": 8.15,
+       "success_rate": 0.14,
+       "score": -1.7,
+       "imps": 0.0
+      },
+      {
+       "card": "S8",
+       "tricks": 8.15,
+       "success_rate": 0.14,
+       "score": -1.7,
+       "imps": 0.0
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.062
+    },
+    {
+     "index": 31,
+     "trick": 8,
+     "hand": "N",
+     "card": "SA",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.009
+    },
+    {
+     "index": 32,
+     "trick": 9,
+     "hand": "N",
+     "card": "DK",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "DK",
+      "DJ"
+     ],
+     "options": [
+      {
+       "card": "DK",
+       "tricks": 8.14,
+       "success_rate": 0.11,
+       "score": -22.1,
+       "imps": 0.0
+      },
+      {
+       "card": "DJ",
+       "tricks": 8.14,
+       "success_rate": 0.11,
+       "score": -22.1,
+       "imps": 0.0
+      },
+      {
+       "card": "C6",
+       "tricks": 8.11,
+       "success_rate": 0.11,
+       "score": -23.0,
+       "imps": -0.03
+      },
+      {
+       "card": "C5",
+       "tricks": 8.11,
+       "success_rate": 0.11,
+       "score": -23.0,
+       "imps": -0.03
+      },
+      {
+       "card": "CJ",
+       "tricks": 8.0,
+       "success_rate": 0.0,
+       "score": -100.0,
+       "imps": -1.32
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.06
+    },
+    {
+     "index": 34,
+     "trick": 9,
+     "hand": "S",
+     "card": "D7",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "D7",
+      "D6"
+     ],
+     "options": [
+      {
+       "card": "D7",
+       "tricks": 8.18,
+       "success_rate": 0.14,
+       "score": -0.8,
+       "imps": 0.0
+      },
+      {
+       "card": "D6",
+       "tricks": 8.18,
+       "success_rate": 0.14,
+       "score": -0.8,
+       "imps": 0.0
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.061
+    },
+    {
+     "index": 36,
+     "trick": 10,
+     "hand": "N",
+     "card": "DJ",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "DJ"
+     ],
+     "options": [
+      {
+       "card": "DJ",
+       "tricks": 8.2,
+       "success_rate": 0.18,
+       "score": 26.6,
+       "imps": 0.0
+      },
+      {
+       "card": "C6",
+       "tricks": 8.18,
+       "success_rate": 0.18,
+       "score": 26.0,
+       "imps": -0.02
+      },
+      {
+       "card": "C5",
+       "tricks": 8.18,
+       "success_rate": 0.18,
+       "score": 26.0,
+       "imps": -0.02
+      },
+      {
+       "card": "CJ",
+       "tricks": 8.0,
+       "success_rate": 0.0,
+       "score": -100.0,
+       "imps": -2.16
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.069
+    },
+    {
+     "index": 38,
+     "trick": 10,
+     "hand": "S",
+     "card": "D6",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.016
+    },
+    {
+     "index": 40,
+     "trick": 11,
+     "hand": "N",
+     "card": "C5",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "C6",
+      "C5"
+     ],
+     "options": [
+      {
+       "card": "C6",
+       "tricks": 8.59,
+       "success_rate": 0.31,
+       "score": 125.4,
+       "imps": 0.0
+      },
+      {
+       "card": "C5",
+       "tricks": 8.59,
+       "success_rate": 0.31,
+       "score": 125.4,
+       "imps": 0.0
+      },
+      {
+       "card": "CJ",
+       "tricks": 8.0,
+       "success_rate": 0.0,
+       "score": -100.0,
+       "imps": -3.72
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.063
+    },
+    {
+     "index": 42,
+     "trick": 11,
+     "hand": "S",
+     "card": "CA",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "CA"
+     ],
+     "options": [
+      {
+       "card": "CA",
+       "tricks": 8.66,
+       "success_rate": 0.33,
+       "score": 140.9,
+       "imps": 0.0
+      },
+      {
+       "card": "C7",
+       "tricks": 7.31,
+       "success_rate": 0.0,
+       "score": -169.0,
+       "imps": -5.37
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.063
+    },
+    {
+     "index": 44,
+     "trick": 12,
+     "hand": "S",
+     "card": "C7",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "S9",
+      "C7"
+     ],
+     "options": [
+      {
+       "card": "S9",
+       "tricks": 8.0,
+       "success_rate": 0.0,
+       "score": -100.0,
+       "imps": 0.0
+      },
+      {
+       "card": "C7",
+       "tricks": 8.0,
+       "success_rate": 0.0,
+       "score": -100.0,
+       "imps": 0.0
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.066
+    },
+    {
+     "index": 46,
+     "trick": 12,
+     "hand": "N",
+     "card": "C6",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "CJ",
+      "C6"
+     ],
+     "options": [
+      {
+       "card": "CJ",
+       "tricks": 8.0,
+       "success_rate": 0.0,
+       "score": -100.0,
+       "imps": 0.0
+      },
+      {
+       "card": "C6",
+       "tricks": 8.0,
+       "success_rate": 0.0,
+       "score": -100.0,
+       "imps": 0.0
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.065
+    },
+    {
+     "index": 49,
+     "trick": 13,
+     "hand": "S",
+     "card": "S9",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.015
+    },
+    {
+     "index": 51,
+     "trick": 13,
+     "hand": "N",
+     "card": "CJ",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.016
+    }
+   ]
+  },
+  "E": {
+   "role": "defender",
+   "summary": {
+    "decisions": 13,
+    "graded": 10,
+    "optimal": 7,
+    "good": 1,
+    "suboptimal": 2,
+    "total_trick_loss": 1.08,
+    "total_imp_loss": 4.32,
+    "total_time_s": 2.6,
+    "mean_s_per_graded": 0.26,
+    "max_decision_s": 1.804
+   },
+   "decisions": [
+    {
+     "index": 0,
+     "trick": 1,
+     "hand": "E",
+     "card": "H7",
+     "forced": false,
+     "status": "good",
+     "diff": -0.24,
+     "imp_diff": -0.4,
+     "score_diff": -10.6,
+     "best_cards": [
+      "CK",
+      "CQ"
+     ],
+     "options": [
+      {
+       "card": "CK",
+       "tricks": 7.02,
+       "success_rate": 0.81,
+       "score": 201.3,
+       "imps": 0.0
+      },
+      {
+       "card": "CQ",
+       "tricks": 7.02,
+       "success_rate": 0.81,
+       "score": 201.3,
+       "imps": 0.0
+      },
+      {
+       "card": "C4",
+       "tricks": 6.99,
+       "success_rate": 0.81,
+       "score": 197.6,
+       "imps": -0.11
+      },
+      {
+       "card": "C8",
+       "tricks": 6.95,
+       "success_rate": 0.81,
+       "score": 194.3,
+       "imps": -0.19
+      },
+      {
+       "card": "D3",
+       "tricks": 6.83,
+       "success_rate": 0.79,
+       "score": 172.4,
+       "imps": -0.49
+      },
+      {
+       "card": "D9",
+       "tricks": 6.79,
+       "success_rate": 0.78,
+       "score": 162.4,
+       "imps": -0.68
+      },
+      {
+       "card": "H7",
+       "tricks": 6.78,
+       "success_rate": 0.83,
+       "score": 190.7,
+       "imps": -0.4
+      },
+      {
+       "card": "H9",
+       "tricks": 6.76,
+       "success_rate": 0.82,
+       "score": 183.4,
+       "imps": -0.51
+      },
+      {
+       "card": "S5",
+       "tricks": 6.75,
+       "success_rate": 0.8,
+       "score": 171.8,
+       "imps": -0.66
+      },
+      {
+       "card": "ST",
+       "tricks": 6.7,
+       "success_rate": 0.8,
+       "score": 166.1,
+       "imps": -0.79
+      },
+      {
+       "card": "HJ",
+       "tricks": 6.68,
+       "success_rate": 0.82,
+       "score": 176.8,
+       "imps": -0.72
+      },
+      {
+       "card": "DQ",
+       "tricks": 6.45,
+       "success_rate": 0.74,
+       "score": 110.0,
+       "imps": -1.59
+      },
+      {
+       "card": "SK",
+       "tricks": 6.38,
+       "success_rate": 0.77,
+       "score": 121.7,
+       "imps": -1.61
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 1.804
+    },
+    {
+     "index": 5,
+     "trick": 2,
+     "hand": "E",
+     "card": "D3",
+     "forced": false,
+     "status": "optimal",
+     "diff": -0.09,
+     "imp_diff": -0.31,
+     "score_diff": -16.8,
+     "best_cards": [
+      "D9"
+     ],
+     "options": [
+      {
+       "card": "D9",
+       "tricks": 5.49,
+       "success_rate": 0.72,
+       "score": -14.8,
+       "imps": 0.0
+      },
+      {
+       "card": "D3",
+       "tricks": 5.4,
+       "success_rate": 0.7,
+       "score": -31.6,
+       "imps": -0.31
+      },
+      {
+       "card": "DQ",
+       "tricks": 4.63,
+       "success_rate": 0.53,
+       "score": -191.7,
+       "imps": -3.28
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.161
+    },
+    {
+     "index": 11,
+     "trick": 3,
+     "hand": "E",
+     "card": "DQ",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "DQ"
+     ],
+     "options": [
+      {
+       "card": "DQ",
+       "tricks": 6.06,
+       "success_rate": 0.86,
+       "score": 124.1,
+       "imps": 0.0
+      },
+      {
+       "card": "D9",
+       "tricks": 4.41,
+       "success_rate": 0.47,
+       "score": -245.5,
+       "imps": -6.77
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.079
+    },
+    {
+     "index": 12,
+     "trick": 4,
+     "hand": "E",
+     "card": "HJ",
+     "forced": false,
+     "status": "suboptimal",
+     "diff": -0.33,
+     "imp_diff": -1.82,
+     "score_diff": -104.0,
+     "best_cards": [
+      "CK",
+      "CQ"
+     ],
+     "options": [
+      {
+       "card": "CK",
+       "tricks": 5.75,
+       "success_rate": 0.83,
+       "score": 75.8,
+       "imps": 0.0
+      },
+      {
+       "card": "CQ",
+       "tricks": 5.75,
+       "success_rate": 0.83,
+       "score": 75.8,
+       "imps": 0.0
+      },
+      {
+       "card": "D9",
+       "tricks": 5.72,
+       "success_rate": 0.78,
+       "score": 48.4,
+       "imps": -0.37
+      },
+      {
+       "card": "S5",
+       "tricks": 5.6,
+       "success_rate": 0.69,
+       "score": -12.7,
+       "imps": -1.32
+      },
+      {
+       "card": "HJ",
+       "tricks": 5.42,
+       "success_rate": 0.7,
+       "score": -28.2,
+       "imps": -1.82
+      },
+      {
+       "card": "H9",
+       "tricks": 5.42,
+       "success_rate": 0.7,
+       "score": -28.2,
+       "imps": -1.82
+      },
+      {
+       "card": "ST",
+       "tricks": 5.36,
+       "success_rate": 0.67,
+       "score": -42.4,
+       "imps": -2.0
+      },
+      {
+       "card": "C8",
+       "tricks": 5.34,
+       "success_rate": 0.68,
+       "score": -49.6,
+       "imps": -2.35
+      },
+      {
+       "card": "C4",
+       "tricks": 5.34,
+       "success_rate": 0.68,
+       "score": -49.6,
+       "imps": -2.35
+      },
+      {
+       "card": "SK",
+       "tricks": 5.08,
+       "success_rate": 0.62,
+       "score": -89.2,
+       "imps": -2.8
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.091
+    },
+    {
+     "index": 19,
+     "trick": 5,
+     "hand": "E",
+     "card": "CK",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "CK",
+      "CQ"
+     ],
+     "options": [
+      {
+       "card": "CK",
+       "tricks": 6.29,
+       "success_rate": 0.87,
+       "score": 153.1,
+       "imps": 0.0
+      },
+      {
+       "card": "CQ",
+       "tricks": 6.29,
+       "success_rate": 0.87,
+       "score": 153.1,
+       "imps": 0.0
+      },
+      {
+       "card": "C4",
+       "tricks": 4.7,
+       "success_rate": 0.48,
+       "score": -224.5,
+       "imps": -6.76
+      },
+      {
+       "card": "C8",
+       "tricks": 4.66,
+       "success_rate": 0.47,
+       "score": -232.4,
+       "imps": -6.87
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.06
+    },
+    {
+     "index": 20,
+     "trick": 6,
+     "hand": "E",
+     "card": "H9",
+     "forced": false,
+     "status": "suboptimal",
+     "diff": -0.39,
+     "imp_diff": -1.35,
+     "score_diff": -80.6,
+     "best_cards": [
+      "S5"
+     ],
+     "options": [
+      {
+       "card": "S5",
+       "tricks": 5.98,
+       "success_rate": 0.77,
+       "score": 70.5,
+       "imps": 0.0
+      },
+      {
+       "card": "ST",
+       "tricks": 5.8,
+       "success_rate": 0.75,
+       "score": 42.6,
+       "imps": -0.66
+      },
+      {
+       "card": "D9",
+       "tricks": 5.74,
+       "success_rate": 0.79,
+       "score": 53.6,
+       "imps": -0.39
+      },
+      {
+       "card": "SK",
+       "tricks": 5.62,
+       "success_rate": 0.75,
+       "score": 29.5,
+       "imps": -0.99
+      },
+      {
+       "card": "H9",
+       "tricks": 5.59,
+       "success_rate": 0.71,
+       "score": -10.1,
+       "imps": -1.35
+      },
+      {
+       "card": "C4",
+       "tricks": 5.45,
+       "success_rate": 0.68,
+       "score": -41.4,
+       "imps": -1.92
+      },
+      {
+       "card": "C8",
+       "tricks": 5.44,
+       "success_rate": 0.68,
+       "score": -42.4,
+       "imps": -1.95
+      },
+      {
+       "card": "CQ",
+       "tricks": 5.18,
+       "success_rate": 0.64,
+       "score": -85.4,
+       "imps": -2.59
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.074
+    },
+    {
+     "index": 27,
+     "trick": 7,
+     "hand": "E",
+     "card": "SK",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "SK"
+     ],
+     "options": [
+      {
+       "card": "SK",
+       "tricks": 5.56,
+       "success_rate": 0.7,
+       "score": -15.6,
+       "imps": 0.0
+      },
+      {
+       "card": "ST",
+       "tricks": 4.29,
+       "success_rate": 0.5,
+       "score": -247.2,
+       "imps": -4.53
+      },
+      {
+       "card": "S5",
+       "tricks": 4.29,
+       "success_rate": 0.5,
+       "score": -247.2,
+       "imps": -4.53
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.06
+    },
+    {
+     "index": 28,
+     "trick": 8,
+     "hand": "E",
+     "card": "ST",
+     "forced": false,
+     "status": "optimal",
+     "diff": -0.03,
+     "imp_diff": -0.44,
+     "score_diff": -30.9,
+     "best_cards": [
+      "D9"
+     ],
+     "options": [
+      {
+       "card": "D9",
+       "tricks": 5.11,
+       "success_rate": 0.65,
+       "score": -84.3,
+       "imps": 0.0
+      },
+      {
+       "card": "S5",
+       "tricks": 5.1,
+       "success_rate": 0.57,
+       "score": -133.3,
+       "imps": -0.72
+      },
+      {
+       "card": "ST",
+       "tricks": 5.08,
+       "success_rate": 0.6,
+       "score": -115.2,
+       "imps": -0.44
+      },
+      {
+       "card": "C4",
+       "tricks": 4.78,
+       "success_rate": 0.54,
+       "score": -188.9,
+       "imps": -1.82
+      },
+      {
+       "card": "C8",
+       "tricks": 4.76,
+       "success_rate": 0.52,
+       "score": -202.9,
+       "imps": -2.06
+      },
+      {
+       "card": "CQ",
+       "tricks": 4.63,
+       "success_rate": 0.45,
+       "score": -256.5,
+       "imps": -2.94
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.067
+    },
+    {
+     "index": 33,
+     "trick": 9,
+     "hand": "E",
+     "card": "D9",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.013
+    },
+    {
+     "index": 37,
+     "trick": 10,
+     "hand": "E",
+     "card": "C4",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "C4",
+      "S5"
+     ],
+     "options": [
+      {
+       "card": "C4",
+       "tricks": 4.18,
+       "success_rate": 0.38,
+       "score": -340.0,
+       "imps": 0.0
+      },
+      {
+       "card": "S5",
+       "tricks": 4.17,
+       "success_rate": 0.37,
+       "score": -347.0,
+       "imps": -0.12
+      },
+      {
+       "card": "C8",
+       "tricks": 4.05,
+       "success_rate": 0.25,
+       "score": -431.0,
+       "imps": -1.56
+      },
+      {
+       "card": "CQ",
+       "tricks": 3.6,
+       "success_rate": 0.09,
+       "score": -551.7,
+       "imps": -3.7
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.064
+    },
+    {
+     "index": 41,
+     "trick": 11,
+     "hand": "E",
+     "card": "C8",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "C8"
+     ],
+     "options": [
+      {
+       "card": "C8",
+       "tricks": 4.51,
+       "success_rate": 0.51,
+       "score": -243.0,
+       "imps": 0.0
+      },
+      {
+       "card": "CQ",
+       "tricks": 3.36,
+       "success_rate": 0.0,
+       "score": -619.2,
+       "imps": -6.25
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.062
+    },
+    {
+     "index": 47,
+     "trick": 12,
+     "hand": "E",
+     "card": "CQ",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.015
+    },
+    {
+     "index": 48,
+     "trick": 13,
+     "hand": "E",
+     "card": "S5",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.016
+    }
+   ]
+  },
+  "W": {
+   "role": "defender",
+   "summary": {
+    "decisions": 13,
+    "graded": 10,
+    "optimal": 9,
+    "good": 0,
+    "suboptimal": 1,
+    "total_trick_loss": 0.43,
+    "total_imp_loss": 1.19,
+    "total_time_s": 0.9,
+    "mean_s_per_graded": 0.09,
+    "max_decision_s": 0.327
+   },
+   "decisions": [
+    {
+     "index": 2,
+     "trick": 1,
+     "hand": "W",
+     "card": "H2",
+     "forced": false,
+     "status": "suboptimal",
+     "diff": -0.39,
+     "imp_diff": -1.11,
+     "score_diff": -60.7,
+     "best_cards": [
+      "HT"
+     ],
+     "options": [
+      {
+       "card": "HT",
+       "tricks": 2.76,
+       "success_rate": 0.18,
+       "score": -511.7,
+       "imps": 0.0
+      },
+      {
+       "card": "H8",
+       "tricks": 2.42,
+       "success_rate": 0.11,
+       "score": -570.9,
+       "imps": -1.06
+      },
+      {
+       "card": "H5",
+       "tricks": 2.37,
+       "success_rate": 0.11,
+       "score": -572.4,
+       "imps": -1.11
+      },
+      {
+       "card": "H3",
+       "tricks": 2.37,
+       "success_rate": 0.11,
+       "score": -572.4,
+       "imps": -1.11
+      },
+      {
+       "card": "H2",
+       "tricks": 2.37,
+       "success_rate": 0.11,
+       "score": -572.4,
+       "imps": -1.11
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.327
+    },
+    {
+     "index": 7,
+     "trick": 2,
+     "hand": "W",
+     "card": "D4",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "D8",
+      "D4"
+     ],
+     "options": [
+      {
+       "card": "D8",
+       "tricks": 3.16,
+       "success_rate": 0.23,
+       "score": -464.1,
+       "imps": 0.0
+      },
+      {
+       "card": "D4",
+       "tricks": 3.16,
+       "success_rate": 0.23,
+       "score": -464.1,
+       "imps": 0.0
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.054
+    },
+    {
+     "index": 9,
+     "trick": 3,
+     "hand": "W",
+     "card": "D8",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.015
+    },
+    {
+     "index": 14,
+     "trick": 4,
+     "hand": "W",
+     "card": "H8",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "HT",
+      "H8",
+      "H5",
+      "H3"
+     ],
+     "options": [
+      {
+       "card": "HT",
+       "tricks": 3.27,
+       "success_rate": 0.21,
+       "score": -475.6,
+       "imps": 0.0
+      },
+      {
+       "card": "H8",
+       "tricks": 3.27,
+       "success_rate": 0.21,
+       "score": -475.6,
+       "imps": 0.0
+      },
+      {
+       "card": "H5",
+       "tricks": 3.27,
+       "success_rate": 0.21,
+       "score": -475.6,
+       "imps": 0.0
+      },
+      {
+       "card": "H3",
+       "tricks": 3.27,
+       "success_rate": 0.21,
+       "score": -475.6,
+       "imps": 0.0
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.06
+    },
+    {
+     "index": 17,
+     "trick": 5,
+     "hand": "W",
+     "card": "C3",
+     "forced": false,
+     "status": "optimal",
+     "diff": -0.04,
+     "imp_diff": -0.08,
+     "score_diff": -2.6,
+     "best_cards": [
+      "C9"
+     ],
+     "options": [
+      {
+       "card": "C9",
+       "tricks": 4.12,
+       "success_rate": 0.42,
+       "score": -294.0,
+       "imps": 0.0
+      },
+      {
+       "card": "C3",
+       "tricks": 4.08,
+       "success_rate": 0.42,
+       "score": -296.6,
+       "imps": -0.08
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.056
+    },
+    {
+     "index": 22,
+     "trick": 6,
+     "hand": "W",
+     "card": "H5",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "HT",
+      "H5",
+      "H3"
+     ],
+     "options": [
+      {
+       "card": "HT",
+       "tricks": 3.88,
+       "success_rate": 0.32,
+       "score": -376.6,
+       "imps": 0.0
+      },
+      {
+       "card": "H5",
+       "tricks": 3.88,
+       "success_rate": 0.32,
+       "score": -376.6,
+       "imps": 0.0
+      },
+      {
+       "card": "H3",
+       "tricks": 3.88,
+       "success_rate": 0.32,
+       "score": -376.6,
+       "imps": 0.0
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.05
+    },
+    {
+     "index": 25,
+     "trick": 7,
+     "hand": "W",
+     "card": "S7",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "S7",
+      "S6",
+      "S2"
+     ],
+     "options": [
+      {
+       "card": "S7",
+       "tricks": 5.67,
+       "success_rate": 0.61,
+       "score": -43.9,
+       "imps": 0.0
+      },
+      {
+       "card": "S6",
+       "tricks": 5.67,
+       "success_rate": 0.61,
+       "score": -43.9,
+       "imps": 0.0
+      },
+      {
+       "card": "S2",
+       "tricks": 5.67,
+       "success_rate": 0.61,
+       "score": -43.9,
+       "imps": 0.0
+      },
+      {
+       "card": "SJ",
+       "tricks": 4.94,
+       "success_rate": 0.54,
+       "score": -151.2,
+       "imps": -2.11
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.05
+    },
+    {
+     "index": 30,
+     "trick": 8,
+     "hand": "W",
+     "card": "S2",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "S6",
+      "S2"
+     ],
+     "options": [
+      {
+       "card": "S6",
+       "tricks": 5.47,
+       "success_rate": 0.71,
+       "score": -23.5,
+       "imps": 0.0
+      },
+      {
+       "card": "S2",
+       "tricks": 5.47,
+       "success_rate": 0.71,
+       "score": -23.5,
+       "imps": 0.0
+      },
+      {
+       "card": "SJ",
+       "tricks": 5.07,
+       "success_rate": 0.46,
+       "score": -196.0,
+       "imps": -2.96
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.052
+    },
+    {
+     "index": 35,
+     "trick": 9,
+     "hand": "W",
+     "card": "H3",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "S6",
+      "HT",
+      "H3"
+     ],
+     "options": [
+      {
+       "card": "S6",
+       "tricks": 4.41,
+       "success_rate": 0.51,
+       "score": -239.0,
+       "imps": 0.0
+      },
+      {
+       "card": "HT",
+       "tricks": 4.41,
+       "success_rate": 0.51,
+       "score": -239.0,
+       "imps": 0.0
+      },
+      {
+       "card": "H3",
+       "tricks": 4.41,
+       "success_rate": 0.51,
+       "score": -239.0,
+       "imps": 0.0
+      },
+      {
+       "card": "C9",
+       "tricks": 4.31,
+       "success_rate": 0.51,
+       "score": -246.2,
+       "imps": -0.22
+      },
+      {
+       "card": "SJ",
+       "tricks": 3.56,
+       "success_rate": 0.1,
+       "score": -546.2,
+       "imps": -5.51
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.065
+    },
+    {
+     "index": 39,
+     "trick": 10,
+     "hand": "W",
+     "card": "S6",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "S6",
+      "HT",
+      "C9"
+     ],
+     "options": [
+      {
+       "card": "S6",
+       "tricks": 3.99,
+       "success_rate": 0.32,
+       "score": -385.9,
+       "imps": 0.0
+      },
+      {
+       "card": "HT",
+       "tricks": 3.99,
+       "success_rate": 0.32,
+       "score": -385.9,
+       "imps": 0.0
+      },
+      {
+       "card": "C9",
+       "tricks": 3.99,
+       "success_rate": 0.32,
+       "score": -385.9,
+       "imps": 0.0
+      },
+      {
+       "card": "SJ",
+       "tricks": 3.32,
+       "success_rate": 0.0,
+       "score": -620.4,
+       "imps": -4.19
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.063
+    },
+    {
+     "index": 43,
+     "trick": 11,
+     "hand": "W",
+     "card": "C9",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.017
+    },
+    {
+     "index": 45,
+     "trick": 12,
+     "hand": "W",
+     "card": "HT",
+     "forced": false,
+     "status": "optimal",
+     "diff": 0.0,
+     "imp_diff": 0.0,
+     "score_diff": 0.0,
+     "best_cards": [
+      "HT"
+     ],
+     "options": [
+      {
+       "card": "HT",
+       "tricks": 4.0,
+       "success_rate": 0.38,
+       "score": -345.4,
+       "imps": 0.0
+      },
+      {
+       "card": "SJ",
+       "tricks": 3.64,
+       "success_rate": 0.26,
+       "score": -436.6,
+       "imps": -1.68
+      }
+     ],
+     "expert": null,
+     "elapsed_s": 0.064
+    },
+    {
+     "index": 50,
+     "trick": 13,
+     "hand": "W",
+     "card": "SJ",
+     "forced": true,
+     "status": "forced",
+     "diff": null,
+     "imp_diff": null,
+     "score_diff": null,
+     "best_cards": [],
+     "options": [],
+     "expert": null,
+     "elapsed_s": 0.015
+    }
+   ]
+  }
+ }
+}

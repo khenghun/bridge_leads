@@ -131,6 +131,30 @@ have happened next", not just "not that card". The source's
 endpoint over repeated `grade_position` solves. Replaces the source's
 *compare two lines*, which the expandable options table already covers.
 
+**Benchmarks to test against (added 2026-09-03).** Board 7 of a real team
+match is pinned as the accuracy/timing benchmark: `docs/play/board7.lin`
+(both rooms, player names replaced by seats) plus `scripts/bench_play.py`,
+which grades a board one decision per request (the UI's pattern) and writes
+`docs/play/bench/*.{json,md}` pinning every grade, option list and timing.
+seed=0 end to end — a fresh process reproduces the numbers exactly. Laptop
+reference: plain ≈ 0.17 s/decision, expert-strict ≈ 60–105 s/decision
+(benchmark through `127.0.0.1`, never `localhost` — Windows' IPv6 fallback
+adds a flat ~2 s to every request). v1.4's analysis work tests against these.
+Two rulings/observations recorded for that work:
+
+- **The opening lead is exempt from accuracy judgements.** Leads are the
+  Opening Lead Simulator's problem and are made with dummy unseen; the play
+  solver's defense grading must be accurate from trick 1, card 2 onward
+  (so West's "suboptimal" ♥2 lead in the o7 benchmark is expected noise,
+  not a target).
+- **DD continuations are clairvoyant (strategy fusion):** a card that merely
+  defers a guess can read "makes 100%" because each sampled layout is
+  continued double-dummy. The benchmark's T7 options list shows it: ♦7 (a
+  genuine guess-free squeeze) and ♣A both read make 1.00. Candidate fix to
+  analyze: flag candidates whose DD-best continuation diverges across layouts
+  at the same information set ("relies on a later guess"), then price flagged
+  guesses by max-of-means at that node.
+
 ## v1.5 — Play it from here ⚪
 
 Interactive play from any position on the same table: click a card, the other
