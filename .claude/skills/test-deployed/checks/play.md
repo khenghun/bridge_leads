@@ -126,11 +126,15 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   line says `60 deals · saw W + E · expert opponents` and the seat line
   `Graded on N of M sampled deals consistent with expert play by the
   opponents · rejects a play shown ≥ 0.32 tricks worse`; every graded row
-  carries a small `c/s deals` count under its badge (60/60 early, more examined later). Pinned (local, v1.3 build, 2026-09-01): **Graded on 900 of
-  1371**, West **13 ✓ / 2 ~ / 0 ✗ of 15 graded (3 forced)**, tricks given
-  up **0.48 · 0.96 IMPs (32 points)** — against the plain 40-deal run's
-  13/2/0 and 0.45 · 0.82 IMPs. Eighteen requests, ~70 s on a 4-thread
-  laptop, ~3–4 min on prod.
+  carries a small `c/s deals` count under its badge (60/60 early, more
+  examined later). Pinned: **Graded on 900 of 1406**, West **13 ✓ / 2 ~ /
+  0 ✗ of 15 graded (3 forced)**, tricks given up **0.48 · 0.96 IMPs (32
+  points)** — against the plain 40-deal run's 13/2/0 and 0.45 · 0.82 IMPs.
+  Eighteen requests, ~70 s on a 4-thread laptop, ~2 min on prod. (The
+  sampled count was 1371 at the v1.3 build; the v1.4 batch-aggregation
+  change of 2026-09-03 draws the outer deficit in different rounds, so it
+  now reads 1406 — same 900 consistent, identical grades. Re-pinned from
+  a local replay at that commit and confirmed on prod.)
 - **P-1.3-6 [full] Interrupted runs resume.** Start the run above, then
   stop the play API (or go offline) after a few decisions: the West section
   keeps the decisions it has, shows the error with *press Resume*, and a
@@ -140,7 +144,10 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   pinned numbers as an uninterrupted run.
 - **P-1.3-3 [full] Strict.** Same again with *Strict* ticked: the request
   carries `strict: true`, the header says `expert opponents (strict)`, and
-  the run is several times slower.
+  the run is several times slower. Not pinned (strict verdicts move with
+  the draw order); for orientation, prod on 2026-09-03 took ~20 min for
+  the 18 requests and read 13/2/0 · 0.45 · 0.74 IMPs, graded on 900 of
+  4770.
 - **P-1.3-4 [full] Off means off.** Untick the toggle, Analyze: one request
   per seat, no `expert_opponents` field, no seat line, no per-row counts;
   the plain v1.0 numbers (P-1.0-2) come back exactly.

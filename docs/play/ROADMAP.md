@@ -98,7 +98,7 @@ to the end, a competitive 2♠ after a weak two, a 3NT from a teams practice)
 so a first-time visitor can see the grader at work without a `.lin` of
 their own.
 
-## v1.3 — Expert opponents 🟡 (built 2026-09-01, not yet deployed)
+## v1.3 — Expert opponents ✅ (built 2026-09-01, deployed 2026-09-03)
 
 Design: [`v1.3-expert-opponents-plan.md`](v1.3-expert-opponents-plan.md).
 
@@ -121,6 +121,15 @@ holding at that point, and late holdings repeat) — so it defaults to fewer
 deals, exposes the ratios, and reports how many layouts survived. Partner is
 deliberately **not** judged: partner's cards are signals, not trick-maximising
 plays (see *Partnership signalling* under Later).
+
+Deployed 2026-09-03 together with the v1.4 performance steps 0–3 (DDS batch
+aggregation, below), and verified on prod against the `test-deployed`
+checklist — smoke plus the whole v1.3 section, strict included
+(`docs/testing/REGRESSION-LOG.md`). Two things that surfaced: the header's
+version line used to take the newest changelog entry whether or not it was
+flagged unreleased (fixed in the release commit), and the expert seat line's
+sampled count moved from 1371 to 1406 with the batching change — same
+consistent count, identical grades — so the checks are re-pinned.
 
 ## v1.4 — Trace the optimal line ⚪
 

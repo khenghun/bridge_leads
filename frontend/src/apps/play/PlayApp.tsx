@@ -619,8 +619,10 @@ interface HeaderProps {
   setWhatsNew: (v: boolean) => void
 }
 
-/** The play solver's current version — the newest entry of its own changelog. */
-const CURRENT_VERSION = RELEASES[0]?.version ?? ''
+/** The play solver's current version — the newest *released* entry of its
+ * own changelog. An entry still flagged `unreleased` is in development and
+ * must not be claimed in the header (the deployed-site checks read it). */
+const CURRENT_VERSION = RELEASES.find((r) => !r.unreleased)?.version ?? ''
 
 function Header({ light, setLight, whatsNew, setWhatsNew }: HeaderProps) {
   return (

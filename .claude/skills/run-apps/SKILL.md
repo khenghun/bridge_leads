@@ -83,7 +83,7 @@ Play solver — http://localhost:5174/play.html
   shows the error with "what was graded is kept; press Resume", and
   **Resume** continues from the first missing decision (the finished ones
   come straight back from the server cache). Deterministic result: header `60 deals · saw W + E ·
-  expert opponents`, seat line **Graded on 900 of 1412 sampled deals … ≥
+  expert opponents`, seat line **Graded on 900 of 1406 sampled deals … ≥
   0.32 tricks worse**, **13 ✓ / 2 ~ / 0 ✗ of 15 graded (3 forced)**,
   tricks given up **0.48 · 0.96 IMPs (32 points)**; every graded row shows
   `c/s deals` under its badge (60/60 early, more examined later).

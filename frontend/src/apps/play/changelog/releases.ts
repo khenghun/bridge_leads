@@ -19,7 +19,6 @@ export const RELEASES: Release[] = [
     version: 'v1.3',
     date: '2026-09-01',
     title: 'Expert opponents',
-    unreleased: true,
     summary:
       'Let the opponents’ earlier plays shape the deals that are sampled — '
       + 'a card they did not play tells you something about what they hold.',
