@@ -142,6 +142,20 @@ reference: plain ≈ 0.17 s/decision, expert-strict ≈ 60–105 s/decision
 adds a flat ~2 s to every request). v1.4's analysis work tests against these.
 Two rulings/observations recorded for that work:
 
+**Two focus areas folded into v1.4 (2026-09-03), beside the traced line:**
+
+1. **Faster local computation, same accuracy.** Strict mode costs
+   60–105 s/decision on a 16-core machine that DDS caps at 4 threads — there
+   is real parallel headroom (libdds is not re-entrant in-process, so the
+   route is worker *processes*, plus bigger/aggregated inner batches), and
+   alternative solver libraries may be considered. Gated on the board-7
+   benchmarks: grades must reproduce; timing is the metric.
+2. **Guess-aware grading.** Implement the strategy-fusion ladder recorded
+   below: detect candidates whose DD-best continuation diverges within an
+   information set ("relies on a later guess"), then price flagged guesses
+   by max-of-means at that node. Tested against the benchmark's T7 ♣A-vs-♦7
+   case.
+
 - **The opening lead is exempt from accuracy judgements.** Leads are the
   Opening Lead Simulator's problem and are made with dummy unseen; the play
   solver's defense grading must be accurate from trick 1, card 2 onward
