@@ -230,18 +230,29 @@ def _solve(position, layouts, level):
 
     Returns `(totals, successes, count)` keyed by card, in **declarer** tricks.
     """
-    deals = [_build_deal(layout, position) for layout in layouts]
-    boards = solve_all(deals)
+    per_board = _collect(position, solve_all(
+        [_build_deal(layout, position) for layout in layouts]))
+    needed = level + 6
+    totals = defaultdict(float)
+    makes = defaultdict(int)
+    counts = defaultdict(int)
+    for name, values in per_board.items():
+        counts[name] = len(values)
+        totals[name] = float(sum(values))
+        makes[name] = sum(1 for t in values if t >= needed)
+    return totals, makes, counts, per_board
 
+
+def _collect(position, boards):
+    """Solved `boards` at `position` -> {card: declarer tricks per board}.
+
+    Split out of `_solve` so the expert filter can aggregate many judgements'
+    boards into one DDS call and convert each judgement's slice separately.
+    """
     legal = set(legal_cards(position))
     won = position.declarer_tricks_won
     remaining = position.remaining_tricks
     on_declarer_side = position.to_play in position.declarer_side
-    needed = level + 6
-
-    totals = defaultdict(float)
-    makes = defaultdict(int)
-    counts = defaultdict(int)
     per_board = defaultdict(list)     # card -> declarer tricks on each board
     for board in boards:
         for card, tricks in board:
@@ -252,12 +263,8 @@ def _solve(position, layouts, level):
             # declarer tricks, then add the tricks already in the bag.
             declarer_tricks = (won + tricks if on_declarer_side
                                else won + (remaining - tricks))
-            totals[name] += declarer_tricks
-            counts[name] += 1
             per_board[name].append(declarer_tricks)
-            if declarer_tricks >= needed:
-                makes[name] += 1
-    return totals, makes, counts, per_board
+    return per_board
 
 
 class Scoring:

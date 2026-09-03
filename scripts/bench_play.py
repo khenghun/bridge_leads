@@ -71,6 +71,15 @@ def post(api, body, timeout=1800):
         return json.loads(r.read())
 
 
+def dds_stats(api):
+    """The API's cumulative DDS counters (None if the endpoint is missing)."""
+    try:
+        with urllib.request.urlopen(api + '/api/play/debug/dds', timeout=10) as r:
+            return json.loads(r.read())
+    except Exception:  # noqa: BLE001 — older API without the endpoint
+        return None
+
+
 def bench_board(api, qx, board, seg, args):
     hands, contract, declarer, vul, penalty, play = parse_lin(seg)
     if not contract or not play:
@@ -111,6 +120,7 @@ def bench_board(api, qx, board, seg, args):
         mine = [j for j, p in enumerate(players)
                 if p == seat or (seat == declarer and p == dummy)]
         rows, summary, role = [], None, None
+        dds_before = dds_stats(args.api)
         t_seat = time.perf_counter()
         for j in mine:
             body = dict(template, seat=seat, decisions=[j])
@@ -144,6 +154,11 @@ def bench_board(api, qx, board, seg, args):
             'mean_s_per_graded': round(seat_time / max(len(graded), 1), 2),
             'max_decision_s': max((d['elapsed_s'] for d in rows), default=0.0),
         }
+        dds_after = dds_stats(args.api)
+        if dds_before is not None and dds_after is not None:
+            agg['dds'] = {name: {k: round(dds_after[name][k] - dds_before[name][k], 3)
+                                 for k in ('calls', 'boards', 'seconds')}
+                          for name in dds_after}
         ex = [d['expert'] for d in rows if d.get('expert')]
         if ex:
             agg['expert_totals'] = {

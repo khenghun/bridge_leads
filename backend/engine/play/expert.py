@@ -45,10 +45,16 @@ import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
 
-from ..dds_runtime import analyse_plays
+from ..dds_runtime import DDS_THREADS, analyse_plays, solve_all
 from .state import SEATS, SUITS, RANKS, card_sort_key, next_seat, walk
 
-INNER_BATCH = 5         # inner deals solved per sequential step
+INNER_BATCH = 5         # smallest sequential step of the inner judgement
+# First inner batch fills the DDS thread pool, then the step doubles each
+# round. DDS parallelises across boards *within* one call, so tiny batches
+# leave the pool idle (measured: 16 threads gained nothing at 5 boards/call).
+# Most judgements run to the cap anyway — few large calls beat many small
+# ones. At the prod thread cap (4) this equals the old fixed-5 first step.
+INNER_FIRST = max(INNER_BATCH, DDS_THREADS)
 INNER_FLOOR = 8         # smallest inner cap, whatever the ratio says
 SD_FLOOR = 0.3          # a tiny all-alike sample may not claim certainty
 SIGMA_PLANNING = 0.6    # sd of the paired difference, used only for reporting
@@ -277,9 +283,60 @@ def judge(layout_hands, decision, *, level, strain, declarer, play,
     return verdict
 
 
-def _judge_fresh(layout_hands, decision, *, level, strain, declarer, play,
-                 all_constraints, settings, inner_cap, context_key, memo,
-                 deals_hint) -> Verdict:
+class _SeqTest:
+    """The sequential paired-difference rule, fed one wave of per-board values
+    at a time. Rejects only when some alternative's LCB `mean − z·se` clears
+    the tolerance; compares per-card means over common inner deals, so a
+    coin-flip guess is a tie, never a blunder."""
+
+    def __init__(self, decision, declarer, settings):
+        self.actual = decision.card
+        self.sign = 1 if decision.view in (declarer, next_seat(declarer, 2)) else -1
+        self.z, self.tol = settings.confidence, settings.tolerance
+        self.per_card: dict[str, list[float]] = {}
+        self.n = 0
+        self.gap, self.sigma = 0.0, SD_FLOOR
+
+    def feed(self, per_board, batch_len):
+        """Digest one wave; a Verdict to stop early, None to keep sampling."""
+        for card, values in per_board.items():
+            self.per_card.setdefault(card, []).extend(values)
+        self.n += batch_len
+        n = self.n
+        mine = self.per_card.get(self.actual)
+        if not mine:
+            return Verdict(True, 0.0, n, SD_FLOOR, 'no-alternative')
+        worst_lcb, all_under = -math.inf, True
+        self.gap, self.sigma = 0.0, SD_FLOOR
+        for card, theirs in self.per_card.items():
+            if card == self.actual or len(theirs) != len(mine):
+                continue
+            diffs = [self.sign * (t - m) for t, m in zip(theirs, mine)]
+            mean = sum(diffs) / n
+            var = sum((d - mean) ** 2 for d in diffs) / (n - 1) if n > 1 else 0.0
+            sd = max(math.sqrt(var), SD_FLOOR)
+            se = sd / math.sqrt(n)
+            if mean > self.gap:
+                self.gap, self.sigma = mean, sd
+            worst_lcb = max(worst_lcb, mean - self.z * se)
+            if mean + self.z * se >= self.tol:
+                all_under = False
+        if worst_lcb == -math.inf:
+            return Verdict(True, 0.0, n, SD_FLOOR, 'no-alternative')
+        if worst_lcb > self.tol:
+            return Verdict(False, round(self.gap, 3), n, round(self.sigma, 3),
+                           'shown-worse')
+        if all_under:
+            return Verdict(True, round(self.gap, 3), n, round(self.sigma, 3), 'clear')
+        return None
+
+    def cap(self):
+        return Verdict(True, round(self.gap, 3), self.n, round(self.sigma, 3), 'cap')
+
+
+def _prep(layout_hands, decision, *, level, strain, declarer, play,
+          all_constraints, settings, inner_cap, context_key, memo):
+    """The judgement's position and inner layouts, or an immediate Verdict."""
     from . import grader  # lazy: grader imports this module
 
     view = decision.view
@@ -287,7 +344,6 @@ def _judge_fresh(layout_hands, decision, *, level, strain, declarer, play,
     hidden = [s for s in SEATS if s not in grader.visible_seats(position, view)]
     constraints = _slice_constraints(all_constraints, hidden)
     rng = _seeded(context_key, decision.index, view, decision.holding)
-
     try:
         if settings.depth > 1:
             deeper = ExpertSettings(**{**settings.__dict__, 'depth': settings.depth - 1})
@@ -300,43 +356,93 @@ def _judge_fresh(layout_hands, decision, *, level, strain, declarer, play,
         # The opponent's own view cannot be sampled under the user's
         # constraints — nothing to judge them against.
         return Verdict(True, 0.0, 0, SD_FLOOR, 'infeasible')
+    return position, layouts
 
-    actual = decision.card
-    sign = 1 if view in (declarer, next_seat(declarer, 2)) else -1
-    per_card: dict[str, list[float]] = {}
-    n = 0
-    z, tol = settings.confidence, settings.tolerance
-    gap, sigma = 0.0, SD_FLOOR
-    for start in range(0, len(layouts), INNER_BATCH):
-        batch = layouts[start:start + INNER_BATCH]
-        _, _, counts, per_board = grader._solve(position, batch, level)
-        for card, values in per_board.items():
-            per_card.setdefault(card, []).extend(values)
-        n += len(batch)
-        mine = per_card.get(actual)
-        if not mine:
-            return Verdict(True, 0.0, n, SD_FLOOR, 'no-alternative')
-        worst_lcb, all_under, gap, sigma = -math.inf, True, 0.0, SD_FLOOR
-        for card, theirs in per_card.items():
-            if card == actual or len(theirs) != len(mine):
-                continue
-            diffs = [sign * (t - m) for t, m in zip(theirs, mine)]
-            mean = sum(diffs) / n
-            var = sum((d - mean) ** 2 for d in diffs) / (n - 1) if n > 1 else 0.0
-            sd = max(math.sqrt(var), SD_FLOOR)
-            se = sd / math.sqrt(n)
-            if mean > gap:
-                gap, sigma = mean, sd
-            worst_lcb = max(worst_lcb, mean - z * se)
-            if mean + z * se >= tol:
-                all_under = False
-        if worst_lcb == -math.inf:
-            return Verdict(True, 0.0, n, SD_FLOOR, 'no-alternative')
-        if worst_lcb > tol:
-            return Verdict(False, round(gap, 3), n, round(sigma, 3), 'shown-worse')
-        if all_under:
-            return Verdict(True, round(gap, 3), n, round(sigma, 3), 'clear')
-    return Verdict(True, round(gap, 3), n, round(sigma, 3), 'cap')
+
+def _judge_fresh(layout_hands, decision, *, level, strain, declarer, play,
+                 all_constraints, settings, inner_cap, context_key, memo,
+                 deals_hint) -> Verdict:
+    from . import grader  # lazy: grader imports this module
+
+    prep = _prep(layout_hands, decision, level=level, strain=strain,
+                 declarer=declarer, play=play, all_constraints=all_constraints,
+                 settings=settings, inner_cap=inner_cap,
+                 context_key=context_key, memo=memo)
+    if isinstance(prep, Verdict):
+        return prep
+    position, layouts = prep
+    test = _SeqTest(decision, declarer, settings)
+    start, step = 0, INNER_FIRST
+    while start < len(layouts):
+        batch = layouts[start:start + step]
+        start += len(batch)
+        step *= 2
+        _, _, _, per_board = grader._solve(position, batch, level)
+        v = test.feed(per_board, len(batch))
+        if v is not None:
+            return v
+    return test.cap()
+
+
+def _judge_batch(items, *, level, strain, declarer, play, all_constraints,
+                 settings, inner_cap, context_key, memo, stats) -> dict:
+    """Judge many memo-missed decisions together.
+
+    Each item runs the same sequential rule on the same seeded inner sample as
+    a lone `judge` call — verdicts are identical — but every wave's deals go
+    to DDS in one aggregated call. Small per-judgement batches leave the DDS
+    thread pool idle (measured: 12 ms/board at 5 boards/call vs 3.5 at 64);
+    aggregation is the v1.4 performance plan's step 3.
+
+    `items` is `[(memo key, layout_hands, decision), ...]`; returns
+    `{key: Verdict}`, memoising and counting each fresh verdict in `stats`.
+    """
+    from . import grader  # lazy: grader imports this module
+
+    verdicts: dict = {}
+    live = []
+    for key, L, d in items:
+        prep = _prep(L, d, level=level, strain=strain, declarer=declarer,
+                     play=play, all_constraints=all_constraints, settings=settings,
+                     inner_cap=inner_cap, context_key=context_key, memo=memo)
+        if isinstance(prep, Verdict):
+            verdicts[key] = prep
+            continue
+        position, layouts = prep
+        test = _SeqTest(d, declarer, settings)
+        if not layouts:
+            verdicts[key] = test.cap()
+            continue
+        live.append({'key': key, 'position': position, 'layouts': layouts,
+                     'test': test, 'start': 0, 'step': INNER_FIRST})
+
+    while live:
+        deals, spans = [], []
+        for it in live:
+            batch = it['layouts'][it['start']:it['start'] + it['step']]
+            it['start'] += len(batch)
+            it['step'] *= 2
+            spans.append((it, len(batch)))
+            deals.extend(grader._build_deal(layout, it['position']) for layout in batch)
+        boards = solve_all(deals)
+        i, still = 0, []
+        for it, count in spans:
+            per_board = grader._collect(it['position'], boards[i:i + count])
+            i += count
+            v = it['test'].feed(per_board, count)
+            if v is not None:
+                verdicts[it['key']] = v
+            elif it['start'] < len(it['layouts']):
+                still.append(it)
+            else:
+                verdicts[it['key']] = it['test'].cap()
+        live = still
+
+    for key, v in verdicts.items():
+        memo.put(key, v)
+        stats.judged += 1
+        stats.sigmas.append(v.sigma)
+    return verdicts
 
 
 # --- the outer loop ---------------------------------------------------------
@@ -387,16 +493,57 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
             stats.traced += len(pool)
             costs = [dd_costs(t, ds, declarer) for t, ds in zip(traces, decisions)]
 
+        # Resolve the round's verdicts wavefront-by-suspect-depth: judge the
+        # k-th unresolved suspect of every still-alive layout together (their
+        # inner deals share big DDS calls), drop layouts as a suspect rejects,
+        # then move to depth k+1. Like the one-at-a-time path, nothing past a
+        # layout's first rejection is ever judged — batching every suspect up
+        # front tripled the fresh-judgement count on the board-7 benchmark.
+        plan = []
         for L, ds, cost in zip(pool, decisions, costs):
+            suspects = ds if cost is None else [d for d in ds if cost[d.index] > 0]
+            plan.append((L, suspects))
+
+        fresh: dict = {}
+        if settings.depth == 1:
+            alive = [(L, s) for L, s in plan if s]
+            k = 0
+            while alive:
+                wave = {}
+                for L, suspects in alive:
+                    d = suspects[k]
+                    key = (ctx, d.index, d.view, d.holding, d.card)
+                    if key not in wave and key not in fresh and memo.get(key) is None:
+                        wave[key] = (L, d)
+                if wave:
+                    fresh.update(_judge_batch(
+                        [(key, L, d) for key, (L, d) in wave.items()],
+                        level=level, strain=strain, declarer=declarer, play=play,
+                        all_constraints=all_constraints, settings=settings,
+                        inner_cap=inner_cap, context_key=ctx, memo=memo, stats=stats))
+                still = []
+                for L, suspects in alive:
+                    d = suspects[k]
+                    key = (ctx, d.index, d.view, d.holding, d.card)
+                    v = fresh.get(key) or memo.get(key)
+                    if (v is None or v.consistent) and k + 1 < len(suspects):
+                        still.append((L, suspects))
+                alive = still
+                k += 1
+
+        for L, suspects in plan:
             if len(accepted) >= n:
                 break
             stats.sampled += 1
-            suspects = ds if cost is None else [d for d in ds if cost[d.index] > 0]
             ok = True
             for d in suspects:
-                v = judge(L, d, level=level, strain=strain, declarer=declarer, play=play,
-                          all_constraints=all_constraints, settings=settings,
-                          inner_cap=inner_cap, context_key=ctx, memo=memo, stats=stats)
+                key = (ctx, d.index, d.view, d.holding, d.card)
+                v = fresh.get(key)
+                if v is None:
+                    v = judge(L, d, level=level, strain=strain, declarer=declarer,
+                              play=play, all_constraints=all_constraints,
+                              settings=settings, inner_cap=inner_cap,
+                              context_key=ctx, memo=memo, stats=stats)
                 if not v.consistent:
                     ok = False
                     break

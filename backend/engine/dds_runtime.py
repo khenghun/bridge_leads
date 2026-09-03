@@ -19,6 +19,7 @@ global state that must not be duplicated per app:
 
 import os
 import threading
+import time
 
 import endplay._dds as _dds
 from endplay.dds import (
@@ -37,6 +38,25 @@ if DDS_THREADS > 0:
 # The one global DDS lock (see the module docstring).
 DDS_LOCK = threading.Lock()
 
+# Cumulative counters per entry point: [calls, boards, seconds inside DDS].
+# Written only while holding DDS_LOCK; the batch geometry these expose (boards
+# per call) is the performance story — see docs/play/v1.4-performance-plan.md.
+STATS = {'solve': [0, 0, 0.0], 'table': [0, 0, 0.0], 'analyse': [0, 0, 0.0]}
+
+
+def stats() -> dict:
+    """Snapshot since import (or `reset_stats`): {name: calls/boards/seconds}."""
+    with DDS_LOCK:
+        return {k: {'calls': c, 'boards': b, 'seconds': round(s, 3)}
+                for k, (c, b, s) in STATS.items()}
+
+
+def reset_stats() -> None:
+    with DDS_LOCK:
+        for v in STATS.values():
+            v[0] = v[1] = 0
+            v[2] = 0.0
+
 
 def solve_all(deals):
     """Solve every candidate lead of every deal, in MAXNOOFBOARDS-sized batches.
@@ -49,10 +69,15 @@ def solve_all(deals):
     with DDS_LOCK:
         for i in range(0, len(deals), _BOARD_BATCH):
             batch = deals[i:i + _BOARD_BATCH]
+            t0 = time.perf_counter()
             try:
                 results.extend(solve_all_boards(batch))
             except Exception:
                 results.extend(solve_board(d) for d in batch)
+            s = STATS['solve']
+            s[0] += 1
+            s[1] += len(batch)
+            s[2] += time.perf_counter() - t0
     return results
 
 
@@ -68,10 +93,15 @@ def calc_tables(deals, exclude=()):
     with DDS_LOCK:
         for i in range(0, len(deals), _TABLE_BATCH):
             batch = deals[i:i + _TABLE_BATCH]
+            t0 = time.perf_counter()
             try:
                 results.extend(calc_all_tables(batch, exclude=exclude))
             except Exception:
                 results.extend(calc_dd_table(d) for d in batch)
+            s = STATS['table']
+            s[0] += 1
+            s[1] += len(batch)
+            s[2] += time.perf_counter() - t0
     return results
 
 
@@ -96,9 +126,14 @@ def analyse_plays(deals, plays):
         for i in range(0, len(deals), _PLAY_BATCH):
             batch_deals = deals[i:i + _PLAY_BATCH]
             batch_plays = plays[i:i + _PLAY_BATCH]
+            t0 = time.perf_counter()
             try:
                 results.extend(list(r) for r in analyse_all_plays(batch_deals, batch_plays))
             except Exception:
                 results.extend(list(analyse_play(d, p))
                                for d, p in zip(batch_deals, batch_plays))
+            s = STATS['analyse']
+            s[0] += 1
+            s[1] += len(batch_deals)
+            s[2] += time.perf_counter() - t0
     return results

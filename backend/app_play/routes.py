@@ -41,6 +41,15 @@ def health():
     return {'status': 'ok'}
 
 
+@router.get('/debug/dds')
+def dds_stats():
+    """DDS batch counters since process start (calls / boards / seconds per
+    entry point) — the v1.4 performance plan's step-0 instrumentation. The
+    batch geometry these expose (boards per call) is the performance story."""
+    from engine import dds_runtime
+    return dds_runtime.stats()
+
+
 @router.post('/analyze', response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest):
     """Grade every decision one seat made in a recorded hand."""

@@ -13,7 +13,14 @@ entry; the pairs must not share ports or Vite's dependency cache.
 | Lead / contract | `../.venv/Scripts/uvicorn app.main:app --reload --port 8000` | `npm run dev` (:5173, proxies `/api` → :8000) | http://localhost:5173/ |
 | Play solver | `../.venv/Scripts/uvicorn app_play.main:app --reload --port 8001` | `npm run dev:play` (:5174, proxies `/api` → :8001) | http://localhost:5174/play.html |
 
-(macOS/Linux: `../.venv/bin/uvicorn`.) Both dev scripts use `--strictPort`:
+(macOS/Linux: `../.venv/bin/uvicorn`.) **Local performance:** for expert-mode
+or benchmark work, start the play API with `BRIDGE_DDS_THREADS=16` (or the
+machine's core count) — the default caps DDS at 4 threads for the 2-core prod
+box. Results are bit-identical either way, only faster; the deterministic
+numbers below don't change. Benchmark through `127.0.0.1`, never `localhost`
+(Windows' IPv6 fallback adds ~2 s per request).
+
+Both dev scripts use `--strictPort`:
 if the port is taken they **fail loudly** instead of silently moving to :5175
 and leaving you testing the wrong server. Run each as its own background
 process with its output redirected to a log file in the scratchpad.
