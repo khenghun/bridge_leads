@@ -153,12 +153,20 @@ Two rulings/observations recorded for that work:
 
 **Two focus areas folded into v1.4 (2026-09-03), beside the traced line:**
 
-1. **Faster local computation, same accuracy.** Strict mode costs
-   60–105 s/decision on a 16-core machine that DDS caps at 4 threads — there
-   is real parallel headroom (libdds is not re-entrant in-process, so the
-   route is worker *processes*, plus bigger/aggregated inner batches), and
-   alternative solver libraries may be considered. Gated on the board-7
-   benchmarks: grades must reproduce; timing is the metric.
+1. **Faster local computation, same accuracy** — done as far as it goes
+   (2026-09-03/04, `v1.4-performance-plan.md`). Strict mode cost 60–105
+   s/decision; batch aggregation (2.2×), then memo-first priority ordering of
+   the opponents' suspect plays and direct DDS struct building (a further
+   1.2–1.3×, bit-identical grades) bring it to ~30 s/decision on a 16-core
+   laptop. Worker processes were **measured and rejected**: one process with
+   16 DDS threads already saturates the 8 physical cores, every multi-process
+   split is equal or slower. DDS is now 97 % of the time and the judgement
+   count is at its floor, so the rest is a faster solver or a different
+   verdict — neither planned. The work also found and fixed a v1.3 accuracy
+   bug: a play from dummy was memoised on dummy's public cards instead of
+   declarer's hidden hand, so one layout's verdict decided every layout;
+   defenders' expert grades are now genuinely filtered (three board-7 open
+   room defender calls moved from suboptimal to good/optimal).
 2. **Guess-aware grading.** Implement the strategy-fusion ladder recorded
    below: detect candidates whose DD-best continuation diverges within an
    information set ("relies on a later guess"), then price flagged guesses

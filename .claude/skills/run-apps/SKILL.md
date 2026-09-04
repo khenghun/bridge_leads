@@ -16,7 +16,9 @@ entry; the pairs must not share ports or Vite's dependency cache.
 (macOS/Linux: `../.venv/bin/uvicorn`.) **Local performance:** for expert-mode
 or benchmark work, start the play API with `BRIDGE_DDS_THREADS=16` (or the
 machine's core count) — the default caps DDS at 4 threads for the 2-core prod
-box. Results are bit-identical either way, only faster; the deterministic
+box. Plain grades are bit-identical either way, only faster; expert-mode
+verdicts follow a thread-dependent inner schedule (`max(5, threads)`), so
+replay expert pins at `BRIDGE_DDS_THREADS=4`. The deterministic
 numbers below don't change. Benchmark through `127.0.0.1`, never `localhost`
 (Windows' IPv6 fallback adds ~2 s per request).
 

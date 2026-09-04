@@ -134,7 +134,11 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   sampled count was 1371 at the v1.3 build; the v1.4 batch-aggregation
   change of 2026-09-03 draws the outer deficit in different rounds, so it
   now reads 1406 — same 900 consistent, identical grades. Re-pinned from
-  a local replay at that commit and confirmed on prod.)
+  a local replay at that commit and confirmed on prod.) **Expert pins are
+  thread-dependent:** the inner sample schedule starts at the DDS thread
+  count, so replay this locally with `BRIDGE_DDS_THREADS=4` (prod runs 2;
+  both give the pinned 0.48 · 0.96) — at 16 threads it reads the same
+  900/1406 and 13/2/0 but 0.52 · 1.00. Plain grades do not depend on it.
 - **P-1.3-6 [full] Interrupted runs resume.** Start the run above, then
   stop the play API (or go offline) after a few decisions: the West section
   keeps the decisions it has, shows the error with *press Resume*, and a
@@ -153,3 +157,27 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   the plain v1.0 numbers (P-1.0-2) come back exactly.
 - **P-1.3-5 [full] What's new.** The panel lists v1.3 *Expert opponents*
   with four entries above v1.2.
+
+## v1.4 — Expert opponents: faster, and right about dummy (unreleased)
+
+- **P-1.4-1 [full] A defender's grade is filtered on declarer's plays from
+  dummy.** Local, scripted: `scripts/bench_play.py docs/play/board7.lin --qx
+  o7 --strict --deals 100 --seats E` against a fresh play API started with
+  `BRIDGE_DDS_THREADS=16`, then `scripts/compare_bench.py
+  docs/play/bench/board7-o7-strict100.json <run>.json` must pass for East.
+  Pinned in that file (2026-09-04): East **8 ✓ / 2 ~ / 0 ✗ of 10**, 0.53
+  tricks · 1.45 IMPs, `sampled 10672, consistent 991` over the seat; the
+  trick-4 ♥J reads *good* (−0.20) and the trick-6 ♥9 *optimal* — the v1.3
+  build graded both *suboptimal* on unfiltered pools (`2000→0`, inference
+  `none`) because every layout shared one memoised verdict on declarer's
+  ♦A from dummy. Declarer (N) is unchanged: 17/2/1, 5.31 IMPs.
+- **P-1.4-2 [full] Same verdicts, faster.** The closed room,
+  `--qx c7 --strict --deals 100`, all seats: `compare_bench.py` against the
+  committed `board7-c7-strict100.json` passes (18/1/1 · 11/0/0 · 10/0/0,
+  4.23 · 0 · 0.33 IMPs) and the total is within noise of **1 312 s** on the
+  16-thread laptop — the v1.3 build's sequential rerun took 1 569 s.
+- **P-1.4-3 [smoke] Plain grading untouched.** P-1.0-2 and P-1.3-2 still
+  read their pinned numbers (P-1.3-2 at 4 threads).
+- **P-1.4-4 [full] What's new.** The panel lists v1.4 *Expert opponents:
+  faster, and right about dummy* with a *fixed* and an *improved* entry
+  above v1.3; *In development* until deployed.

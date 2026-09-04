@@ -13,7 +13,7 @@ global state that must not be duplicated per app:
    take *this* lock — a per-module lock would not protect anything.
 3. **The batch sizes.** Each batch function has its own array cap
    (`MAXNOOFBOARDS` = 200 boards, `MAXNOOFTABLES` = 40 tables, and
-   `AnalyseAllPlays` takes only 20 plays); passing more raises, which would
+   `AnalyseAllPlays` shares the 200-board array); passing more raises, which would
    silently drop us onto a much slower single-board path.
 """
 
@@ -29,7 +29,11 @@ from endplay.dds import (
 
 _BOARD_BATCH = _dds.MAXNOOFBOARDS      # 200
 _TABLE_BATCH = _dds.MAXNOOFTABLES      # 40
-_PLAY_BATCH = 20                       # AnalyseAllPlays' own cap (dll-description.md)
+# AnalyseAllPlays takes the same MAXNOOFBOARDS-sized board array as
+# SolveAllBoards. Play v1.3 capped it at 20 (a misreading of the DDS docs);
+# measured 2026-09-04: 100 plays per call gives identical traces at 1.5x the
+# throughput of 20 on 16 threads (13.3 vs 20.2 ms/layout), 200 the same as 100.
+_PLAY_BATCH = _dds.MAXNOOFBOARDS       # 200
 
 DDS_THREADS = int(os.environ.get('BRIDGE_DDS_THREADS') or min(os.cpu_count() or 1, 4))
 if DDS_THREADS > 0:
@@ -108,7 +112,7 @@ def calc_tables(deals, exclude=()):
 def analyse_plays(deals, plays):
     """Double-dummy value after every card of a play sequence, per deal.
 
-    Wraps DDS's `AnalyseAllPlays` (20 plays per call). For each deal the result
+    Wraps DDS's `AnalyseAllPlays` (200 plays per call). For each deal the result
     is a list of `len(play) + 1` ints: **declarer's total tricks** (already won
     plus the double-dummy future) before any card, then after each card, with
     `deal.first` the opening leader. A card whose value moves *against* the

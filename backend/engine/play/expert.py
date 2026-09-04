@@ -14,7 +14,8 @@ The pieces, in the order the outer loop uses them:
 - `opponent_decisions(layout_hands, ...)` — for one sampled layout, every
   earlier index at which an opponent of the graded view had a real choice
   (two or more *equivalence classes* of legal cards; touching cards are one
-  choice), with the holding that opponent had at that moment on this layout.
+  choice), with the holding the *judging* seat had at that moment on this
+  layout (declarer's for a play from dummy).
 - `dd_costs(trace, ...)` — from an `analyse_plays` trace of the real line on
   the layout, which of those cards lost a double-dummy trick on it. Those are
   the **suspects**; a card that lost nothing is accepted without a judgement
@@ -23,9 +24,9 @@ The pieces, in the order the outer loop uses them:
   hands hidden from the opponent, price every legal card on each deal, and
   reject only if some alternative is *shown* better than the card played by
   more than the tolerance — a paired-difference test whose confidence margin
-  shrinks with the inner sample (`Verdict`). Memoised on the opponent's
+  shrinks with the inner sample (`Verdict`). Memoised on the judging seat's
   holding, since dummy, the play and the constraints are the same for every
-  layout.
+  layout — that holding is everything the verdict depends on.
 - `expert_layouts(...)` — the outer loop: draw, trace, judge latest-first with
   early exit, stop at `num_deals` accepted, fall back to the unfiltered pool
   when nothing survives.
@@ -42,6 +43,7 @@ import hashlib
 import math
 import random
 import threading
+import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 
@@ -89,7 +91,12 @@ class OpponentDecision:
     seat: str               # who held the cards (dummy for declarer's plays from dummy)
     view: str               # whose eyes judge it (declarer for dummy)
     card: str               # the card actually played
-    holding: tuple          # the seat's remaining cards at j on this layout, sorted
+    # The judging seat's remaining cards at j on this layout, sorted: the one
+    # input to the verdict that varies between layouts. For a play from dummy
+    # that is DECLARER's hand, not dummy's — dummy is public and identical on
+    # every layout, so keying on it (play v1.3 did) reused one arbitrary
+    # layout's verdict for all of them.
+    holding: tuple
 
 
 @dataclass
@@ -138,6 +145,19 @@ class VerdictMemo:
         self._d: OrderedDict = OrderedDict()
         self._max = max_entries
         self._lock = threading.Lock()
+        # Evidence for ordering suspects, keyed on the memo key minus the
+        # holding — "playing this card at this index": how often it was found
+        # inconsistent across the holdings judged so far, and what a fresh
+        # judgement of it costs. Never evicted; a few hundred entries per hand.
+        self.rejections: dict = {}      # rate key -> [inconsistent, judged]
+        self.costs: dict = {}           # rate key -> [seconds, judgements]
+
+    @staticmethod
+    def rate_key(key):
+        if len(key) != 5:               # a foreign key (tests); no evidence kept
+            return key
+        ctx, index, view, holding, card = key
+        return (ctx, index, view, card)
 
     def get(self, key):
         with self._lock:
@@ -152,10 +172,39 @@ class VerdictMemo:
             self._d.move_to_end(key)
             while len(self._d) > self._max:
                 self._d.popitem(last=False)
+            r = self.rejections.setdefault(self.rate_key(key), [0, 0])
+            r[0] += 0 if verdict.consistent else 1
+            r[1] += 1
+
+    def note_cost(self, key, seconds: float) -> None:
+        with self._lock:
+            c = self.costs.setdefault(self.rate_key(key), [0.0, 0])
+            c[0] += seconds
+            c[1] += 1
+
+    def priority(self, key) -> float:
+        """How much a fresh judgement of `key` is expected to save per second:
+        its estimated rejection probability over its measured cost. Unseen
+        plays get an even prior and the cheapest cost measured so far (later
+        positions solve faster, and exploring is how the rates get learnt),
+        so the first waves still run latest-first."""
+        with self._lock:
+            rk = self.rate_key(key)
+            rej, tot = self.rejections.get(rk, (0, 0))
+            p = (rej + 1) / (tot + 2)
+            c = self.costs.get(rk)
+            if c and c[1]:
+                cost = c[0] / c[1]
+            else:
+                measured = [v[0] / v[1] for v in self.costs.values() if v[1]]
+                cost = min(measured) if measured else 1.0
+            return p / max(cost, 1e-6)
 
     def clear(self) -> None:
         with self._lock:
             self._d.clear()
+            self.rejections.clear()
+            self.costs.clear()
 
     def __len__(self) -> int:
         return len(self._d)
@@ -218,10 +267,10 @@ def opponent_decisions(layout_hands, strain, declarer, play, upto, view) -> list
         completed = [c for t in position.tricks for c in t.cards]
         if equivalence_classes(legal, completed) < 2:
             continue
+        judge_seat = declarer if seat == dummy else seat
         out.append(OpponentDecision(
-            index=position.index, seat=seat,
-            view=declarer if seat == dummy else seat, card=card,
-            holding=tuple(sorted(hand, key=card_sort_key))))
+            index=position.index, seat=seat, view=judge_seat, card=card,
+            holding=tuple(sorted(position.remaining[judge_seat], key=card_sort_key))))
     out.reverse()
     return out
 
@@ -424,11 +473,14 @@ def _judge_batch(items, *, level, strain, declarer, play, all_constraints,
             it['step'] *= 2
             spans.append((it, len(batch)))
             deals.extend(grader._build_deal(layout, it['position']) for layout in batch)
+        t0 = time.perf_counter()
         boards = solve_all(deals)
+        per_board_s = (time.perf_counter() - t0) / max(len(deals), 1)
         i, still = 0, []
         for it, count in spans:
             per_board = grader._collect(it['position'], boards[i:i + count])
             i += count
+            memo.note_cost(it['key'], per_board_s * count)
             v = it['test'].feed(per_board, count)
             if v is not None:
                 verdicts[it['key']] = v
@@ -443,6 +495,86 @@ def _judge_batch(items, *, level, strain, declarer, play, all_constraints,
         stats.judged += 1
         stats.sigmas.append(v.sigma)
     return verdicts
+
+
+def _resolve(plan, ctx, settings, memo, stats, judge_kwargs) -> list[bool]:
+    """One bool per `(layout, suspects)` of `plan`: consistent with expert play
+    or not. A layout is consistent iff *every* suspect's verdict is, and each
+    verdict is a pure function of its memo key (seeded per key), so the
+    answer does not depend on which suspects are looked at or in what order —
+    only the cost does. Hence: consult the memo for all suspects first (a
+    remembered rejection settles the layout for free), and judge the rest one
+    per wave, picking for each still-open layout the suspect with the best
+    expected saving per second (`VerdictMemo.priority`) — the fresh verdicts
+    of one wave update both the memo and that ordering for the next. Every
+    wave's judgements go to DDS together (`_judge_batch`); nothing past a
+    layout's rejection is ever judged.
+
+    Depth > 1 (recursive expert judgements) keeps the simple one-at-a-time
+    path through `judge`, since its inner sampling recurses into this loop."""
+    def key_of(d):
+        return (ctx, d.index, d.view, d.holding, d.card)
+
+    if settings.depth != 1:
+        out = []
+        for L, suspects in plan:
+            ok = True
+            for d in suspects:
+                v = judge(L, d, stats=stats, **judge_kwargs)
+                if not v.consistent:
+                    ok = False
+                    break
+            out.append(ok)
+        return out
+
+    verdict: list = [None] * len(plan)
+    alive = []                          # (plan index, layout, pending suspects)
+    for i, (L, suspects) in enumerate(plan):
+        pending = []
+        for d in suspects:
+            v = memo.get(key_of(d))
+            if v is None:
+                pending.append(d)
+                continue
+            stats.memo_hits += 1
+            if not v.consistent:
+                verdict[i] = False
+                break
+        if verdict[i] is None:
+            if pending:
+                alive.append((i, L, pending))
+            else:
+                verdict[i] = True
+
+    while alive:
+        wave: dict = {}
+        picks = []
+        for i, L, pending in alive:
+            d = max(pending, key=lambda d: memo.priority(key_of(d)))
+            picks.append(d)
+            wave.setdefault(key_of(d), (L, d))
+        _judge_batch([(k, L, d) for k, (L, d) in wave.items()], stats=stats,
+                     **judge_kwargs)
+        still = []
+        for (i, L, pending), d in zip(alive, picks):
+            rest = []
+            for x in pending:
+                v = memo.get(key_of(x))
+                if v is None:
+                    rest.append(x)
+                    continue
+                if x is not d:
+                    stats.memo_hits += 1     # settled by another layout's wave
+                if not v.consistent:
+                    verdict[i] = False
+                    break
+            if verdict[i] is None:
+                if rest:
+                    still.append((i, L, rest))
+                else:
+                    verdict[i] = True
+        alive = still
+    return verdict
 
 
 # --- the outer loop ---------------------------------------------------------
@@ -504,49 +636,15 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
             suspects = ds if cost is None else [d for d in ds if cost[d.index] > 0]
             plan.append((L, suspects))
 
-        fresh: dict = {}
-        if settings.depth == 1:
-            alive = [(L, s) for L, s in plan if s]
-            k = 0
-            while alive:
-                wave = {}
-                for L, suspects in alive:
-                    d = suspects[k]
-                    key = (ctx, d.index, d.view, d.holding, d.card)
-                    if key not in wave and key not in fresh and memo.get(key) is None:
-                        wave[key] = (L, d)
-                if wave:
-                    fresh.update(_judge_batch(
-                        [(key, L, d) for key, (L, d) in wave.items()],
-                        level=level, strain=strain, declarer=declarer, play=play,
-                        all_constraints=all_constraints, settings=settings,
-                        inner_cap=inner_cap, context_key=ctx, memo=memo, stats=stats))
-                still = []
-                for L, suspects in alive:
-                    d = suspects[k]
-                    key = (ctx, d.index, d.view, d.holding, d.card)
-                    v = fresh.get(key) or memo.get(key)
-                    if (v is None or v.consistent) and k + 1 < len(suspects):
-                        still.append((L, suspects))
-                alive = still
-                k += 1
+        verdicts = _resolve(plan, ctx, settings, memo, stats, judge_kwargs=dict(
+            level=level, strain=strain, declarer=declarer, play=play,
+            all_constraints=all_constraints, settings=settings,
+            inner_cap=inner_cap, context_key=ctx, memo=memo))
 
-        for L, suspects in plan:
+        for (L, _), ok in zip(plan, verdicts):
             if len(accepted) >= n:
                 break
             stats.sampled += 1
-            ok = True
-            for d in suspects:
-                key = (ctx, d.index, d.view, d.holding, d.card)
-                v = fresh.get(key)
-                if v is None:
-                    v = judge(L, d, level=level, strain=strain, declarer=declarer,
-                              play=play, all_constraints=all_constraints,
-                              settings=settings, inner_cap=inner_cap,
-                              context_key=ctx, memo=memo, stats=stats)
-                if not v.consistent:
-                    ok = False
-                    break
             if ok:
                 accepted.append(L)
 

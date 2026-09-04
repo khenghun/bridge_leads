@@ -212,12 +212,55 @@ def _position_on(layout_hands, strain, declarer, play) -> Position:
     return replay(layout_hands, strain, declarer, play)
 
 
+# DDS's board encoding (endplay's `_dds.deal`): hands N/E/S/W = 0..3, suits
+# S/H/D/C = 0..3, a suit holding is a bitmask with rank r (2..14) at bit r,
+# and a card on the table is (suit index, rank 2..14).
+_SEAT_INDEX = {s: i for i, s in enumerate(SEATS)}
+_SUIT_INDEX = {s: i for i, s in enumerate(SUITS)}
+_RANK_VALUE = {r: 14 - i for i, r in enumerate('AKQJT98765432')}
+_RANK_BIT = {r: 1 << v for r, v in _RANK_VALUE.items()}
+_RANKS_BY_BIT = tuple(_RANK_BIT.items())
+
+
 def _build_deal(layout, position):
-    deal = Deal('N:' + ' '.join(layout[s] for s in SEATS))
-    deal.trump = STRAIN_DENOM[position.strain]
-    deal.first = LETTER_PLAYER[position.opening_leader]
-    for card in position.history:
-        deal.play(card)
+    """The DDS board for `layout` at `position`: each seat's dealt cards minus
+    what it has played, the trick on the table, its leader, and the strain.
+
+    Written straight into endplay's `Deal` struct rather than parsed from PBN
+    and replayed card by card — the play solver builds tens of thousands of
+    boards per graded decision, and that path was ~5% of a strict decision.
+    A layout is consistent with the play by construction (played cards are
+    pinned when sampling); a card the layout does not hold raises, as the
+    replay did.
+    """
+    deal = Deal()
+    data = deal._data
+    data.trump = STRAIN_DENOM[position.strain]
+    data.first = LETTER_PLAYER[position.trick_leader]
+    for k, card in enumerate(position.current_trick):
+        data.currentTrickSuit[k] = _SUIT_INDEX[card[0]]
+        data.currentTrickRank[k] = _RANK_VALUE[card[1]]
+    remain = data.remainCards
+    for seat in SEATS:
+        hand = layout[seat]
+        holdings = remain[_SEAT_INDEX[seat]]
+        if isinstance(hand, str):
+            for si, chars in enumerate(hand.split('.')):
+                mask = 0
+                for ch in chars:
+                    mask |= _RANK_BIT[ch]
+                holdings[si] = mask
+        else:
+            masks = [0, 0, 0, 0]
+            for card in hand:
+                masks[_SUIT_INDEX[card[0]]] |= _RANK_BIT[card[1]]
+            for si in range(4):
+                holdings[si] = masks[si]
+        for card in position.played_by[seat]:
+            si, bit = _SUIT_INDEX[card[0]], _RANK_BIT[card[1]]
+            if not holdings[si] & bit:
+                raise ValueError(f"{seat} played {card} but does not hold it on this layout")
+            holdings[si] &= ~bit
     return deal
 
 
@@ -255,15 +298,27 @@ def _collect(position, boards):
     on_declarer_side = position.to_play in position.declarer_side
     per_board = defaultdict(list)     # card -> declarer tricks on each board
     for board in boards:
-        for card, tricks in board:
-            name = card_to_str(card)
-            if name not in legal:
+        # Read DDS's futureTricks directly: `cards` entries of (suit, rank,
+        # equals-mask, score); a score of -1 is an unplayable slot. The
+        # equals mask names the touching cards DDS folded into that entry.
+        # (endplay's iterator builds a Card object per card — measured at 4%
+        # of a strict decision.)
+        fut = board._data
+        for k in range(fut.cards):
+            tricks = fut.score[k]
+            if tricks == -1:
                 continue
             # DDS reports future tricks for the side **on play**; convert to
             # declarer tricks, then add the tricks already in the bag.
             declarer_tricks = (won + tricks if on_declarer_side
                                else won + (remaining - tricks))
-            per_board[name].append(declarer_tricks)
+            suit = SUITS[fut.suit[k]]
+            holding = (1 << fut.rank[k]) | fut.equals[k]
+            for rank, bit in _RANKS_BY_BIT:
+                if holding & bit:
+                    name = suit + rank
+                    if name in legal:
+                        per_board[name].append(declarer_tricks)
     return per_board
 
 

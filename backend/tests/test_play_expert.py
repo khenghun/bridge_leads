@@ -21,7 +21,8 @@ import pytest
 
 from engine.play import grader, state
 from engine.play.expert import (
-    ExpertSettings, Verdict, VerdictMemo, dd_costs, equivalence_classes,
+    ExpertSettings, ExpertStats, OpponentDecision, Verdict, VerdictMemo, dd_costs,
+    equivalence_classes,
     expert_layouts, judge, opponent_decisions, opponents_of,
 )
 from engine.dds_runtime import analyse_plays
@@ -124,6 +125,27 @@ def test_opponent_decisions_are_the_defenders_choices_latest_first():
     by_index = {d.index: d for d in ds}
     assert by_index[2].card == 'SK' and {'SK', 'ST', 'S3'} <= set(by_index[2].holding)
     assert len(by_index[2].holding) == 13         # the whole hand at that moment, the memo key
+
+
+def test_a_play_from_dummy_is_keyed_on_declarers_holding():
+    """Judged through declarer's eyes, so the verdict depends on declarer's
+    (hidden, per-layout) hand — dummy's cards are the same on every layout.
+    v1.3 keyed these on dummy's holding and so reused one layout's verdict
+    for all of them."""
+    # 1N by W: East is dummy. North leads, East plays second — index 1.
+    ds = opponent_decisions(HANDS, 'N', 'W', PLAY, upto=12, view='N')
+    by_index = {d.index: d for d in ds}
+    dummy_plays = [d for d in ds if d.seat == 'E']
+    assert dummy_plays, 'the fixture has East (dummy) playing with a choice'
+    for d in dummy_plays:
+        assert d.view == 'W'
+        pos = state.replay(HANDS, 'N', 'W', PLAY[:d.index])
+        assert set(d.holding) == set(pos.remaining['W'])
+        assert set(d.holding) != set(pos.remaining['E'])
+    for d in ds:
+        if d.seat == 'W':
+            pos = state.replay(HANDS, 'N', 'W', PLAY[:d.index])
+            assert set(d.holding) == set(pos.remaining['W'])
 
 
 def test_a_defenders_partner_is_never_judged():
@@ -338,3 +360,118 @@ def test_expert_grading_is_deterministic():
     a = grader.grade_play(HANDS, 1, 'N', 'W', PLAY, 'W', memo=VerdictMemo(), **kw)
     b = grader.grade_play(HANDS, 1, 'N', 'W', PLAY, 'W', memo=VerdictMemo(), **kw)
     assert a['decisions'] == b['decisions']
+
+
+# --- _resolve: memo-first, priority-ordered, order-independent ---------------
+
+def _decision(index, card, holding=('SA',)):
+    return OpponentDecision(index=index, seat='S', view='S', card=card, holding=tuple(holding))
+
+
+class _FakeJudge:
+    """Stands in for `_judge_batch`: verdicts come from a table keyed like the
+    memo (index, card, holding), and every call is recorded."""
+
+    def __init__(self, table, memo):
+        self.table, self.memo, self.calls = table, memo, []
+
+    def __call__(self, items, *, stats, **kwargs):
+        self.calls.append([(d.index, d.card, d.holding) for _, _, d in items])
+        for key, _, d in items:
+            v = Verdict(self.table[(d.index, d.card, d.holding)], 0.0, 8, 0.3, 'clear')
+            self.memo.put(key, v)
+            stats.judged += 1
+
+
+def _resolve_with(monkeypatch, plan, table, memo=None):
+    from engine.play import expert
+    memo = memo if memo is not None else VerdictMemo()
+    fake = _FakeJudge(table, memo)
+    monkeypatch.setattr(expert, '_judge_batch', fake)
+    stats = ExpertStats()
+    out = expert._resolve(plan, 'ctx', ExpertSettings(strict=True), memo, stats, {})
+    return out, fake, stats
+
+
+def test_a_remembered_rejection_settles_a_layout_without_any_judgement(monkeypatch):
+    memo = VerdictMemo()
+    late = _decision(20, 'S2', ('S2', 'S3'))
+    early = _decision(2, 'HK', ('HK', 'HQ', 'S2', 'S3'))
+    memo.put(('ctx', 2, 'S', early.holding, 'HK'), Verdict(False, 0.5, 8, 0.3, 'shown-worse'))
+    out, fake, stats = _resolve_with(monkeypatch, [('L', [late, early])], {}, memo)
+    assert out == [False] and fake.calls == [] and stats.judged == 0
+    assert stats.memo_hits >= 1
+
+
+def test_only_pending_suspects_are_judged(monkeypatch):
+    memo = VerdictMemo()
+    late = _decision(20, 'S2', ('S2', 'S3'))
+    early = _decision(2, 'HK', ('HK', 'HQ', 'S2', 'S3'))
+    memo.put(('ctx', 2, 'S', early.holding, 'HK'), Verdict(True, 0.0, 8, 0.3, 'clear'))
+    table = {(20, 'S2', late.holding): True}
+    out, fake, stats = _resolve_with(monkeypatch, [('L', [late, early])], table, memo)
+    assert out == [True] and fake.calls == [[(20, 'S2', late.holding)]]
+
+
+def test_the_answer_is_the_conjunction_whatever_the_order(monkeypatch):
+    """Random verdict tables, random suspect lists: the result must equal
+    `all(verdicts)` per layout, and no suspect is ever judged twice."""
+    import random
+    rng = random.Random(5)
+    for trial in range(30):
+        plan, table = [], {}
+        for li in range(12):
+            suspects = []
+            for index in sorted(rng.sample(range(1, 30), rng.randint(1, 6)), reverse=True):
+                holding = (f'H{index}', f'L{li % 3}')     # holdings shared across some layouts
+                d = _decision(index, 'C2', holding)
+                table.setdefault((index, 'C2', holding), rng.random() < 0.4)
+                suspects.append(d)
+            plan.append((f'L{li}', suspects))
+        out, fake, _ = _resolve_with(monkeypatch, plan, table)
+        expected = [all(table[(d.index, d.card, d.holding)] for d in s) for _, s in plan]
+        assert out == expected, trial
+        judged = [k for wave in fake.calls for k in wave]
+        assert len(judged) == len(set(judged)), 'a suspect was judged twice'
+
+
+def test_a_play_seen_to_reject_is_tried_before_an_unseen_one(monkeypatch):
+    """Latest-first at the start (nothing learnt); once index 4 has rejected
+    on other holdings, a fresh layout tries index 4 before its later, cheaper
+    but never-rejecting plays."""
+    memo = VerdictMemo()
+    for h in range(10):
+        memo.put(('ctx', 4, 'S', (f'X{h}',), 'C2'), Verdict(False, 0.5, 8, 0.3, 'shown-worse'))
+        memo.note_cost(('ctx', 4, 'S', (f'X{h}',), 'C2'), 0.01)
+        memo.put(('ctx', 20, 'S', (f'Y{h}',), 'S2'), Verdict(True, 0.0, 8, 0.3, 'clear'))
+        memo.note_cost(('ctx', 20, 'S', (f'Y{h}',), 'S2'), 0.01)
+    late = _decision(20, 'S2', ('new',))
+    early = _decision(4, 'C2', ('new',))
+    table = {(20, 'S2', ('new',)): True, (4, 'C2', ('new',)): False}
+    out, fake, _ = _resolve_with(monkeypatch, [('L', [late, early])], table, memo)
+    assert out == [False]
+    assert fake.calls == [[(4, 'C2', ('new',))]]      # index 4 first, and then nothing
+
+
+def test_priority_prefers_cheap_and_often_rejected_plays():
+    memo = VerdictMemo()
+    k_cheap_rejecting = ('ctx', 4, 'S', ('a',), 'C2')
+    k_dear_rejecting = ('ctx', 1, 'S', ('a',), 'H4')
+    k_cheap_accepting = ('ctx', 20, 'S', ('a',), 'S2')
+    for k, consistent, cost in ((k_cheap_rejecting, False, 0.01),
+                                (k_dear_rejecting, False, 0.10),
+                                (k_cheap_accepting, True, 0.01)):
+        for h in range(5):
+            key = (k[0], k[1], k[2], (f'h{h}',), k[4])
+            memo.put(key, Verdict(consistent, 0.0, 8, 0.3, 'clear'))
+            memo.note_cost(key, cost)
+    unseen = ('ctx', 9, 'S', ('a',), 'D3')
+    p = {name: memo.priority(k) for name, k in (('cheap-rej', k_cheap_rejecting),
+                                                ('dear-rej', k_dear_rejecting),
+                                                ('cheap-acc', k_cheap_accepting),
+                                                ('unseen', unseen))}
+    # Per second of judgement: a cheap frequent rejecter first; an unseen play
+    # (even prior, the cheapest cost seen so far) before a cheap play that
+    # never rejects; and an expensive rejecter behind both, since it buys
+    # fewer rejections per second than either.
+    assert p['cheap-rej'] > p['unseen'] > p['cheap-acc'] > p['dear-rej']

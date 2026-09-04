@@ -46,15 +46,25 @@ def hand_to_cards(hand_str):
     return cards
 
 
+# Rank bit per rank character (A = bit 12 ... 2 = bit 0) and, for every
+# 13-bit mask, the ranks it holds as a PBN suit string, high to low.
+_RANK_CHARS = 'AKQJT98765432'
+_RANK_BIT = {r: 1 << (12 - i) for i, r in enumerate(_RANK_CHARS)}
+_MASK_STR = [''.join(r for r in _RANK_CHARS if m & _RANK_BIT[r]) for m in range(1 << 13)]
+_SUIT_SLOT = {s: i for i, s in enumerate(SUIT_ORDER)}
+
+
 def hand_list_to_str(cardlist):
-    """List of cards -> PBN hand string (suits high-to-low)."""
-    suits = {'S': [], 'H': [], 'D': [], 'C': []}
+    """List of cards -> PBN hand string (suits high-to-low).
+
+    Bitmask per suit, then a table lookup for the sorted rank string — this is
+    called once per sampled hand, hundreds of thousands of times per strict
+    play decision, so it is written for speed."""
+    masks = [0, 0, 0, 0]
     for card in cardlist:
         if len(card) == 2:
-            suits[card[0]].append(card[1])
-    for s in SUIT_ORDER:
-        suits[s].sort(key=lambda r: SORT_RANK.get(r, 99))
-    return '.'.join(''.join(suits[s]) for s in SUIT_ORDER)
+            masks[_SUIT_SLOT[card[0]]] |= _RANK_BIT[card[1]]
+    return '.'.join(_MASK_STR[m] for m in masks)
 
 
 def _merge_box(box, env):

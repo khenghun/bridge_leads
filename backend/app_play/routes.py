@@ -47,7 +47,7 @@ def dds_stats():
     entry point) — the v1.4 performance plan's step-0 instrumentation. The
     batch geometry these expose (boards per call) is the performance story."""
     from engine import dds_runtime
-    return dds_runtime.stats()
+    return {**dds_runtime.stats(), 'threads': dds_runtime.DDS_THREADS}
 
 
 @router.post('/analyze', response_model=AnalyzeResponse)

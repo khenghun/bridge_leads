@@ -16,6 +16,37 @@ export { KIND_LABEL } from '../../../components/Changelog'
 
 export const RELEASES: Release[] = [
   {
+    version: 'v1.4',
+    date: '2026-09-04',
+    title: 'Expert opponents: faster, and right about dummy',
+    unreleased: true,
+    summary:
+      'Expert opponents judges the opponents’ plays faster and no longer '
+      + 'mis-remembers a play made from dummy.',
+    changes: [
+      {
+        kind: 'fixed',
+        text: 'When a defender was graded with Expert opponents on, a play '
+          + 'declarer made from dummy was judged once and that single verdict '
+          + 'was reused for every sampled deal — but the verdict depends on '
+          + 'declarer’s hidden hand, which differs from deal to deal. On some '
+          + 'hands every deal was thrown out (the grade fell back to the '
+          + 'unfiltered sample and said so); on others every deal was waved '
+          + 'through. Each deal is now judged on its own declarer hand, so a '
+          + 'defender’s grade reflects what an expert declarer would actually '
+          + 'have done on that deal. Declarer’s own grades were never affected.',
+      },
+      {
+        kind: 'improved',
+        text: 'Expert opponents, and Strict especially, runs faster: the plays '
+          + 'most likely to rule a deal out are judged first, judgements that '
+          + 'are already known are not repeated, and the solver is fed in '
+          + 'bigger batches. Same verdicts, roughly a quarter less waiting on '
+          + 'a strict run; the plain single-dummy grades are untouched.',
+      },
+    ],
+  },
+  {
     version: 'v1.3',
     date: '2026-09-01',
     title: 'Expert opponents',

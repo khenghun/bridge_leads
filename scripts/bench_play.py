@@ -109,7 +109,9 @@ def bench_board(api, qx, board, seg, args):
             'request_template': {k: v for k, v in template.items()},
             'machine': args.machine, 'cpu_count': os.cpu_count(),
             'python': platform.python_version(),
-            'dds_threads_env': os.environ.get('BRIDGE_DDS_THREADS', '(unset: min(cpu,4))'),
+            # The API's own thread cap (its env, not this script's), when the
+            # API exposes it; 0 means DDS auto-detected every core.
+            'dds_threads': (dds_stats(args.api) or {}).get('threads'),
             'timestamp': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         },
         'seats': {},
@@ -158,7 +160,7 @@ def bench_board(api, qx, board, seg, args):
         if dds_before is not None and dds_after is not None:
             agg['dds'] = {name: {k: round(dds_after[name][k] - dds_before[name][k], 3)
                                  for k in ('calls', 'boards', 'seconds')}
-                          for name in dds_after}
+                          for name in dds_after if isinstance(dds_after[name], dict)}
         ex = [d['expert'] for d in rows if d.get('expert')]
         if ex:
             agg['expert_totals'] = {
@@ -176,7 +178,7 @@ def to_markdown(res):
              f"{m['num_deals']} deals",
              '',
              f"Machine {m['machine']} ({m['cpu_count']} cpus, python {m['python']}, "
-             f"BRIDGE_DDS_THREADS {m['dds_threads_env']}), {m['timestamp']}. "
+             f"DDS threads {m.get('dds_threads', '?')}), {m['timestamp']}. "
              f"Total {m['total_time_s']} s.", '']
     for seat, s in res['seats'].items():
         a = s['summary']
