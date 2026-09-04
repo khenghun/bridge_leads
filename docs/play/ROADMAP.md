@@ -157,8 +157,11 @@ Two rulings/observations recorded for that work:
    (2026-09-03/04, `v1.4-performance-plan.md`). Strict mode cost 60–105
    s/decision; batch aggregation (2.2×), then memo-first priority ordering of
    the opponents' suspect plays and direct DDS struct building (a further
-   1.2–1.3×, bit-identical grades) bring it to ~30 s/decision on a 16-core
-   laptop. Worker processes were **measured and rejected**: one process with
+   1.2–1.3×, bit-identical grades) and exempting the opening lead from the
+   filter (declarer seats 2.8–4.3×) bring it to ~9 s per declarer decision
+   and ~25–40 s per defender decision on a 16-core laptop (board 7 rooms:
+   1 077 → 707 s and 1 569 → 986 s). Worker processes were **measured and
+   rejected**: one process with
    16 DDS threads already saturates the 8 physical cores, every multi-process
    split is equal or slower. DDS is now 97 % of the time and the judgement
    count is at its floor, so the rest is a faster solver or a different
@@ -177,7 +180,11 @@ Two rulings/observations recorded for that work:
   Opening Lead Simulator's problem and are made with dummy unseen; the play
   solver's defense grading must be accurate from trick 1, card 2 onward
   (so West's "suboptimal" ♥2 lead in the o7 benchmark is expected noise,
-  not a target).
+  not a target). **Extended 2026-09-04: the expert filter does not judge the
+  lead either.** Measured, it was the filter's weakest inference at the
+  highest price — a full-deal solve over three hidden hands, about half the
+  cost of every declarer decision, rejecting one layout in twenty — so
+  `opponent_decisions` skips index 0 (numbers in `v1.4-performance-plan.md`).
 - **DD continuations are clairvoyant (strategy fusion):** a card that merely
   defers a guess can read "makes 100%" because each sampled layout is
   continued double-dummy. The benchmark's T7 options list shows it: ♦7 (a

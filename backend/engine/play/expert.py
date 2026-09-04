@@ -249,14 +249,22 @@ def opponent_decisions(layout_hands, strain, declarer, play, upto, view) -> list
     """Every index `j < upto` at which an opponent of `view` had a real choice
     **on this layout**, latest first. Legality and equivalence depend on the
     hand the opponent holds here, so this is computed per layout (a replay of
-    at most 52 cards, pure Python)."""
+    at most 52 cards, pure Python).
+
+    The opening lead (index 0) is exempt — ruled 2026-09-04. Leads are the
+    Opening Lead Simulator's problem and are chosen with dummy unseen, so the
+    lead is not second-guessed here either. It was also the filter's weakest
+    inference at by far the highest price: judged from the leader's view it
+    is a full-deal solve over three hidden hands (~0.27 s per layout against
+    0.04–0.09 s for any later play), about half the cost of every declarer
+    decision, and it rejected one layout in twenty."""
     opp = opponents_of(view, declarer)
     dummy = next_seat(declarer, 2)
     out = []
     for position, card in walk(layout_hands, strain, declarer, play[:upto]):
         seat = position.to_play
-        if seat not in opp:
-            continue
+        if seat not in opp or position.index == 0:
+            continue        # the opening lead is never judged (see the docstring)
         hand = position.remaining[seat]
         led = position.led_suit
         legal = [c for c in hand if c[0] == led] if led else list(hand)

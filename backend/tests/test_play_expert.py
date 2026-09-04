@@ -120,7 +120,8 @@ def test_opponent_decisions_are_the_defenders_choices_latest_first():
     ds = opponent_decisions(HANDS, 'N', 'W', PLAY, upto=12, view='W')
     assert [d.index for d in ds] == sorted((d.index for d in ds), reverse=True)
     assert all(d.seat in ('N', 'S') and d.view == d.seat for d in ds)
-    assert 0 in {d.index for d in ds}          # the opening lead was a choice
+    assert 0 not in {d.index for d in ds}      # the opening lead is never judged
+    assert min(d.index for d in ds) >= 2       # ...though North's lead was a choice
     # index 2: South followed ♠K from KT3 — three spades, a real choice
     by_index = {d.index: d for d in ds}
     assert by_index[2].card == 'SK' and {'SK', 'ST', 'S3'} <= set(by_index[2].holding)
@@ -318,12 +319,16 @@ def test_grade_play_reports_expert_counts_per_decision():
                             expert=ExpertSettings(), memo=memo, decisions=[1, 3])
     assert [d['index'] for d in res['decisions']] == [1, 3]
     assert res['expert'] == ExpertSettings().__dict__
+    first, second = res['decisions']
+    # Index 1: the only opponent card so far is the opening lead, which is
+    # never judged — nothing to filter, the sample is taken as is.
+    assert first['expert']['traced'] == 0 and first['expert']['inference'] == 'trivial'
+    e = second['expert']
+    assert e['consistent'] == 8 and e['sampled'] >= 8 and e['traced'] >= 8
+    assert e['inference'] == 'filtered'
     for d in res['decisions']:
-        e = d['expert']
-        assert e['consistent'] == 8 and e['sampled'] >= 8 and e['traced'] >= 8
-        assert e['inference'] == 'filtered'
-        assert e['threshold'] == pytest.approx(0.10 + 2.0 * 0.6 / 8 ** 0.5, abs=1e-3)
-    assert len(memo) > 0
+        assert d['expert']['consistent'] == 8
+        assert d['expert']['threshold'] == pytest.approx(0.10 + 2.0 * 0.6 / 8 ** 0.5, abs=1e-3)
 
 
 def test_expert_settings_accept_a_dict():

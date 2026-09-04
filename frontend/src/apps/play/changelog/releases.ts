@@ -41,8 +41,12 @@ export const RELEASES: Release[] = [
         text: 'Expert opponents, and Strict especially, runs faster: the plays '
           + 'most likely to rule a deal out are judged first, judgements that '
           + 'are already known are not repeated, and the solver is fed in '
-          + 'bigger batches. Same verdicts, roughly a quarter less waiting on '
-          + 'a strict run; the plain single-dummy grades are untouched.',
+          + 'bigger batches. And the opening lead is no longer second-guessed '
+          + 'when the deals are filtered — leads are the Opening Lead '
+          + 'Simulator’s business, and judging one cost as much as the rest of '
+          + 'the hand while it almost never ruled a deal out. A strict run of a '
+          + 'declarer’s hand now takes about half the time; the plain '
+          + 'single-dummy grades are untouched.',
       },
     ],
   },

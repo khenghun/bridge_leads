@@ -170,12 +170,14 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   trick-4 ♥J reads *good* (−0.20) and the trick-6 ♥9 *optimal* — the v1.3
   build graded both *suboptimal* on unfiltered pools (`2000→0`, inference
   `none`) because every layout shared one memoised verdict on declarer's
-  ♦A from dummy. Declarer (N) is unchanged: 17/2/1, 5.31 IMPs.
+  ♦A from dummy. Declarer (N): 17/2/1, 5.81 IMPs (`sampled 8448`), the
+  opening lead no longer judged by the filter (that seat took 158 s).
 - **P-1.4-2 [full] Same verdicts, faster.** The closed room,
   `--qx c7 --strict --deals 100`, all seats: `compare_bench.py` against the
   committed `board7-c7-strict100.json` passes (18/1/1 · 11/0/0 · 10/0/0,
-  4.23 · 0 · 0.33 IMPs) and the total is within noise of **1 312 s** on the
-  16-thread laptop — the v1.3 build's sequential rerun took 1 569 s.
+  4.01 · 0 · 0.33 IMPs) and the total is within noise of **986 s** on the
+  16-thread laptop (declarer 187 s, ~9 s a decision) — the v1.3 build's
+  sequential rerun took 1 569 s.
 - **P-1.4-3 [smoke] Plain grading untouched.** P-1.0-2 and P-1.3-2 still
   read their pinned numbers (P-1.3-2 at 4 threads).
 - **P-1.4-4 [full] What's new.** The panel lists v1.4 *Expert opponents:
