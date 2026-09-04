@@ -424,9 +424,24 @@ class _SeqTest:
         return Verdict(True, round(self.gap, 3), self.n, round(self.sigma, 3), 'cap')
 
 
+class _ListStream:
+    """A pre-drawn inner sample behind the `take(k)` interface."""
+
+    def __init__(self, layouts):
+        self._layouts, self._at = list(layouts), 0
+
+    def take(self, k):
+        out = self._layouts[self._at:self._at + k]
+        self._at += len(out)
+        return out
+
+
 def _prep(layout_hands, decision, *, level, strain, declarer, play,
           all_constraints, settings, inner_cap, context_key, memo):
-    """The judgement's position and inner layouts, or an immediate Verdict."""
+    """The judgement's position and its inner-sample stream (`take(k)`), or
+    an immediate Verdict. The stream is lazy: a judgement that settles on
+    its first wave never draws the rest of the sample (the draw order is
+    the same, so verdicts are exactly those of the eager sample)."""
     from . import grader  # lazy: grader imports this module
 
     view = decision.view
@@ -440,13 +455,14 @@ def _prep(layout_hands, decision, *, level, strain, declarer, play,
             layouts, _ = expert_layouts(
                 position, view, constraints, all_constraints, inner_cap, deeper, rng,
                 level=level, context_key=context_key + ('d', decision.index), memo=memo)
+            stream = _ListStream(layouts)
         else:
-            layouts = grader._sample_layouts(position, view, constraints, inner_cap, rng)
+            stream = grader._layout_stream(position, view, constraints, inner_cap, rng)
     except ValueError:
         # The opponent's own view cannot be sampled under the user's
         # constraints — nothing to judge them against.
         return Verdict(True, 0.0, 0, SD_FLOOR, 'infeasible')
-    return position, layouts
+    return position, stream
 
 
 def _judge_fresh(layout_hands, decision, *, level, strain, declarer, play,
@@ -460,17 +476,19 @@ def _judge_fresh(layout_hands, decision, *, level, strain, declarer, play,
                  context_key=context_key, memo=memo)
     if isinstance(prep, Verdict):
         return prep
-    position, layouts = prep
+    position, stream = prep
     test = _SeqTest(decision, declarer, settings)
-    start, step = 0, INNER_FIRST
-    while start < len(layouts):
-        batch = layouts[start:start + step]
-        start += len(batch)
-        step *= 2
+    step = INNER_FIRST
+    batch = stream.take(step)
+    if not batch:
+        return Verdict(True, 0.0, 0, SD_FLOOR, 'infeasible')     # nothing could be dealt
+    while batch:
         _, _, _, per_board = grader._solve(position, batch, level)
         v = test.feed(per_board, len(batch))
         if v is not None:
             return v
+        step *= 2
+        batch = stream.take(step)
     return test.cap()
 
 
@@ -498,20 +516,18 @@ def _judge_batch(items, *, level, strain, declarer, play, all_constraints,
         if isinstance(prep, Verdict):
             verdicts[key] = prep
             continue
-        position, layouts = prep
-        test = _SeqTest(d, declarer, settings)
-        if not layouts:
-            verdicts[key] = test.cap()
-            continue
-        live.append({'key': key, 'position': position, 'layouts': layouts,
-                     'test': test, 'start': 0, 'step': INNER_FIRST})
+        position, stream = prep
+        live.append({'key': key, 'position': position, 'stream': stream,
+                     'test': _SeqTest(d, declarer, settings), 'step': INNER_FIRST,
+                     'drawn': 0})
 
     while live:
         deals, spans = [], []
         for it in live:
-            batch = it['layouts'][it['start']:it['start'] + it['step']]
-            it['start'] += len(batch)
+            batch = it['stream'].take(it['step'])
             it['step'] *= 2
+            it['drawn'] += len(batch)
+            it['batch'] = batch
             spans.append((it, len(batch)))
             deals.extend(grader._build_deal(layout, it['position']) for layout in batch)
         t0 = time.perf_counter()
@@ -519,16 +535,20 @@ def _judge_batch(items, *, level, strain, declarer, play, all_constraints,
         per_board_s = (time.perf_counter() - t0) / max(len(deals), 1)
         i, still = 0, []
         for it, count in spans:
+            if count == 0:
+                # The stream is exhausted: the cap verdict on what was seen,
+                # or nothing could be dealt at all.
+                verdicts[it['key']] = (it['test'].cap() if it['drawn']
+                                       else Verdict(True, 0.0, 0, SD_FLOOR, 'infeasible'))
+                continue
             per_board = grader._collect(it['position'], boards[i:i + count])
             i += count
             memo.note_cost(it['key'], per_board_s * count)
             v = it['test'].feed(per_board, count)
             if v is not None:
                 verdicts[it['key']] = v
-            elif it['start'] < len(it['layouts']):
-                still.append(it)
             else:
-                verdicts[it['key']] = it['test'].cap()
+                still.append(it)
         live = still
 
     for key, v in verdicts.items():

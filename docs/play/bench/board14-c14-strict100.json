@@ -95,8 +95,8 @@
   "cpu_count": 16,
   "python": "3.10.7",
   "dds_threads": 16,
-  "timestamp": "2026-09-04T13:51:04+00:00",
-  "total_time_s": 439.9
+  "timestamp": "2026-09-04T14:59:07+00:00",
+  "total_time_s": 384.3
  },
  "seats": {
   "W": {
@@ -109,14 +109,14 @@
     "suboptimal": 0,
     "total_trick_loss": 0.29,
     "total_imp_loss": 2.83,
-    "total_time_s": 159.7,
-    "mean_s_per_graded": 7.6,
-    "max_decision_s": 22.229,
+    "total_time_s": 138.7,
+    "mean_s_per_graded": 6.6,
+    "max_decision_s": 18.744,
     "dds": {
      "solve": {
-      "calls": 2786,
-      "boards": 251612,
-      "seconds": 135.427
+      "calls": 2781,
+      "boards": 250560,
+      "seconds": 117.398
      },
      "table": {
       "calls": 0,
@@ -133,8 +133,8 @@
      "sampled": 4186,
      "consistent": 2100,
      "traced": 0,
-     "judged": 5998,
-     "memo_hits": 15928
+     "judged": 5970,
+     "memo_hits": 15923
     }
    },
    "decisions": [
@@ -187,7 +187,7 @@
       "sigma": null,
       "inference": "trivial"
      },
-     "elapsed_s": 0.137
+     "elapsed_s": 0.129
     },
     {
      "index": 3,
@@ -243,7 +243,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 5.531
+     "elapsed_s": 4.779
     },
     {
      "index": 4,
@@ -355,7 +355,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.291
+     "elapsed_s": 0.261
     },
     {
      "index": 6,
@@ -406,7 +406,7 @@
       "sigma": 0.303,
       "inference": "filtered"
      },
-     "elapsed_s": 7.574
+     "elapsed_s": 6.554
     },
     {
      "index": 9,
@@ -457,7 +457,7 @@
       "sigma": 0.346,
       "inference": "filtered"
      },
-     "elapsed_s": 16.54
+     "elapsed_s": 14.526
     },
     {
      "index": 11,
@@ -500,7 +500,7 @@
       "sigma": 0.323,
       "inference": "filtered"
      },
-     "elapsed_s": 6.346
+     "elapsed_s": 5.363
     },
     {
      "index": 13,
@@ -563,7 +563,7 @@
       "sigma": 0.473,
       "inference": "filtered"
      },
-     "elapsed_s": 22.229
+     "elapsed_s": 18.744
     },
     {
      "index": 15,
@@ -578,7 +578,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.017
+     "elapsed_s": 0.02
     },
     {
      "index": 16,
@@ -670,7 +670,7 @@
       "sigma": 0.445,
       "inference": "filtered"
      },
-     "elapsed_s": 13.578
+     "elapsed_s": 11.709
     },
     {
      "index": 18,
@@ -764,7 +764,7 @@
       "sigma": 0.436,
       "inference": "filtered"
      },
-     "elapsed_s": 15.811
+     "elapsed_s": 14.087
     },
     {
      "index": 20,
@@ -849,7 +849,7 @@
       "sigma": 0.428,
       "inference": "filtered"
      },
-     "elapsed_s": 14.754
+     "elapsed_s": 12.8
     },
     {
      "index": 22,
@@ -928,13 +928,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 50,
-      "judged": 1035,
+      "judged": 1007,
       "memo_hits": 462,
       "threshold": 0.27,
-      "sigma": 0.464,
+      "sigma": 0.468,
       "inference": "filtered"
      },
-     "elapsed_s": 20.977
+     "elapsed_s": 17.873
     },
     {
      "index": 24,
@@ -1007,12 +1007,12 @@
       "traced": 0,
       "carried": 51,
       "judged": 721,
-      "memo_hits": 552,
+      "memo_hits": 550,
       "threshold": 0.27,
       "sigma": 0.441,
       "inference": "filtered"
      },
-     "elapsed_s": 16.251
+     "elapsed_s": 14.295
     },
     {
      "index": 26,
@@ -1086,12 +1086,12 @@
       "traced": 0,
       "carried": 7,
       "judged": 604,
-      "memo_hits": 764,
+      "memo_hits": 763,
       "threshold": 0.27,
       "sigma": 0.39,
       "inference": "filtered"
      },
-     "elapsed_s": 13.681
+     "elapsed_s": 11.964
     },
     {
      "index": 28,
@@ -1161,7 +1161,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 1.585
+     "elapsed_s": 1.462
     },
     {
      "index": 30,
@@ -1227,12 +1227,12 @@
       "traced": 0,
       "carried": 42,
       "judged": 106,
-      "memo_hits": 1223,
+      "memo_hits": 1221,
       "threshold": 0.27,
       "sigma": 0.348,
       "inference": "filtered"
      },
-     "elapsed_s": 3.043
+     "elapsed_s": 2.846
     },
     {
      "index": 32,
@@ -1296,7 +1296,7 @@
       "sigma": 0.323,
       "inference": "filtered"
      },
-     "elapsed_s": 0.354
+     "elapsed_s": 0.331
     },
     {
      "index": 34,
@@ -1353,7 +1353,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.27
+     "elapsed_s": 0.244
     },
     {
      "index": 37,
@@ -1368,7 +1368,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.022
+     "elapsed_s": 0.026
     },
     {
      "index": 39,
@@ -1411,7 +1411,7 @@
       "sigma": 0.306,
       "inference": "filtered"
      },
-     "elapsed_s": 0.262
+     "elapsed_s": 0.257
     },
     {
      "index": 41,
@@ -1461,7 +1461,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.124
+     "elapsed_s": 0.137
     },
     {
      "index": 43,
@@ -1476,7 +1476,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.004
+     "elapsed_s": 0.003
     },
     {
      "index": 44,
@@ -1519,7 +1519,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.128
+     "elapsed_s": 0.125
     },
     {
      "index": 46,
@@ -1577,7 +1577,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.003
+     "elapsed_s": 0.004
     },
     {
      "index": 51,
@@ -1592,7 +1592,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.027
+     "elapsed_s": 0.02
     }
    ]
   },
@@ -1606,14 +1606,14 @@
     "suboptimal": 1,
     "total_trick_loss": 0.44,
     "total_imp_loss": 1.36,
-    "total_time_s": 138.5,
-    "mean_s_per_graded": 13.85,
-    "max_decision_s": 34.508,
+    "total_time_s": 123.6,
+    "mean_s_per_graded": 12.36,
+    "max_decision_s": 30.124,
     "dds": {
      "solve": {
-      "calls": 1315,
-      "boards": 157088,
-      "seconds": 122.474
+      "calls": 1312,
+      "boards": 156564,
+      "seconds": 109.86
      },
      "table": {
       "calls": 0,
@@ -1630,8 +1630,8 @@
      "sampled": 2930,
      "consistent": 1000,
      "traced": 0,
-     "judged": 3873,
-     "memo_hits": 10193
+     "judged": 3863,
+     "memo_hits": 9941
     }
    },
    "decisions": [
@@ -1753,7 +1753,7 @@
       "sigma": null,
       "inference": "trivial"
      },
-     "elapsed_s": 1.067
+     "elapsed_s": 0.912
     },
     {
      "index": 5,
@@ -1818,7 +1818,7 @@
       "sigma": 0.439,
       "inference": "filtered"
      },
-     "elapsed_s": 34.508
+     "elapsed_s": 30.124
     },
     {
      "index": 10,
@@ -1868,7 +1868,7 @@
       "sigma": 0.349,
       "inference": "filtered"
      },
-     "elapsed_s": 29.482
+     "elapsed_s": 25.974
     },
     {
      "index": 14,
@@ -1910,7 +1910,7 @@
       "sigma": 0.374,
       "inference": "filtered"
      },
-     "elapsed_s": 25.593
+     "elapsed_s": 22.251
     },
     {
      "index": 17,
@@ -1925,7 +1925,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.003
+     "elapsed_s": 0.023
     },
     {
      "index": 23,
@@ -1978,13 +1978,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 1,
-      "judged": 1306,
-      "memo_hits": 149,
+      "judged": 1324,
+      "memo_hits": 155,
       "threshold": 0.27,
-      "sigma": 0.34,
+      "sigma": 0.339,
       "inference": "filtered"
      },
-     "elapsed_s": 28.649
+     "elapsed_s": 26.98
     },
     {
      "index": 25,
@@ -2058,12 +2058,12 @@
       "traced": 0,
       "carried": 63,
       "judged": 416,
-      "memo_hits": 911,
+      "memo_hits": 913,
       "threshold": 0.27,
       "sigma": 0.338,
       "inference": "filtered"
      },
-     "elapsed_s": 8.804
+     "elapsed_s": 7.917
     },
     {
      "index": 31,
@@ -2100,13 +2100,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 25,
-      "judged": 491,
-      "memo_hits": 1226,
+      "judged": 463,
+      "memo_hits": 1206,
       "threshold": 0.27,
-      "sigma": 0.324,
+      "sigma": 0.325,
       "inference": "filtered"
      },
-     "elapsed_s": 8.748
+     "elapsed_s": 7.922
     },
     {
      "index": 33,
@@ -2143,12 +2143,12 @@
       "traced": 0,
       "carried": 65,
       "judged": 34,
-      "memo_hits": 3034,
+      "memo_hits": 2902,
       "threshold": 0.27,
-      "sigma": 0.444,
+      "sigma": 0.445,
       "inference": "filtered"
      },
-     "elapsed_s": 0.833
+     "elapsed_s": 0.718
     },
     {
      "index": 36,
@@ -2201,12 +2201,12 @@
       "traced": 0,
       "carried": 46,
       "judged": 4,
-      "memo_hits": 2563,
+      "memo_hits": 2455,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.433
+     "elapsed_s": 0.382
     },
     {
      "index": 40,
@@ -2257,7 +2257,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.347
+     "elapsed_s": 0.313
     },
     {
      "index": 47,
@@ -2272,7 +2272,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.028
+     "elapsed_s": 0.024
     },
     {
      "index": 50,
@@ -2287,7 +2287,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.004
+     "elapsed_s": 0.021
     }
    ]
   },
@@ -2301,14 +2301,14 @@
     "suboptimal": 0,
     "total_trick_loss": 0.23,
     "total_imp_loss": 1.66,
-    "total_time_s": 141.6,
-    "mean_s_per_graded": 12.87,
-    "max_decision_s": 40.773,
+    "total_time_s": 122.0,
+    "mean_s_per_graded": 11.09,
+    "max_decision_s": 36.585,
     "dds": {
      "solve": {
-      "calls": 1106,
-      "boards": 129826,
-      "seconds": 129.385
+      "calls": 1101,
+      "boards": 128394,
+      "seconds": 111.862
      },
      "table": {
       "calls": 0,
@@ -2325,8 +2325,8 @@
      "sampled": 2015,
      "consistent": 1100,
      "traced": 0,
-     "judged": 3235,
-     "memo_hits": 8441
+     "judged": 3207,
+     "memo_hits": 8415
     }
    },
    "decisions": [
@@ -2370,7 +2370,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 10.143
+     "elapsed_s": 8.441
     },
     {
      "index": 7,
@@ -2428,7 +2428,7 @@
       "sigma": 0.392,
       "inference": "filtered"
      },
-     "elapsed_s": 40.671
+     "elapsed_s": 36.585
     },
     {
      "index": 8,
@@ -2533,7 +2533,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.105
+     "elapsed_s": 0.115
     },
     {
      "index": 12,
@@ -2632,7 +2632,7 @@
       "sigma": 0.384,
       "inference": "filtered"
      },
-     "elapsed_s": 40.773
+     "elapsed_s": 35.709
     },
     {
      "index": 19,
@@ -2684,13 +2684,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 6,
-      "judged": 1262,
+      "judged": 1239,
       "memo_hits": 60,
       "threshold": 0.27,
-      "sigma": 0.353,
+      "sigma": 0.354,
       "inference": "filtered"
      },
-     "elapsed_s": 37.173
+     "elapsed_s": 30.335
     },
     {
      "index": 21,
@@ -2740,7 +2740,7 @@
       "sigma": 0.323,
       "inference": "filtered"
      },
-     "elapsed_s": 1.352
+     "elapsed_s": 1.111
     },
     {
      "index": 27,
@@ -2784,13 +2784,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 1,
-      "judged": 417,
-      "memo_hits": 776,
+      "judged": 412,
+      "memo_hits": 767,
       "threshold": 0.27,
       "sigma": 0.333,
       "inference": "filtered"
      },
-     "elapsed_s": 10.324
+     "elapsed_s": 8.742
     },
     {
      "index": 29,
@@ -2833,7 +2833,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.384
+     "elapsed_s": 0.302
     },
     {
      "index": 35,
@@ -2870,12 +2870,12 @@
       "traced": 0,
       "carried": 19,
       "judged": 12,
-      "memo_hits": 1702,
+      "memo_hits": 1685,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.383
+     "elapsed_s": 0.337
     },
     {
      "index": 38,
@@ -2933,7 +2933,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.102
+     "elapsed_s": 0.112
     },
     {
      "index": 42,
@@ -2984,7 +2984,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.148
+     "elapsed_s": 0.141
     },
     {
      "index": 45,
@@ -2999,7 +2999,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.017
+     "elapsed_s": 0.003
     },
     {
      "index": 48,
@@ -3014,7 +3014,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.016
+     "elapsed_s": 0.019
     }
    ]
   }

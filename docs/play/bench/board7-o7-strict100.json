@@ -95,8 +95,8 @@
   "cpu_count": 16,
   "python": "3.10.7",
   "dds_threads": 16,
-  "timestamp": "2026-09-04T13:27:16+00:00",
-  "total_time_s": 573.7
+  "timestamp": "2026-09-04T15:44:25+00:00",
+  "total_time_s": 534.9
  },
  "seats": {
   "N": {
@@ -109,14 +109,14 @@
     "suboptimal": 1,
     "total_trick_loss": 0.81,
     "total_imp_loss": 5.82,
-    "total_time_s": 110.0,
-    "mean_s_per_graded": 5.5,
-    "max_decision_s": 15.259,
+    "total_time_s": 98.8,
+    "mean_s_per_graded": 4.94,
+    "max_decision_s": 12.697,
     "dds": {
      "solve": {
-      "calls": 1910,
-      "boards": 191142,
-      "seconds": 91.743
+      "calls": 1909,
+      "boards": 191254,
+      "seconds": 82.426
      },
      "table": {
       "calls": 0,
@@ -133,8 +133,8 @@
      "sampled": 6454,
      "consistent": 1900,
      "traced": 0,
-     "judged": 4584,
-     "memo_hits": 21761
+     "judged": 4587,
+     "memo_hits": 21763
     }
    },
    "decisions": [
@@ -185,7 +185,7 @@
       "sigma": null,
       "inference": "trivial"
      },
-     "elapsed_s": 0.323
+     "elapsed_s": 0.349
     },
     {
      "index": 3,
@@ -227,7 +227,7 @@
       "sigma": 0.717,
       "inference": "filtered"
      },
-     "elapsed_s": 11.851
+     "elapsed_s": 12.237
     },
     {
      "index": 4,
@@ -340,7 +340,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.36
+     "elapsed_s": 0.417
     },
     {
      "index": 6,
@@ -396,7 +396,7 @@
       "sigma": 0.522,
       "inference": "filtered"
      },
-     "elapsed_s": 10.973
+     "elapsed_s": 9.783
     },
     {
      "index": 8,
@@ -503,7 +503,7 @@
       "sigma": 0.484,
       "inference": "filtered"
      },
-     "elapsed_s": 8.432
+     "elapsed_s": 8.667
     },
     {
      "index": 10,
@@ -553,7 +553,7 @@
       "sigma": 0.481,
       "inference": "filtered"
      },
-     "elapsed_s": 9.103
+     "elapsed_s": 8.168
     },
     {
      "index": 13,
@@ -596,7 +596,7 @@
       "sigma": 0.612,
       "inference": "filtered"
      },
-     "elapsed_s": 11.193
+     "elapsed_s": 10.027
     },
     {
      "index": 15,
@@ -611,7 +611,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.02
+     "elapsed_s": 0.011
     },
     {
      "index": 16,
@@ -705,7 +705,7 @@
       "sigma": 0.511,
       "inference": "filtered"
      },
-     "elapsed_s": 5.19
+     "elapsed_s": 4.667
     },
     {
      "index": 18,
@@ -762,7 +762,7 @@
       "sigma": 0.612,
       "inference": "filtered"
      },
-     "elapsed_s": 10.444
+     "elapsed_s": 8.952
     },
     {
      "index": 21,
@@ -777,7 +777,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.014
+     "elapsed_s": 0.01
     },
     {
      "index": 23,
@@ -855,13 +855,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 21,
-      "judged": 864,
+      "judged": 866,
       "memo_hits": 160,
       "threshold": 0.27,
-      "sigma": 0.559,
+      "sigma": 0.558,
       "inference": "filtered"
      },
-     "elapsed_s": 15.259
+     "elapsed_s": 12.697
     },
     {
      "index": 24,
@@ -939,7 +939,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.073
+     "elapsed_s": 0.085
     },
     {
      "index": 26,
@@ -981,7 +981,7 @@
       "sigma": 0.446,
       "inference": "filtered"
      },
-     "elapsed_s": 9.404
+     "elapsed_s": 7.891
     },
     {
      "index": 29,
@@ -1018,13 +1018,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 32,
-      "judged": 897,
+      "judged": 898,
       "memo_hits": 1412,
       "threshold": 0.27,
       "sigma": 0.657,
       "inference": "filtered"
      },
-     "elapsed_s": 12.264
+     "elapsed_s": 10.181
     },
     {
      "index": 31,
@@ -1039,7 +1039,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.004
+     "elapsed_s": 0.016
     },
     {
      "index": 32,
@@ -1106,7 +1106,7 @@
       "sigma": 0.487,
       "inference": "filtered"
      },
-     "elapsed_s": 1.813
+     "elapsed_s": 1.591
     },
     {
      "index": 34,
@@ -1144,12 +1144,12 @@
       "traced": 0,
       "carried": 47,
       "judged": 33,
-      "memo_hits": 1659,
+      "memo_hits": 1661,
       "threshold": 0.27,
       "sigma": 0.693,
       "inference": "filtered"
      },
-     "elapsed_s": 0.793
+     "elapsed_s": 0.673
     },
     {
      "index": 36,
@@ -1207,7 +1207,7 @@
       "sigma": 0.337,
       "inference": "filtered"
      },
-     "elapsed_s": 0.313
+     "elapsed_s": 0.269
     },
     {
      "index": 38,
@@ -1222,7 +1222,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.015
+     "elapsed_s": 0.016
     },
     {
      "index": 40,
@@ -1272,7 +1272,7 @@
       "sigma": 0.372,
       "inference": "filtered"
      },
-     "elapsed_s": 0.345
+     "elapsed_s": 0.316
     },
     {
      "index": 42,
@@ -1314,7 +1314,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.257
+     "elapsed_s": 0.227
     },
     {
      "index": 44,
@@ -1357,7 +1357,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.28
+     "elapsed_s": 0.284
     },
     {
      "index": 46,
@@ -1400,7 +1400,7 @@
       "sigma": null,
       "inference": "none"
      },
-     "elapsed_s": 1.279
+     "elapsed_s": 1.246
     },
     {
      "index": 49,
@@ -1415,7 +1415,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.016
+     "elapsed_s": 0.02
     },
     {
      "index": 51,
@@ -1444,14 +1444,14 @@
     "suboptimal": 0,
     "total_trick_loss": 0.54,
     "total_imp_loss": 1.66,
-    "total_time_s": 195.0,
-    "mean_s_per_graded": 19.5,
-    "max_decision_s": 84.987,
+    "total_time_s": 183.3,
+    "mean_s_per_graded": 18.33,
+    "max_decision_s": 79.054,
     "dds": {
      "solve": {
-      "calls": 2063,
-      "boards": 191368,
-      "seconds": 176.787
+      "calls": 2070,
+      "boards": 192012,
+      "seconds": 167.705
      },
      "table": {
       "calls": 0,
@@ -1468,8 +1468,8 @@
      "sampled": 6604,
      "consistent": 996,
      "traced": 0,
-     "judged": 5329,
-     "memo_hits": 9495
+     "judged": 5355,
+     "memo_hits": 9501
     }
    },
    "decisions": [
@@ -1591,7 +1591,7 @@
       "sigma": null,
       "inference": "trivial"
      },
-     "elapsed_s": 1.161
+     "elapsed_s": 1.078
     },
     {
      "index": 5,
@@ -1640,7 +1640,7 @@
       "sigma": 0.428,
       "inference": "filtered"
      },
-     "elapsed_s": 36.676
+     "elapsed_s": 35.111
     },
     {
      "index": 11,
@@ -1676,13 +1676,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 3,
-      "judged": 1822,
+      "judged": 1843,
       "memo_hits": 16,
       "threshold": 0.27,
-      "sigma": 0.471,
+      "sigma": 0.47,
       "inference": "filtered"
      },
-     "elapsed_s": 84.987
+     "elapsed_s": 79.054
     },
     {
      "index": 12,
@@ -1781,7 +1781,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.091
+     "elapsed_s": 0.087
     },
     {
      "index": 19,
@@ -1832,13 +1832,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 10,
-      "judged": 2615,
-      "memo_hits": 259,
+      "judged": 2619,
+      "memo_hits": 260,
       "threshold": 0.27,
       "sigma": 0.51,
       "inference": "filtered"
      },
-     "elapsed_s": 61.139
+     "elapsed_s": 57.375
     },
     {
      "index": 20,
@@ -1923,7 +1923,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.088
+     "elapsed_s": 0.086
     },
     {
      "index": 27,
@@ -1966,13 +1966,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 1,
-      "judged": 365,
-      "memo_hits": 2273,
+      "judged": 366,
+      "memo_hits": 2278,
       "threshold": 0.27,
-      "sigma": 0.562,
+      "sigma": 0.561,
       "inference": "filtered"
      },
-     "elapsed_s": 9.514
+     "elapsed_s": 9.212
     },
     {
      "index": 28,
@@ -2042,7 +2042,7 @@
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.083
+     "elapsed_s": 0.069
     },
     {
      "index": 33,
@@ -2057,7 +2057,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.024
+     "elapsed_s": 0.014
     },
     {
      "index": 37,
@@ -2113,7 +2113,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 1.1
+     "elapsed_s": 1.096
     },
     {
      "index": 41,
@@ -2155,7 +2155,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.139
+     "elapsed_s": 0.118
     },
     {
      "index": 47,
@@ -2170,7 +2170,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.024
+     "elapsed_s": 0.011
     },
     {
      "index": 48,
@@ -2185,7 +2185,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.015
+     "elapsed_s": 0.016
     }
    ]
   },
@@ -2199,14 +2199,14 @@
     "suboptimal": 0,
     "total_trick_loss": 0.3,
     "total_imp_loss": 0.84,
-    "total_time_s": 268.5,
-    "mean_s_per_graded": 26.85,
-    "max_decision_s": 63.766,
+    "total_time_s": 252.7,
+    "mean_s_per_graded": 25.27,
+    "max_decision_s": 60.552,
     "dds": {
      "solve": {
-      "calls": 3177,
-      "boards": 263870,
-      "seconds": 246.447
+      "calls": 3199,
+      "boards": 266166,
+      "seconds": 233.54
      },
      "table": {
       "calls": 0,
@@ -2223,8 +2223,8 @@
      "sampled": 4687,
      "consistent": 1000,
      "traced": 0,
-     "judged": 7019,
-     "memo_hits": 8631
+     "judged": 7086,
+     "memo_hits": 8755
     }
    },
    "decisions": [
@@ -2289,7 +2289,7 @@
       "sigma": 0.385,
       "inference": "filtered"
      },
-     "elapsed_s": 10.612
+     "elapsed_s": 10.258
     },
     {
      "index": 7,
@@ -2332,7 +2332,7 @@
       "sigma": 0.376,
       "inference": "filtered"
      },
-     "elapsed_s": 28.659
+     "elapsed_s": 27.969
     },
     {
      "index": 9,
@@ -2406,7 +2406,7 @@
       "sigma": 0.448,
       "inference": "filtered"
      },
-     "elapsed_s": 45.511
+     "elapsed_s": 43.262
     },
     {
      "index": 17,
@@ -2443,13 +2443,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 56,
-      "judged": 1022,
+      "judged": 1021,
       "memo_hits": 324,
       "threshold": 0.27,
       "sigma": 0.443,
       "inference": "filtered"
      },
-     "elapsed_s": 32.907
+     "elapsed_s": 31.307
     },
     {
      "index": 22,
@@ -2494,13 +2494,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 3,
-      "judged": 1772,
+      "judged": 1775,
       "memo_hits": 198,
       "threshold": 0.27,
       "sigma": 0.564,
       "inference": "filtered"
      },
-     "elapsed_s": 63.766
+     "elapsed_s": 60.552
     },
     {
      "index": 25,
@@ -2552,13 +2552,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 52,
-      "judged": 1917,
-      "memo_hits": 1032,
+      "judged": 1983,
+      "memo_hits": 1056,
       "threshold": 0.27,
-      "sigma": 0.56,
+      "sigma": 0.537,
       "inference": "filtered"
      },
-     "elapsed_s": 56.988
+     "elapsed_s": 51.101
     },
     {
      "index": 30,
@@ -2602,13 +2602,13 @@
       "consistent": 100,
       "traced": 0,
       "carried": 27,
-      "judged": 706,
-      "memo_hits": 1724,
+      "judged": 705,
+      "memo_hits": 1744,
       "threshold": 0.27,
-      "sigma": 0.524,
+      "sigma": 0.517,
       "inference": "filtered"
      },
-     "elapsed_s": 27.025
+     "elapsed_s": 25.278
     },
     {
      "index": 35,
@@ -2668,12 +2668,12 @@
       "traced": 0,
       "carried": 27,
       "judged": 72,
-      "memo_hits": 1620,
+      "memo_hits": 1649,
       "threshold": 0.27,
       "sigma": 0.36,
       "inference": "filtered"
      },
-     "elapsed_s": 2.526
+     "elapsed_s": 2.46
     },
     {
      "index": 39,
@@ -2726,12 +2726,12 @@
       "traced": 0,
       "carried": 27,
       "judged": 4,
-      "memo_hits": 1751,
+      "memo_hits": 1802,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.226
+     "elapsed_s": 0.229
     },
     {
      "index": 43,
@@ -2746,7 +2746,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.016
+     "elapsed_s": 0.017
     },
     {
      "index": 45,
@@ -2788,7 +2788,7 @@
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.205
+     "elapsed_s": 0.196
     },
     {
      "index": 50,
@@ -2803,7 +2803,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.025
+     "elapsed_s": 0.012
     }
    ]
   }

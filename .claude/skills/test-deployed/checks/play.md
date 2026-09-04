@@ -178,10 +178,12 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
 - **P-1.4-2 [full] Same verdicts, faster.** The closed room,
   `--qx c7 --strict --deals 100`, all seats: `compare_bench.py` against the
   committed `board7-c7-strict100.json` passes (18/1/1 · 11/0/0 · 10/0/0,
-  2.78 · 0 · 0.33 IMPs) and the total is within noise of **853 s** on the
-  16-thread laptop (declarer 122 s, ~6 s a decision) — the v1.3 build's
-  sequential rerun took 1 569 s. Board 14's 2♥x room
-  (`board14-c14-strict100.json`): W 18/3/0 · N 9/0/1 · S 10/1/0, 440 s.
+  2.78 · 0 · 0.33 IMPs) and the total is within noise of **814 s** on the
+  16-thread laptop (declarer 123 s, ~6 s a decision; this laptop's DDS
+  rate drifts ±15 % with temperature, so compare the `dds` counters
+  too) — the v1.3 build's sequential rerun took 1 569 s. Board 14's 2♥x
+  room (`board14-c14-strict100.json`): W 18/3/0 · N 9/0/1 · S 10/1/0,
+  384 s.
 - **P-1.4-3 [smoke] Plain grading untouched.** P-1.0-2 and P-1.3-2 still
   read their pinned numbers (P-1.3-2 at 4 threads).
 - **P-1.4-4 [full] What's new.** The panel lists v1.4 *Expert opponents:

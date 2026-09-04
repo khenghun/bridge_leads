@@ -564,3 +564,41 @@ def test_a_decision_with_no_survivors_stores_no_pool():
     _, st = _layouts_at(3, memo)
     key_count = sum(1 for (k, j) in memo.pools if j == 3)
     assert key_count == 1 and st.consistent == 8
+
+
+# --- the inner sample is drawn lazily, in the eager order ---------------------
+
+def test_layout_stream_taken_in_chunks_equals_the_eager_sample():
+    """A judgement that stops after its first wave must have seen exactly the
+    first layouts of the eager sample, whatever the chunking — the verdicts
+    stay those of the eager sample while the unused draws are never made."""
+    pos = _pos(6)
+    eager = grader._sample_layouts(pos, 'W', {}, 50, random.Random(9))
+    stream = grader._layout_stream(pos, 'W', {}, 50, random.Random(9))
+    chunks = [stream.take(16), stream.take(32), stream.take(64)]
+    assert [len(c) for c in chunks] == [16, 32, 2]          # capped at 50 overall
+    assert chunks[0] + chunks[1] + chunks[2] == eager
+    assert stream.take(5) == []                              # exhausted stays exhausted
+
+
+def test_judgement_draws_only_what_its_waves_use(monkeypatch):
+    """A verdict settled on the first wave draws INNER_FIRST layouts, not the cap."""
+    from engine.play import expert
+    drawn = []
+    real = grader._layout_stream
+
+    def counting(position, view, constraints, num_deals, rng):
+        s = real(position, view, constraints, num_deals, rng)
+        orig = s.take
+
+        def take(k):
+            out = orig(k)
+            drawn.append(len(out))
+            return out
+        s.take = take
+        return s
+    monkeypatch.setattr(grader, '_layout_stream', counting)
+    memo = VerdictMemo()
+    _layouts_at(3, memo)
+    assert drawn and all(n <= expert.INNER_FIRST or n <= 2 * expert.INNER_FIRST for n in drawn)
+    assert min(drawn) <= expert.INNER_FIRST                  # at least one judgement stopped early

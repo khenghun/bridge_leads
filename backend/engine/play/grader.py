@@ -43,8 +43,8 @@ from endplay.types import Deal, Denom, Player
 from ..dds_runtime import solve_all
 from ..scoring import declarer_score, imps
 from ..sampling import (
-    build_known_and_constraints, check_hcp_feasibility, check_length_feasibility,
-    generate_layouts,
+    LayoutStream, build_known_and_constraints, check_hcp_feasibility,
+    check_length_feasibility, generate_layouts,
 )
 from .expert import ExpertSettings, expert_layouts
 from .state import (
@@ -191,20 +191,33 @@ def infer_constraints(position: Position, view: str, constraints=None) -> dict:
 
 # --- the solve --------------------------------------------------------------
 
-def _sample_layouts(position, view, constraints, num_deals, rng):
-    """Deals consistent with what `view` can see and with the play so far."""
+def _sampler_inputs(position, view, constraints):
+    """The sampler's inputs for deals consistent with what `view` can see and
+    with the play so far; raises `ValueError` when they are infeasible."""
     merged = infer_constraints(position, view, constraints)
     known, hcp, suit_length, acceptors, quality = build_known_and_constraints(
         view, position.original[view], merged)
     check_hcp_feasibility(known, hcp)
     check_length_feasibility(known, suit_length)
-    layouts = generate_layouts(known, hcp, suit_length, acceptors, quality,
+    return known, hcp, suit_length, acceptors, quality
+
+
+def _sample_layouts(position, view, constraints, num_deals, rng):
+    """Deals consistent with what `view` can see and with the play so far."""
+    layouts = generate_layouts(*_sampler_inputs(position, view, constraints),
                                num_deals, rng=rng)
     if not layouts:
         raise ValueError(
             "No deals could be generated that fit both your constraints and the "
             "cards already played.")
     return layouts
+
+
+def _layout_stream(position, view, constraints, num_deals, rng) -> LayoutStream:
+    """`_sample_layouts` taken lazily: the same `num_deals` layouts in the
+    same order, drawn as the caller asks for them (`take(k)`). The expert
+    judgement stops early on most samples, so it never draws the rest."""
+    return LayoutStream(*_sampler_inputs(position, view, constraints), num_deals, rng=rng)
 
 
 def _position_on(layout_hands, strain, declarer, play) -> Position:

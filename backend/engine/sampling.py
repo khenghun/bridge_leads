@@ -287,32 +287,57 @@ def build_sampler(known, hcp, suit_length, acceptors, quality):
     return sampler
 
 
+class LayoutStream:
+    """Layouts `{seat: 'S.H.D.C'}` drawn on demand from one seeded stream.
+
+    `take(k)` returns the next up-to-`k` layouts; the sequence is the same
+    whether they are taken one at a time or all at once, so a consumer that
+    stops early (the play solver's sequential judgement) pays only for what
+    it used. Exact sampler first (uniform over all HCP-consistent deals),
+    falling back to the legacy steered generator if its rejection step
+    produces nothing at all. At most `limit` layouts and `max_attempts`
+    draws over the stream's life.
+    """
+
+    def __init__(self, known, hcp, suit_length, acceptors, quality, limit,
+                 rng=None, max_attempts_factor=1000):
+        self.known, self.hcp, self.suit_length = known, hcp, suit_length
+        self.acceptors = acceptors
+        self.rng = rng if rng is not None else random
+        self.sampler = build_sampler(known, hcp, suit_length, acceptors, quality)
+        self.limit = limit
+        self.max_attempts = limit * max_attempts_factor
+        self.attempts = 0
+        self.count = 0
+        self.use_exact = True
+
+    def take(self, k):
+        out = []
+        want = min(k, self.limit - self.count)
+        while len(out) < want and self.attempts < self.max_attempts:
+            self.attempts += 1
+            if self.use_exact:
+                hands = self.sampler.sample(self.rng)
+                if (hands is None and self.count == 0 and not out
+                        and self.attempts >= _EXACT_FALLBACK_ATTEMPTS):
+                    self.use_exact = False
+            else:
+                hands = generate_deal(self.known, self.hcp, self.suit_length,
+                                      max_attempts=1000, rng=self.rng,
+                                      acceptors=self.acceptors or None)
+            if hands is None:
+                continue
+            out.append({p: hand_list_to_str(hands[p]) for p in DG_PLAYERS})
+        self.count += len(out)
+        return out
+
+
 def generate_layouts(known, hcp, suit_length, acceptors, quality,
                      num_deals, rng=None, max_attempts_factor=1000):
     """Sample up to `num_deals` deals as layouts `{seat: 'S.H.D.C'}`.
 
-    Exact sampler first (uniform over all HCP-consistent deals), falling back to
-    the legacy steered generator if its rejection step produces nothing at all.
-    Returns a list of layouts, shorter than `num_deals` only if the attempt
-    budget ran out.
+    `LayoutStream` taken in one go. Returns a list of layouts, shorter than
+    `num_deals` only if the attempt budget ran out.
     """
-    rng = rng if rng is not None else random
-    sampler = build_sampler(known, hcp, suit_length, acceptors, quality)
-
-    layouts = []
-    use_exact = True
-    attempts = 0
-    max_attempts = num_deals * max_attempts_factor
-    while len(layouts) < num_deals and attempts < max_attempts:
-        attempts += 1
-        if use_exact:
-            hands = sampler.sample(rng)
-            if hands is None and not layouts and attempts >= _EXACT_FALLBACK_ATTEMPTS:
-                use_exact = False
-        else:
-            hands = generate_deal(known, hcp, suit_length, max_attempts=1000, rng=rng,
-                                  acceptors=acceptors or None)
-        if hands is None:
-            continue
-        layouts.append({p: hand_list_to_str(hands[p]) for p in DG_PLAYERS})
-    return layouts
+    return LayoutStream(known, hcp, suit_length, acceptors, quality, num_deals,
+                        rng=rng, max_attempts_factor=max_attempts_factor).take(num_deals)
