@@ -480,3 +480,87 @@ def test_priority_prefers_cheap_and_often_rejected_plays():
     # never rejects; and an expensive rejecter behind both, since it buys
     # fewer rejections per second than either.
     assert p['cheap-rej'] > p['unseen'] > p['cheap-acc'] > p['dear-rej']
+
+
+# --- carrying the consistent pool forward between decisions ------------------
+
+def _pos(k):
+    return grader._position_on(HANDS, 'N', 'W', PLAY[:k])
+
+
+def test_carry_forward_keeps_only_layouts_the_play_since_allows():
+    from engine.play.expert import _carry_forward
+    early = grader._sample_layouts(_pos(2), 'W', {}, 40, random.Random(3))
+    later = _pos(6)
+    kept = _carry_forward((2, early), later, 'W', PLAY[:6])
+    assert 0 < len(kept) < len(early)             # some hidden hands hold the cards played at 2..5, some don't
+    for L in early:
+        legal = True
+        try:
+            state.replay(L, 'N', 'W', PLAY[:6])
+        except ValueError:
+            legal = False
+        assert (L in kept) == legal
+    # every kept layout keeps the visible hands (declarer's and dummy's) real
+    for L in kept:
+        assert set(state.hand_to_cards(L['W'])) == set(later.original['W'])
+        assert set(state.hand_to_cards(L['E'])) == set(later.original['E'])
+
+
+def test_carry_forward_drops_layouts_whose_visible_hands_differ():
+    """A pool from the opening lead sampled dummy; once dummy is faced those
+    layouts are only usable if they happened to deal the real dummy."""
+    from engine.play.expert import _carry_forward
+    lead_pool = grader._sample_layouts(_pos(0), 'N', {}, 30, random.Random(4))   # North leads, sees only North
+    kept = _carry_forward((0, lead_pool), _pos(1), 'N', PLAY[:1])
+    assert all(set(state.hand_to_cards(L['E'])) == set(_pos(1).original['E']) for L in kept)
+    assert len(kept) < len(lead_pool)
+    assert _carry_forward(None, _pos(1), 'N', PLAY[:1]) == []
+
+
+def test_pool_before_returns_the_latest_earlier_index():
+    memo = VerdictMemo()
+    memo.pool_put('k', 3, ['a'])
+    memo.pool_put('k', 5, ['b'])
+    memo.pool_put('other', 6, ['c'])
+    assert memo.pool_before('k', 7) == (5, ['b'])
+    assert memo.pool_before('k', 5) == (3, ['a'])
+    assert memo.pool_before('k', 3) is None
+    memo.clear()
+    assert memo.pool_before('k', 7) is None
+
+
+def _layouts_at(k, memo, settings=ExpertSettings(strict=True)):
+    return expert_layouts(_pos(k), 'W', {}, {}, 8, settings, random.Random(0),
+                          level=1, context_key=('carry',), memo=memo)
+
+
+def test_the_next_decision_starts_from_the_previous_pool():
+    memo = VerdictMemo()
+    first, s1 = _layouts_at(3, memo)
+    assert s1.carried == 0 and s1.consistent == 8
+    second, s2 = _layouts_at(5, memo)
+    # Whatever survived the two cards played at 3 and 4 was examined first...
+    from engine.play.expert import _carry_forward
+    survivors = _carry_forward((3, first), _pos(5), 'W', PLAY[:5])
+    assert s2.carried == len(survivors) > 0
+    assert s2.sampled >= s2.carried and s2.consistent == 8
+    # ...and the accepted ones lead the result, in the previous pool's order.
+    accepted_carried = [L for L in survivors if L in second]
+    assert second[:len(accepted_carried)] == accepted_carried
+    # A cold run of the same decision draws everything itself.
+    cold, s3 = _layouts_at(5, VerdictMemo())
+    assert s3.carried == 0 and s3.consistent == 8
+    # Out-of-order requests simply miss the pool.
+    _, s4 = _layouts_at(4, memo)          # a pool exists at 3 (and 5): 3 is the latest below 4
+    assert s4.carried == len(_carry_forward((3, first), _pos(4), 'W', PLAY[:4]))
+
+
+def test_a_decision_with_no_survivors_stores_no_pool():
+    memo = VerdictMemo()
+    memo.pool_put(('x',), 2, [])
+    assert memo.pool_before(('x',), 3) == (2, [])
+    # expert_layouts itself only stores non-empty accepted pools
+    _, st = _layouts_at(3, memo)
+    key_count = sum(1 for (k, j) in memo.pools if j == 3)
+    assert key_count == 1 and st.consistent == 8

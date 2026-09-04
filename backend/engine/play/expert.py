@@ -27,9 +27,13 @@ The pieces, in the order the outer loop uses them:
   shrinks with the inner sample (`Verdict`). Memoised on the judging seat's
   holding, since dummy, the play and the constraints are the same for every
   layout — that holding is everything the verdict depends on.
-- `expert_layouts(...)` — the outer loop: draw, trace, judge latest-first with
-  early exit, stop at `num_deals` accepted, fall back to the unfiltered pool
-  when nothing survives.
+- `expert_layouts(...)` — the outer loop: start from the layouts the same
+  seat's previous decision accepted (still consistent with the cards played
+  since, their earlier verdicts already memoised — only the new plays get
+  judged), then draw fresh layouts for the deficit, trace, judge in priority
+  order with early exit, stop at `num_deals` accepted, fall back to the
+  unfiltered pool when nothing survives. The carried pool lives in the memo
+  (`VerdictMemo.pool_put/pool_before`), keyed like the verdicts.
 
 Perspective, three times over: `analyse_plays` values are **declarer** tricks;
 `grader._solve` returns **declarer** tricks per card; an opponent's "best" is
@@ -40,6 +44,7 @@ function here (`dd_costs`, `_side_tricks`).
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import random
 import threading
@@ -62,6 +67,7 @@ SD_FLOOR = 0.3          # a tiny all-alike sample may not claim certainty
 SIGMA_PLANNING = 0.6    # sd of the paired difference, used only for reporting
 POOL_MIN = 5            # smallest top-up round of outer layouts
 MEMO_ENTRIES = 20000
+POOL_ENTRIES = 512      # carried layout pools (a whole table is ~40)
 
 
 @dataclass(frozen=True)
@@ -113,6 +119,7 @@ class ExpertStats:
     sampled: int = 0        # outer layouts examined (accepted + rejected)
     consistent: int = 0     # layouts graded on
     traced: int = 0         # layouts that went through the DD trace
+    carried: int = 0        # layouts carried from the seat's previous decision (in `sampled`)
     judged: int = 0         # inner judgements actually run (memo misses)
     memo_hits: int = 0
     inference: str = 'filtered'     # 'filtered' | 'none' (nothing survived) | 'trivial' (nothing to judge)
@@ -129,7 +136,8 @@ class ExpertStats:
         sigma = round(sum(self.sigmas) / len(self.sigmas), 3) if self.sigmas else None
         return {
             'sampled': self.sampled, 'consistent': self.consistent,
-            'traced': self.traced, 'judged': self.judged, 'memo_hits': self.memo_hits,
+            'traced': self.traced, 'carried': self.carried,
+            'judged': self.judged, 'memo_hits': self.memo_hits,
             'threshold': self.threshold(settings, inner_cap),
             'sigma': sigma,
             'inference': self.inference,
@@ -151,6 +159,11 @@ class VerdictMemo:
         # judgement of it costs. Never evicted; a few hundred entries per hand.
         self.rejections: dict = {}      # rate key -> [inconsistent, judged]
         self.costs: dict = {}           # rate key -> [seconds, judgements]
+        # The layouts a decision accepted, so the same seat's next decision
+        # can start from them: (pool key, play index) -> [layout, ...].
+        # Bounded LRU like the verdicts; a whole table is ~40 entries.
+        self.pools: OrderedDict = OrderedDict()
+        self._max_pools = POOL_ENTRIES
 
     @staticmethod
     def rate_key(key):
@@ -200,11 +213,31 @@ class VerdictMemo:
                 cost = min(measured) if measured else 1.0
             return p / max(cost, 1e-6)
 
+    def pool_put(self, key, index: int, layouts) -> None:
+        with self._lock:
+            self.pools[(key, index)] = list(layouts)
+            self.pools.move_to_end((key, index))
+            while len(self.pools) > self._max_pools:
+                self.pools.popitem(last=False)
+
+    def pool_before(self, key, index: int):
+        """The latest stored pool of `key` at a play index below `index`, as
+        `(that index, layouts)`, or None."""
+        with self._lock:
+            best = None
+            for (k, j), layouts in self.pools.items():
+                if k == key and j < index and (best is None or j > best[0]):
+                    best = (j, layouts)
+            if best is not None:
+                self.pools.move_to_end((key, best[0]))
+            return best
+
     def clear(self) -> None:
         with self._lock:
             self._d.clear()
             self.rejections.clear()
             self.costs.clear()
+            self.pools.clear()
 
     def __len__(self) -> int:
         return len(self._d)
@@ -587,6 +620,30 @@ def _resolve(plan, ctx, settings, memo, stats, judge_kwargs) -> list[bool]:
 
 # --- the outer loop ---------------------------------------------------------
 
+def _carry_forward(prior, position, view, play) -> list:
+    """The layouts of `prior` (`(index, layouts)` from an earlier decision of
+    the same view, or None) that are still consistent at `position`: every
+    seat the view can see now must be its real hand (dummy joins at trick
+    one), and the play since must be legal on the layout — the hidden seats
+    hold the cards they played and followed suit when they could."""
+    if not prior:
+        return []
+    from . import grader  # lazy: grader imports this module
+    from .state import hand_to_cards
+
+    real = {s: set(position.original[s]) for s in grader.visible_seats(position, view)}
+    out = []
+    for L in prior[1]:
+        if any(set(hand_to_cards(L[s])) != cards for s, cards in real.items()):
+            continue
+        try:
+            grader._position_on(L, position.strain, position.declarer, play)
+        except ValueError:
+            continue
+        out.append(L)
+    return out
+
+
 def expert_layouts(position, view, constraints, all_constraints, num_deals,
                    settings, rng, *, level, context_key, memo=None):
     """Layouts for grading `position` through `view`'s eyes, each consistent
@@ -606,23 +663,15 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
 
     accepted: list = []
     pool_all: list = []
-    drawn = 0
-    limit = settings.budget * n
-    while len(accepted) < n and drawn < limit:
-        # Draw only the deficit: every drawn layout is traced, and the trace
-        # (one DDS line analysis from trick one) is the dominant cost.
-        want = min(max(n - len(accepted), POOL_MIN), limit - drawn)
-        pool = grader._sample_layouts(position, view, constraints, want, rng)
-        if not pool:
-            break
-        drawn += len(pool)
-        pool_all.extend(pool)
 
+    def examine(pool):
+        """Filter one batch of layouts into `accepted` (up to `n`)."""
         decisions = [opponent_decisions(L, strain, declarer, play, i, view) for L in pool]
         if not any(decisions):
-            accepted.extend(pool[:n - len(accepted)])
-            stats.sampled = len(accepted)
-            continue
+            take = pool[:n - len(accepted)]
+            accepted.extend(take)
+            stats.sampled += len(take)
+            return
 
         if settings.strict:
             costs = [None] * len(pool)
@@ -633,12 +682,6 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
             stats.traced += len(pool)
             costs = [dd_costs(t, ds, declarer) for t, ds in zip(traces, decisions)]
 
-        # Resolve the round's verdicts wavefront-by-suspect-depth: judge the
-        # k-th unresolved suspect of every still-alive layout together (their
-        # inner deals share big DDS calls), drop layouts as a suspect rejects,
-        # then move to depth k+1. Like the one-at-a-time path, nothing past a
-        # layout's first rejection is ever judged — batching every suspect up
-        # front tripled the fresh-judgement count on the board-7 benchmark.
         plan = []
         for L, ds, cost in zip(pool, decisions, costs):
             suspects = ds if cost is None else [d for d in ds if cost[d.index] > 0]
@@ -656,6 +699,33 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
             if ok:
                 accepted.append(L)
 
+    # Start from the layouts this seat's previous decision accepted. Each is
+    # still a uniform draw from the layouts consistent with the play so far
+    # once the cards played since are checked (a uniform sample filtered by
+    # a predicate is a uniform sample of the smaller set), and its earlier
+    # verdicts are memo hits — only the plays since then get judged.
+    pool_key = (ctx, view, json.dumps(constraints or {}, sort_keys=True, default=list))
+    carried = _carry_forward(memo.pool_before(pool_key, i), position, view, play)
+    if carried:
+        stats.carried = len(carried)
+        pool_all.extend(carried)
+        examine(carried)
+
+    drawn = 0
+    limit = settings.budget * n
+    while len(accepted) < n and drawn < limit:
+        # Draw only the deficit: every drawn layout is traced, and the trace
+        # (one DDS line analysis from trick one) is the dominant cost.
+        want = min(max(n - len(accepted), POOL_MIN), limit - drawn)
+        pool = grader._sample_layouts(position, view, constraints, want, rng)
+        if not pool:
+            break
+        drawn += len(pool)
+        pool_all.extend(pool)
+        examine(pool)
+
+    if accepted:
+        memo.pool_put(pool_key, i, accepted)
     if not accepted:
         stats.inference = 'none'
         stats.consistent = 0

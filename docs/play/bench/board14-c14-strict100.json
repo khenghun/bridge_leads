@@ -95,8 +95,8 @@
   "cpu_count": 16,
   "python": "3.10.7",
   "dds_threads": 16,
-  "timestamp": "2026-09-04T13:06:37+00:00",
-  "total_time_s": 458.7
+  "timestamp": "2026-09-04T13:51:04+00:00",
+  "total_time_s": 439.9
  },
  "seats": {
   "W": {
@@ -104,19 +104,19 @@
    "summary": {
     "decisions": 26,
     "graded": 21,
-    "optimal": 20,
-    "good": 1,
+    "optimal": 18,
+    "good": 3,
     "suboptimal": 0,
-    "total_trick_loss": 0.2,
-    "total_imp_loss": 2.0,
-    "total_time_s": 194.0,
-    "mean_s_per_graded": 9.24,
-    "max_decision_s": 25.674,
+    "total_trick_loss": 0.29,
+    "total_imp_loss": 2.83,
+    "total_time_s": 159.7,
+    "mean_s_per_graded": 7.6,
+    "max_decision_s": 22.229,
     "dds": {
      "solve": {
-      "calls": 3624,
-      "boards": 377084,
-      "seconds": 162.36
+      "calls": 2786,
+      "boards": 251612,
+      "seconds": 135.427
      },
      "table": {
       "calls": 0,
@@ -130,11 +130,11 @@
      }
     },
     "expert_totals": {
-     "sampled": 6143,
+     "sampled": 4186,
      "consistent": 2100,
      "traced": 0,
-     "judged": 9038,
-     "memo_hits": 15667
+     "judged": 5998,
+     "memo_hits": 15928
     }
    },
    "decisions": [
@@ -180,13 +180,14 @@
       "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 0,
       "judged": 0,
       "memo_hits": 0,
       "threshold": 0.27,
       "sigma": null,
       "inference": "trivial"
      },
-     "elapsed_s": 0.131
+     "elapsed_s": 0.137
     },
     {
      "index": 3,
@@ -199,52 +200,50 @@
      "imp_diff": 0.0,
      "score_diff": 0.0,
      "best_cards": [
-      "SA",
-      "S9",
-      "S8",
-      "S7"
+      "SA"
      ],
      "options": [
       {
        "card": "SA",
-       "tricks": 6.52,
-       "success_rate": 0.01,
-       "score": -192.3,
+       "tricks": 6.57,
+       "success_rate": 0.06,
+       "score": -163.8,
        "imps": 0.0
       },
       {
        "card": "S9",
-       "tricks": 6.52,
-       "success_rate": 0.0,
-       "score": -196.0,
-       "imps": -0.03
+       "tricks": 6.5,
+       "success_rate": 0.02,
+       "score": -192.6,
+       "imps": -0.5
       },
       {
        "card": "S8",
-       "tricks": 6.52,
-       "success_rate": 0.0,
-       "score": -196.0,
-       "imps": -0.03
+       "tricks": 6.5,
+       "success_rate": 0.02,
+       "score": -192.6,
+       "imps": -0.5
       },
       {
        "card": "S7",
-       "tricks": 6.52,
-       "success_rate": 0.0,
-       "score": -196.0,
-       "imps": -0.03
+       "tricks": 6.5,
+       "success_rate": 0.02,
+       "score": -192.6,
+       "imps": -0.5
       }
      ],
      "expert": {
       "sampled": 100,
       "consistent": 100,
       "traced": 0,
-      "judged": 93,
+      "carried": 70,
+      "judged": 90,
       "memo_hits": 0,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 4.776
+     "elapsed_s": 5.531
     },
     {
      "index": 4,
@@ -253,109 +252,110 @@
      "card": "C2",
      "forced": false,
      "status": "optimal",
-     "diff": -0.02,
-     "imp_diff": -0.1,
-     "score_diff": -4.0,
+     "diff": -0.03,
+     "imp_diff": -0.21,
+     "score_diff": -9.7,
      "best_cards": [
       "DA"
      ],
      "options": [
       {
        "card": "DA",
-       "tricks": 6.52,
-       "success_rate": 0.01,
-       "score": -192.3,
+       "tricks": 6.55,
+       "success_rate": 0.04,
+       "score": -175.2,
        "imps": 0.0
       },
       {
        "card": "C2",
-       "tricks": 6.5,
-       "success_rate": 0.01,
-       "score": -196.3,
-       "imps": -0.1
+       "tricks": 6.52,
+       "success_rate": 0.03,
+       "score": -184.9,
+       "imps": -0.21
       },
       {
        "card": "S9",
        "tricks": 6.42,
-       "success_rate": 0.0,
-       "score": -216.0,
-       "imps": -0.53
+       "success_rate": 0.02,
+       "score": -208.6,
+       "imps": -0.65
       },
       {
        "card": "S8",
        "tricks": 6.42,
-       "success_rate": 0.0,
-       "score": -216.0,
-       "imps": -0.53
+       "success_rate": 0.02,
+       "score": -208.6,
+       "imps": -0.65
       },
       {
        "card": "S7",
        "tricks": 6.42,
-       "success_rate": 0.0,
-       "score": -216.0,
-       "imps": -0.53
+       "success_rate": 0.02,
+       "score": -208.6,
+       "imps": -0.65
       },
       {
        "card": "HJ",
-       "tricks": 6.38,
+       "tricks": 6.35,
        "success_rate": 0.0,
-       "score": -224.0,
-       "imps": -0.73
+       "score": -230.0,
+       "imps": -1.12
       },
       {
        "card": "H7",
-       "tricks": 6.38,
+       "tricks": 6.35,
        "success_rate": 0.0,
-       "score": -224.0,
-       "imps": -0.73
+       "score": -230.0,
+       "imps": -1.12
       },
       {
        "card": "H2",
-       "tricks": 6.38,
+       "tricks": 6.35,
        "success_rate": 0.0,
-       "score": -224.0,
-       "imps": -0.73
+       "score": -230.0,
+       "imps": -1.12
       },
       {
        "card": "DJ",
-       "tricks": 6.22,
+       "tricks": 6.29,
        "success_rate": 0.0,
-       "score": -256.0,
-       "imps": -1.52
+       "score": -242.0,
+       "imps": -1.41
       },
       {
        "card": "D9",
-       "tricks": 6.22,
+       "tricks": 6.29,
        "success_rate": 0.0,
-       "score": -256.0,
-       "imps": -1.52
+       "score": -242.0,
+       "imps": -1.41
       },
       {
        "card": "D6",
-       "tricks": 6.22,
+       "tricks": 6.29,
        "success_rate": 0.0,
-       "score": -256.0,
-       "imps": -1.52
+       "score": -242.0,
+       "imps": -1.41
       },
       {
        "card": "D3",
-       "tricks": 6.22,
+       "tricks": 6.29,
        "success_rate": 0.0,
-       "score": -256.0,
-       "imps": -1.52
+       "score": -242.0,
+       "imps": -1.41
       }
      ],
      "expert": {
       "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 100,
       "judged": 0,
-      "memo_hits": 93,
+      "memo_hits": 90,
       "threshold": 0.27,
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.229
+     "elapsed_s": 0.291
     },
     {
      "index": 6,
@@ -368,44 +368,45 @@
      "imp_diff": 0.0,
      "score_diff": 0.0,
      "best_cards": [
-      "C9",
       "C7",
-      "C6"
+      "C6",
+      "C9"
      ],
      "options": [
       {
-       "card": "C9",
-       "tricks": 6.58,
-       "success_rate": 0.03,
-       "score": -172.9,
-       "imps": 0.0
-      },
-      {
        "card": "C7",
-       "tricks": 6.58,
+       "tricks": 6.5,
        "success_rate": 0.03,
-       "score": -172.9,
+       "score": -188.9,
        "imps": 0.0
       },
       {
        "card": "C6",
-       "tricks": 6.58,
+       "tricks": 6.5,
        "success_rate": 0.03,
-       "score": -172.9,
+       "score": -188.9,
        "imps": 0.0
+      },
+      {
+       "card": "C9",
+       "tricks": 6.49,
+       "success_rate": 0.03,
+       "score": -190.9,
+       "imps": -0.05
       }
      ],
      "expert": {
       "sampled": 100,
       "consistent": 100,
       "traced": 0,
-      "judged": 193,
-      "memo_hits": 0,
+      "carried": 49,
+      "judged": 148,
+      "memo_hits": 45,
       "threshold": 0.27,
-      "sigma": 0.302,
+      "sigma": 0.303,
       "inference": "filtered"
      },
-     "elapsed_s": 9.006
+     "elapsed_s": 7.574
     },
     {
      "index": 9,
@@ -425,37 +426,38 @@
      "options": [
       {
        "card": "S9",
-       "tricks": 6.87,
-       "success_rate": 0.14,
-       "score": -77.2,
+       "tricks": 6.84,
+       "success_rate": 0.13,
+       "score": -85.9,
        "imps": 0.0
       },
       {
        "card": "S8",
-       "tricks": 6.87,
-       "success_rate": 0.14,
-       "score": -77.2,
+       "tricks": 6.84,
+       "success_rate": 0.13,
+       "score": -85.9,
        "imps": 0.0
       },
       {
        "card": "S7",
-       "tricks": 6.87,
-       "success_rate": 0.14,
-       "score": -77.2,
+       "tricks": 6.84,
+       "success_rate": 0.13,
+       "score": -85.9,
        "imps": 0.0
       }
      ],
      "expert": {
-      "sampled": 122,
+      "sampled": 124,
       "consistent": 100,
       "traced": 0,
-      "judged": 430,
-      "memo_hits": 0,
+      "carried": 22,
+      "judged": 406,
+      "memo_hits": 44,
       "threshold": 0.27,
-      "sigma": 0.342,
+      "sigma": 0.346,
       "inference": "filtered"
      },
-     "elapsed_s": 13.919
+     "elapsed_s": 16.54
     },
     {
      "index": 11,
@@ -474,30 +476,31 @@
      "options": [
       {
        "card": "ST",
-       "tricks": 6.77,
-       "success_rate": 0.07,
-       "score": -120.1,
+       "tricks": 6.74,
+       "success_rate": 0.08,
+       "score": -122.4,
        "imps": 0.0
       },
       {
        "card": "S5",
-       "tricks": 6.77,
-       "success_rate": 0.07,
-       "score": -120.1,
+       "tricks": 6.74,
+       "success_rate": 0.08,
+       "score": -122.4,
        "imps": 0.0
       }
      ],
      "expert": {
-      "sampled": 116,
+      "sampled": 105,
       "consistent": 100,
       "traced": 0,
-      "judged": 507,
-      "memo_hits": 11,
+      "carried": 61,
+      "judged": 229,
+      "memo_hits": 249,
       "threshold": 0.27,
-      "sigma": 0.329,
+      "sigma": 0.323,
       "inference": "filtered"
      },
-     "elapsed_s": 12.609
+     "elapsed_s": 6.346
     },
     {
      "index": 13,
@@ -515,51 +518,52 @@
      "options": [
       {
        "card": "DA",
-       "tricks": 7.76,
+       "tricks": 7.77,
        "success_rate": 0.78,
-       "score": 340.6,
+       "score": 341.6,
        "imps": 0.0
       },
       {
        "card": "DJ",
-       "tricks": 6.91,
-       "success_rate": 0.16,
-       "score": -68.8,
-       "imps": -7.57
+       "tricks": 6.89,
+       "success_rate": 0.15,
+       "score": -76.5,
+       "imps": -7.74
       },
       {
        "card": "D9",
-       "tricks": 6.89,
-       "success_rate": 0.16,
-       "score": -70.8,
-       "imps": -7.63
+       "tricks": 6.87,
+       "success_rate": 0.15,
+       "score": -78.5,
+       "imps": -7.8
       },
       {
        "card": "D6",
-       "tricks": 6.89,
-       "success_rate": 0.16,
-       "score": -70.8,
-       "imps": -7.63
+       "tricks": 6.87,
+       "success_rate": 0.15,
+       "score": -78.5,
+       "imps": -7.8
       },
       {
        "card": "D3",
-       "tricks": 6.89,
-       "success_rate": 0.16,
-       "score": -70.8,
-       "imps": -7.63
+       "tricks": 6.87,
+       "success_rate": 0.15,
+       "score": -78.5,
+       "imps": -7.8
       }
      ],
      "expert": {
-      "sampled": 391,
+      "sampled": 406,
       "consistent": 100,
       "traced": 0,
-      "judged": 879,
-      "memo_hits": 4,
+      "carried": 53,
+      "judged": 842,
+      "memo_hits": 253,
       "threshold": 0.27,
-      "sigma": 0.463,
+      "sigma": 0.473,
       "inference": "filtered"
      },
-     "elapsed_s": 19.52
+     "elapsed_s": 22.229
     },
     {
      "index": 15,
@@ -574,7 +578,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.023
+     "elapsed_s": 0.017
     },
     {
      "index": 16,
@@ -582,10 +586,10 @@
      "hand": "W",
      "card": "D3",
      "forced": false,
-     "status": "optimal",
-     "diff": -0.02,
-     "imp_diff": -0.22,
-     "score_diff": -11.4,
+     "status": "good",
+     "diff": -0.07,
+     "imp_diff": -0.61,
+     "score_diff": -30.5,
      "best_cards": [
       "DJ",
       "D9"
@@ -593,79 +597,80 @@
      "options": [
       {
        "card": "DJ",
-       "tricks": 7.84,
-       "success_rate": 0.84,
-       "score": 378.8,
+       "tricks": 7.77,
+       "success_rate": 0.77,
+       "score": 336.9,
        "imps": 0.0
       },
       {
        "card": "D9",
-       "tricks": 7.84,
-       "success_rate": 0.84,
-       "score": 378.8,
+       "tricks": 7.77,
+       "success_rate": 0.77,
+       "score": 336.9,
        "imps": 0.0
       },
       {
        "card": "D6",
-       "tricks": 7.82,
-       "success_rate": 0.82,
-       "score": 367.4,
-       "imps": -0.22
+       "tricks": 7.7,
+       "success_rate": 0.72,
+       "score": 306.4,
+       "imps": -0.61
       },
       {
        "card": "D3",
-       "tricks": 7.82,
-       "success_rate": 0.82,
-       "score": 367.4,
-       "imps": -0.22
+       "tricks": 7.7,
+       "success_rate": 0.72,
+       "score": 306.4,
+       "imps": -0.61
       },
       {
        "card": "S9",
-       "tricks": 7.39,
-       "success_rate": 0.44,
-       "score": 140.8,
-       "imps": -4.56
+       "tricks": 7.36,
+       "success_rate": 0.4,
+       "score": 120.0,
+       "imps": -4.23
       },
       {
        "card": "S8",
-       "tricks": 7.39,
-       "success_rate": 0.44,
-       "score": 140.8,
-       "imps": -4.56
+       "tricks": 7.36,
+       "success_rate": 0.4,
+       "score": 120.0,
+       "imps": -4.23
       },
       {
        "card": "H7",
-       "tricks": 6.77,
+       "tricks": 6.71,
        "success_rate": 0.07,
-       "score": -120.1,
-       "imps": -9.31
+       "score": -132.1,
+       "imps": -8.82
       },
       {
        "card": "H2",
-       "tricks": 6.77,
+       "tricks": 6.71,
        "success_rate": 0.07,
-       "score": -120.1,
-       "imps": -9.31
+       "score": -132.1,
+       "imps": -8.82
       },
       {
        "card": "HJ",
-       "tricks": 6.72,
-       "success_rate": 0.06,
-       "score": -133.8,
-       "imps": -9.53
+       "tricks": 6.67,
+       "success_rate": 0.07,
+       "score": -140.1,
+       "imps": -8.9
       }
      ],
      "expert": {
-      "sampled": 414,
+      "sampled": 256,
       "consistent": 100,
       "traced": 0,
-      "judged": 998,
-      "memo_hits": 19,
+      "carried": 54,
+      "judged": 525,
+      "memo_hits": 314,
       "threshold": 0.27,
-      "sigma": 0.45,
+      "sigma": 0.445,
       "inference": "filtered"
      },
-     "elapsed_s": 21.773
+     "elapsed_s": 13.578
     },
     {
      "index": 18,
@@ -686,79 +691,80 @@
      "options": [
       {
        "card": "H6",
-       "tricks": 7.66,
+       "tricks": 7.7,
        "success_rate": 0.72,
-       "score": 297.4,
+       "score": 302.4,
        "imps": 0.0
       },
       {
        "card": "H5",
-       "tricks": 7.66,
+       "tricks": 7.7,
        "success_rate": 0.72,
-       "score": 297.4,
+       "score": 302.4,
        "imps": 0.0
       },
       {
        "card": "H4",
-       "tricks": 7.66,
+       "tricks": 7.7,
        "success_rate": 0.72,
-       "score": 297.4,
+       "score": 302.4,
        "imps": 0.0
       },
       {
        "card": "H3",
-       "tricks": 7.66,
+       "tricks": 7.7,
        "success_rate": 0.72,
-       "score": 297.4,
+       "score": 302.4,
        "imps": 0.0
       },
       {
        "card": "HQ",
-       "tricks": 7.56,
-       "success_rate": 0.58,
-       "score": 226.6,
-       "imps": -1.33
+       "tricks": 7.61,
+       "success_rate": 0.6,
+       "score": 241.0,
+       "imps": -1.15
       },
       {
        "card": "HT",
-       "tricks": 7.56,
-       "success_rate": 0.58,
-       "score": 226.6,
-       "imps": -1.33
+       "tricks": 7.61,
+       "success_rate": 0.6,
+       "score": 241.0,
+       "imps": -1.15
       },
       {
        "card": "ST",
-       "tricks": 6.77,
-       "success_rate": 0.07,
-       "score": -120.1,
-       "imps": -7.76
+       "tricks": 6.74,
+       "success_rate": 0.08,
+       "score": -122.4,
+       "imps": -7.87
       },
       {
        "card": "C9",
-       "tricks": 6.51,
+       "tricks": 6.47,
        "success_rate": 0.0,
-       "score": -198.0,
-       "imps": -9.16
+       "score": -206.0,
+       "imps": -9.35
       },
       {
        "card": "C7",
-       "tricks": 6.51,
+       "tricks": 6.47,
        "success_rate": 0.0,
-       "score": -198.0,
-       "imps": -9.16
+       "score": -206.0,
+       "imps": -9.35
       }
      ],
      "expert": {
-      "sampled": 417,
+      "sampled": 265,
       "consistent": 100,
       "traced": 0,
-      "judged": 1094,
-      "memo_hits": 5,
+      "carried": 53,
+      "judged": 588,
+      "memo_hits": 360,
       "threshold": 0.27,
-      "sigma": 0.442,
+      "sigma": 0.436,
       "inference": "filtered"
      },
-     "elapsed_s": 23.808
+     "elapsed_s": 15.811
     },
     {
      "index": 20,
@@ -777,72 +783,73 @@
      "options": [
       {
        "card": "C9",
-       "tricks": 7.84,
-       "success_rate": 0.82,
-       "score": 369.4,
+       "tricks": 7.91,
+       "success_rate": 0.87,
+       "score": 399.9,
        "imps": 0.0
       },
       {
        "card": "C7",
-       "tricks": 7.84,
-       "success_rate": 0.82,
-       "score": 369.4,
+       "tricks": 7.91,
+       "success_rate": 0.87,
+       "score": 399.9,
        "imps": 0.0
       },
       {
        "card": "ST",
-       "tricks": 7.23,
-       "success_rate": 0.27,
-       "score": 45.9,
-       "imps": -6.17
-      },
-      {
-       "card": "H6",
-       "tricks": 6.7,
-       "success_rate": 0.05,
-       "score": -141.5,
-       "imps": -9.46
-      },
-      {
-       "card": "H5",
-       "tricks": 6.7,
-       "success_rate": 0.05,
-       "score": -141.5,
-       "imps": -9.46
-      },
-      {
-       "card": "H4",
-       "tricks": 6.7,
-       "success_rate": 0.05,
-       "score": -141.5,
-       "imps": -9.46
+       "tricks": 7.29,
+       "success_rate": 0.33,
+       "score": 80.1,
+       "imps": -6.1
       },
       {
        "card": "HQ",
-       "tricks": 6.69,
-       "success_rate": 0.03,
-       "score": -150.9,
-       "imps": -9.63
+       "tricks": 6.78,
+       "success_rate": 0.06,
+       "score": -121.8,
+       "imps": -9.69
       },
       {
        "card": "HT",
-       "tricks": 6.69,
-       "success_rate": 0.03,
-       "score": -150.9,
-       "imps": -9.63
+       "tricks": 6.78,
+       "success_rate": 0.06,
+       "score": -121.8,
+       "imps": -9.69
+      },
+      {
+       "card": "H6",
+       "tricks": 6.77,
+       "success_rate": 0.06,
+       "score": -123.8,
+       "imps": -9.76
+      },
+      {
+       "card": "H5",
+       "tricks": 6.77,
+       "success_rate": 0.06,
+       "score": -123.8,
+       "imps": -9.76
+      },
+      {
+       "card": "H4",
+       "tricks": 6.77,
+       "success_rate": 0.06,
+       "score": -123.8,
+       "imps": -9.76
       }
      ],
      "expert": {
-      "sampled": 502,
+      "sampled": 272,
       "consistent": 100,
       "traced": 0,
-      "judged": 1232,
-      "memo_hits": 73,
+      "carried": 51,
+      "judged": 621,
+      "memo_hits": 396,
       "threshold": 0.27,
-      "sigma": 0.445,
+      "sigma": 0.428,
       "inference": "filtered"
      },
-     "elapsed_s": 22.924
+     "elapsed_s": 14.754
     },
     {
      "index": 22,
@@ -861,72 +868,73 @@
      "options": [
       {
        "card": "H7",
-       "tricks": 7.86,
+       "tricks": 7.84,
        "success_rate": 0.83,
-       "score": 376.1,
+       "score": 373.1,
        "imps": 0.0
       },
       {
        "card": "H2",
-       "tricks": 7.86,
+       "tricks": 7.84,
        "success_rate": 0.83,
-       "score": 376.1,
+       "score": 373.1,
        "imps": 0.0
       },
       {
        "card": "HJ",
-       "tricks": 7.68,
-       "success_rate": 0.67,
-       "score": 281.9,
-       "imps": -1.84
-      },
-      {
-       "card": "DJ",
-       "tricks": 6.54,
-       "success_rate": 0.0,
-       "score": -192.0,
-       "imps": -10.56
-      },
-      {
-       "card": "D9",
-       "tricks": 6.54,
-       "success_rate": 0.0,
-       "score": -192.0,
-       "imps": -10.56
-      },
-      {
-       "card": "D6",
-       "tricks": 6.54,
-       "success_rate": 0.0,
-       "score": -192.0,
-       "imps": -10.56
+       "tricks": 7.69,
+       "success_rate": 0.68,
+       "score": 287.6,
+       "imps": -1.65
       },
       {
        "card": "S9",
-       "tricks": 6.53,
+       "tricks": 6.56,
        "success_rate": 0.0,
-       "score": -194.0,
-       "imps": -10.58
+       "score": -188.0,
+       "imps": -10.46
       },
       {
        "card": "S8",
+       "tricks": 6.56,
+       "success_rate": 0.0,
+       "score": -188.0,
+       "imps": -10.46
+      },
+      {
+       "card": "DJ",
        "tricks": 6.53,
        "success_rate": 0.0,
        "score": -194.0,
-       "imps": -10.58
+       "imps": -10.55
+      },
+      {
+       "card": "D9",
+       "tricks": 6.53,
+       "success_rate": 0.0,
+       "score": -194.0,
+       "imps": -10.55
+      },
+      {
+       "card": "D6",
+       "tricks": 6.53,
+       "success_rate": 0.0,
+       "score": -194.0,
+       "imps": -10.55
       }
      ],
      "expert": {
-      "sampled": 604,
+      "sampled": 441,
       "consistent": 100,
       "traced": 0,
-      "judged": 1349,
-      "memo_hits": 169,
+      "carried": 50,
+      "judged": 1035,
+      "memo_hits": 462,
       "threshold": 0.27,
-      "sigma": 0.47,
+      "sigma": 0.464,
       "inference": "filtered"
      },
-     "elapsed_s": 23.057
+     "elapsed_s": 20.977
     },
     {
      "index": 24,
@@ -934,10 +942,10 @@
      "hand": "W",
      "card": "D6",
      "forced": false,
-     "status": "optimal",
-     "diff": -0.05,
-     "imp_diff": -0.47,
-     "score_diff": -23.8,
+     "status": "good",
+     "diff": -0.11,
+     "imp_diff": -1.13,
+     "score_diff": -58.0,
      "best_cards": [
       "DJ",
       "D9"
@@ -945,65 +953,66 @@
      "options": [
       {
        "card": "DJ",
-       "tricks": 7.89,
+       "tricks": 7.88,
        "success_rate": 0.86,
-       "score": 393.2,
+       "score": 392.2,
        "imps": 0.0
       },
       {
        "card": "D9",
-       "tricks": 7.89,
+       "tricks": 7.88,
        "success_rate": 0.86,
-       "score": 393.2,
+       "score": 392.2,
        "imps": 0.0
       },
       {
        "card": "D6",
-       "tricks": 7.84,
-       "success_rate": 0.82,
-       "score": 369.4,
-       "imps": -0.47
+       "tricks": 7.77,
+       "success_rate": 0.76,
+       "score": 334.2,
+       "imps": -1.13
       },
       {
        "card": "S9",
-       "tricks": 7.14,
-       "success_rate": 0.14,
-       "score": -20.2,
-       "imps": -7.95
+       "tricks": 7.1,
+       "success_rate": 0.1,
+       "score": -43.0,
+       "imps": -8.38
       },
       {
        "card": "S8",
-       "tricks": 7.14,
-       "success_rate": 0.14,
-       "score": -20.2,
-       "imps": -7.95
+       "tricks": 7.1,
+       "success_rate": 0.1,
+       "score": -43.0,
+       "imps": -8.38
       },
       {
        "card": "HJ",
-       "tricks": 7.06,
-       "success_rate": 0.1,
-       "score": -51.0,
-       "imps": -8.56
+       "tricks": 7.04,
+       "success_rate": 0.09,
+       "score": -58.7,
+       "imps": -8.68
       },
       {
        "card": "H7",
-       "tricks": 6.94,
+       "tricks": 6.98,
        "success_rate": 0.11,
-       "score": -71.3,
-       "imps": -8.86
+       "score": -63.3,
+       "imps": -8.65
       }
      ],
      "expert": {
-      "sampled": 682,
+      "sampled": 315,
       "consistent": 100,
       "traced": 0,
-      "judged": 1441,
-      "memo_hits": 383,
+      "carried": 51,
+      "judged": 721,
+      "memo_hits": 552,
       "threshold": 0.27,
-      "sigma": 0.458,
+      "sigma": 0.441,
       "inference": "filtered"
      },
-     "elapsed_s": 25.674
+     "elapsed_s": 16.251
     },
     {
      "index": 26,
@@ -1044,24 +1053,24 @@
       },
       {
        "card": "HQ",
-       "tricks": 7.86,
-       "success_rate": 0.86,
-       "score": 390.2,
-       "imps": -1.54
+       "tricks": 7.85,
+       "success_rate": 0.85,
+       "score": 384.5,
+       "imps": -1.65
       },
       {
        "card": "HT",
-       "tricks": 7.86,
-       "success_rate": 0.86,
-       "score": 390.2,
-       "imps": -1.54
+       "tricks": 7.85,
+       "success_rate": 0.85,
+       "score": 384.5,
+       "imps": -1.65
       },
       {
        "card": "ST",
-       "tricks": 7.24,
-       "success_rate": 0.24,
-       "score": 36.8,
-       "imps": -8.36
+       "tricks": 7.23,
+       "success_rate": 0.23,
+       "score": 31.1,
+       "imps": -8.47
       },
       {
        "card": "C9",
@@ -1072,16 +1081,17 @@
       }
      ],
      "expert": {
-      "sampled": 367,
+      "sampled": 358,
       "consistent": 100,
       "traced": 0,
-      "judged": 559,
-      "memo_hits": 894,
+      "carried": 7,
+      "judged": 604,
+      "memo_hits": 764,
       "threshold": 0.27,
-      "sigma": 0.385,
+      "sigma": 0.39,
       "inference": "filtered"
      },
-     "elapsed_s": 9.781
+     "elapsed_s": 13.681
     },
     {
      "index": 28,
@@ -1106,51 +1116,52 @@
       },
       {
        "card": "ST",
-       "tricks": 7.25,
-       "success_rate": 0.25,
-       "score": 42.5,
-       "imps": -8.25
+       "tricks": 7.23,
+       "success_rate": 0.23,
+       "score": 31.1,
+       "imps": -8.47
       },
       {
        "card": "H6",
-       "tricks": 7.11,
-       "success_rate": 0.11,
-       "score": -37.3,
-       "imps": -9.79
+       "tricks": 7.09,
+       "success_rate": 0.09,
+       "score": -48.7,
+       "imps": -10.01
       },
       {
        "card": "H5",
-       "tricks": 7.11,
-       "success_rate": 0.11,
-       "score": -37.3,
-       "imps": -9.79
+       "tricks": 7.09,
+       "success_rate": 0.09,
+       "score": -48.7,
+       "imps": -10.01
       },
       {
        "card": "HQ",
-       "tricks": 6.97,
-       "success_rate": 0.05,
-       "score": -87.5,
-       "imps": -10.61
+       "tricks": 6.95,
+       "success_rate": 0.0,
+       "score": -110.0,
+       "imps": -11.1
       },
       {
        "card": "HT",
-       "tricks": 6.97,
-       "success_rate": 0.05,
-       "score": -87.5,
-       "imps": -10.61
+       "tricks": 6.95,
+       "success_rate": 0.0,
+       "score": -110.0,
+       "imps": -11.1
       }
      ],
      "expert": {
-      "sampled": 404,
+      "sampled": 100,
       "consistent": 100,
       "traced": 0,
-      "judged": 199,
-      "memo_hits": 1452,
+      "carried": 100,
+      "judged": 47,
+      "memo_hits": 1075,
       "threshold": 0.27,
-      "sigma": 0.358,
+      "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 4.549
+     "elapsed_s": 1.585
     },
     {
      "index": 30,
@@ -1211,16 +1222,17 @@
       }
      ],
      "expert": {
-      "sampled": 298,
+      "sampled": 215,
       "consistent": 100,
       "traced": 0,
-      "judged": 30,
-      "memo_hits": 1470,
+      "carried": 42,
+      "judged": 106,
+      "memo_hits": 1223,
       "threshold": 0.27,
-      "sigma": 0.303,
+      "sigma": 0.348,
       "inference": "filtered"
      },
-     "elapsed_s": 0.94
+     "elapsed_s": 3.043
     },
     {
      "index": 32,
@@ -1229,9 +1241,9 @@
      "card": "HJ",
      "forced": false,
      "status": "good",
-     "diff": -0.11,
-     "imp_diff": -1.21,
-     "score_diff": -62.7,
+     "diff": -0.08,
+     "imp_diff": -0.88,
+     "score_diff": -45.6,
      "best_cards": [
       "DJ",
       "D9"
@@ -1253,37 +1265,38 @@
       },
       {
        "card": "HJ",
-       "tricks": 7.89,
-       "success_rate": 0.89,
-       "score": 407.3,
-       "imps": -1.21
+       "tricks": 7.92,
+       "success_rate": 0.92,
+       "score": 424.4,
+       "imps": -0.88
       },
       {
        "card": "S9",
-       "tricks": 7.77,
-       "success_rate": 0.77,
-       "score": 338.9,
-       "imps": -2.53
+       "tricks": 7.87,
+       "success_rate": 0.87,
+       "score": 395.9,
+       "imps": -1.43
       },
       {
        "card": "S8",
-       "tricks": 7.77,
-       "success_rate": 0.77,
-       "score": 338.9,
-       "imps": -2.53
+       "tricks": 7.87,
+       "success_rate": 0.87,
+       "score": 395.9,
+       "imps": -1.43
       }
      ],
      "expert": {
-      "sampled": 323,
+      "sampled": 193,
       "consistent": 100,
       "traced": 0,
-      "judged": 16,
-      "memo_hits": 1567,
+      "carried": 60,
+      "judged": 18,
+      "memo_hits": 1331,
       "threshold": 0.27,
-      "sigma": 0.3,
+      "sigma": 0.323,
       "inference": "filtered"
      },
-     "elapsed_s": 0.33
+     "elapsed_s": 0.354
     },
     {
      "index": 34,
@@ -1316,30 +1329,31 @@
       },
       {
        "card": "HQ",
-       "tricks": 7.74,
-       "success_rate": 0.74,
-       "score": 321.8,
-       "imps": -2.86
+       "tricks": 7.68,
+       "success_rate": 0.68,
+       "score": 287.6,
+       "imps": -3.52
       },
       {
        "card": "HT",
-       "tricks": 7.74,
-       "success_rate": 0.74,
-       "score": 321.8,
-       "imps": -2.86
+       "tricks": 7.68,
+       "success_rate": 0.68,
+       "score": 287.6,
+       "imps": -3.52
       }
      ],
      "expert": {
-      "sampled": 352,
+      "sampled": 206,
       "consistent": 100,
       "traced": 0,
+      "carried": 60,
       "judged": 9,
-      "memo_hits": 1738,
+      "memo_hits": 1427,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.298
+     "elapsed_s": 0.27
     },
     {
      "index": 37,
@@ -1354,7 +1368,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.014
+     "elapsed_s": 0.022
     },
     {
      "index": 39,
@@ -1387,16 +1401,17 @@
       }
      ],
      "expert": {
-      "sampled": 253,
+      "sampled": 230,
       "consistent": 100,
       "traced": 0,
+      "carried": 16,
       "judged": 5,
-      "memo_hits": 1846,
+      "memo_hits": 1819,
       "threshold": 0.27,
       "sigma": 0.306,
       "inference": "filtered"
      },
-     "elapsed_s": 0.215
+     "elapsed_s": 0.262
     },
     {
      "index": 41,
@@ -1429,23 +1444,24 @@
       },
       {
        "card": "H6",
-       "tricks": 7.6,
-       "success_rate": 0.6,
-       "score": 242.0,
-       "imps": -4.4
+       "tricks": 7.56,
+       "success_rate": 0.56,
+       "score": 219.2,
+       "imps": -4.84
       }
      ],
      "expert": {
-      "sampled": 248,
+      "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 100,
       "judged": 2,
-      "memo_hits": 1994,
+      "memo_hits": 1712,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.167
+     "elapsed_s": 0.124
     },
     {
      "index": 43,
@@ -1460,7 +1476,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.015
+     "elapsed_s": 0.004
     },
     {
      "index": 44,
@@ -1493,16 +1509,17 @@
       }
      ],
      "expert": {
-      "sampled": 150,
+      "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 100,
       "judged": 2,
-      "memo_hits": 1949,
+      "memo_hits": 1812,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.131
+     "elapsed_s": 0.128
     },
     {
      "index": 46,
@@ -1538,13 +1555,14 @@
       "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 56,
       "judged": 0,
       "memo_hits": 2000,
       "threshold": 0.27,
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.081
+     "elapsed_s": 0.12
     },
     {
      "index": 49,
@@ -1559,7 +1577,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.011
+     "elapsed_s": 0.003
     },
     {
      "index": 51,
@@ -1574,7 +1592,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.016
+     "elapsed_s": 0.027
     }
    ]
   },
@@ -1586,16 +1604,16 @@
     "optimal": 9,
     "good": 0,
     "suboptimal": 1,
-    "total_trick_loss": 0.39,
-    "total_imp_loss": 1.21,
-    "total_time_s": 135.1,
-    "mean_s_per_graded": 13.51,
-    "max_decision_s": 30.344,
+    "total_trick_loss": 0.44,
+    "total_imp_loss": 1.36,
+    "total_time_s": 138.5,
+    "mean_s_per_graded": 13.85,
+    "max_decision_s": 34.508,
     "dds": {
      "solve": {
-      "calls": 1518,
-      "boards": 185912,
-      "seconds": 118.467
+      "calls": 1315,
+      "boards": 157088,
+      "seconds": 122.474
      },
      "table": {
       "calls": 0,
@@ -1609,11 +1627,11 @@
      }
     },
     "expert_totals": {
-     "sampled": 3752,
+     "sampled": 2930,
      "consistent": 1000,
      "traced": 0,
-     "judged": 4589,
-     "memo_hits": 11902
+     "judged": 3873,
+     "memo_hits": 10193
     }
    },
    "decisions": [
@@ -1728,13 +1746,14 @@
       "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 0,
       "judged": 0,
       "memo_hits": 0,
       "threshold": 0.27,
       "sigma": null,
       "inference": "trivial"
      },
-     "elapsed_s": 0.847
+     "elapsed_s": 1.067
     },
     {
      "index": 5,
@@ -1792,13 +1811,14 @@
       "sampled": 296,
       "consistent": 100,
       "traced": 0,
+      "carried": 0,
       "judged": 497,
       "memo_hits": 0,
       "threshold": 0.27,
       "sigma": 0.439,
       "inference": "filtered"
      },
-     "elapsed_s": 29.328
+     "elapsed_s": 34.508
     },
     {
      "index": 10,
@@ -1817,37 +1837,38 @@
      "options": [
       {
        "card": "S6",
-       "tricks": 6.53,
-       "success_rate": 0.79,
-       "score": 140.3,
+       "tricks": 6.54,
+       "success_rate": 0.82,
+       "score": 149.4,
        "imps": 0.0
       },
       {
        "card": "S3",
-       "tricks": 6.53,
-       "success_rate": 0.79,
-       "score": 140.3,
+       "tricks": 6.54,
+       "success_rate": 0.82,
+       "score": 149.4,
        "imps": 0.0
       },
       {
        "card": "SQ",
-       "tricks": 5.71,
-       "success_rate": 0.48,
-       "score": -129.4,
-       "imps": -5.66
+       "tricks": 5.65,
+       "success_rate": 0.49,
+       "score": -137.7,
+       "imps": -6.05
       }
      ],
      "expert": {
-      "sampled": 182,
+      "sampled": 164,
       "consistent": 100,
       "traced": 0,
-      "judged": 566,
-      "memo_hits": 0,
+      "carried": 18,
+      "judged": 453,
+      "memo_hits": 54,
       "threshold": 0.27,
-      "sigma": 0.347,
+      "sigma": 0.349,
       "inference": "filtered"
      },
-     "elapsed_s": 30.344
+     "elapsed_s": 29.482
     },
     {
      "index": 14,
@@ -1860,36 +1881,36 @@
      "imp_diff": 0.0,
      "score_diff": 0.0,
      "best_cards": [
-      "D7",
-      "DQ"
+      "D7"
      ],
      "options": [
       {
        "card": "D7",
-       "tricks": 5.22,
-       "success_rate": 0.38,
-       "score": -252.4,
+       "tricks": 5.32,
+       "success_rate": 0.41,
+       "score": -226.3,
        "imps": 0.0
       },
       {
        "card": "DQ",
-       "tricks": 5.21,
-       "success_rate": 0.37,
-       "score": -258.1,
+       "tricks": 5.31,
+       "success_rate": 0.4,
+       "score": -232.0,
        "imps": -0.11
       }
      ],
      "expert": {
-      "sampled": 288,
+      "sampled": 239,
       "consistent": 100,
       "traced": 0,
-      "judged": 927,
-      "memo_hits": 8,
+      "carried": 19,
+      "judged": 672,
+      "memo_hits": 92,
       "threshold": 0.27,
-      "sigma": 0.369,
+      "sigma": 0.374,
       "inference": "filtered"
      },
-     "elapsed_s": 28.329
+     "elapsed_s": 25.593
     },
     {
      "index": 17,
@@ -1904,7 +1925,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.024
+     "elapsed_s": 0.003
     },
     {
      "index": 23,
@@ -1956,13 +1977,14 @@
       "sampled": 270,
       "consistent": 100,
       "traced": 0,
-      "judged": 1329,
+      "carried": 1,
+      "judged": 1306,
       "memo_hits": 149,
       "threshold": 0.27,
       "sigma": 0.34,
       "inference": "filtered"
      },
-     "elapsed_s": 24.065
+     "elapsed_s": 28.649
     },
     {
      "index": 25,
@@ -1982,65 +2004,66 @@
      "options": [
       {
        "card": "CK",
-       "tricks": 4.85,
-       "success_rate": 0.26,
-       "score": -362.8,
+       "tricks": 4.79,
+       "success_rate": 0.27,
+       "score": -364.1,
        "imps": 0.0
       },
       {
        "card": "C5",
-       "tricks": 4.85,
-       "success_rate": 0.26,
-       "score": -362.8,
+       "tricks": 4.79,
+       "success_rate": 0.27,
+       "score": -364.1,
        "imps": 0.0
       },
       {
        "card": "C4",
-       "tricks": 4.85,
-       "success_rate": 0.26,
-       "score": -362.8,
+       "tricks": 4.79,
+       "success_rate": 0.27,
+       "score": -364.1,
        "imps": 0.0
       },
       {
        "card": "S6",
-       "tricks": 4.8,
-       "success_rate": 0.21,
-       "score": -391.3,
-       "imps": -0.55
+       "tricks": 4.75,
+       "success_rate": 0.23,
+       "score": -386.9,
+       "imps": -0.44
       },
       {
        "card": "HK",
-       "tricks": 4.64,
-       "success_rate": 0.25,
-       "score": -374.5,
-       "imps": -0.43
+       "tricks": 4.62,
+       "success_rate": 0.28,
+       "score": -360.4,
+       "imps": -0.11
       },
       {
        "card": "H9",
-       "tricks": 4.35,
-       "success_rate": 0.21,
-       "score": -436.3,
-       "imps": -1.9
+       "tricks": 4.26,
+       "success_rate": 0.23,
+       "score": -435.9,
+       "imps": -1.91
       },
       {
        "card": "SQ",
-       "tricks": 4.07,
-       "success_rate": 0.08,
-       "score": -525.4,
-       "imps": -3.78
+       "tricks": 4.15,
+       "success_rate": 0.13,
+       "score": -493.9,
+       "imps": -3.04
       }
      ],
      "expert": {
-      "sampled": 278,
+      "sampled": 179,
       "consistent": 100,
       "traced": 0,
-      "judged": 816,
-      "memo_hits": 664,
+      "carried": 63,
+      "judged": 416,
+      "memo_hits": 911,
       "threshold": 0.27,
-      "sigma": 0.337,
+      "sigma": 0.338,
       "inference": "filtered"
      },
-     "elapsed_s": 14.373
+     "elapsed_s": 8.804
     },
     {
      "index": 31,
@@ -2059,30 +2082,31 @@
      "options": [
       {
        "card": "CK",
-       "tricks": 4.36,
-       "success_rate": 0.09,
-       "score": -491.7,
+       "tricks": 4.42,
+       "success_rate": 0.1,
+       "score": -481.0,
        "imps": 0.0
       },
       {
        "card": "C5",
-       "tricks": 4.36,
-       "success_rate": 0.09,
-       "score": -491.7,
+       "tricks": 4.42,
+       "success_rate": 0.1,
+       "score": -481.0,
        "imps": 0.0
       }
      ],
      "expert": {
-      "sampled": 279,
+      "sampled": 226,
       "consistent": 100,
       "traced": 0,
-      "judged": 422,
-      "memo_hits": 1414,
+      "carried": 25,
+      "judged": 491,
+      "memo_hits": 1226,
       "threshold": 0.27,
-      "sigma": 0.323,
+      "sigma": 0.324,
       "inference": "filtered"
      },
-     "elapsed_s": 6.19
+     "elapsed_s": 8.748
     },
     {
      "index": 33,
@@ -2091,39 +2115,40 @@
      "card": "HK",
      "forced": false,
      "status": "suboptimal",
-     "diff": -0.37,
-     "imp_diff": -1.11,
-     "score_diff": -37.0,
+     "diff": -0.42,
+     "imp_diff": -1.26,
+     "score_diff": -42.0,
      "best_cards": [
       "H9"
      ],
      "options": [
       {
        "card": "H9",
-       "tricks": 4.82,
+       "tricks": 4.88,
        "success_rate": 0.0,
-       "score": -488.0,
+       "score": -482.0,
        "imps": 0.0
       },
       {
        "card": "HK",
-       "tricks": 4.45,
+       "tricks": 4.46,
        "success_rate": 0.0,
-       "score": -525.0,
-       "imps": -1.11
+       "score": -524.0,
+       "imps": -1.26
       }
      ],
      "expert": {
-      "sampled": 595,
+      "sampled": 541,
       "consistent": 100,
       "traced": 0,
-      "judged": 28,
-      "memo_hits": 3203,
+      "carried": 65,
+      "judged": 34,
+      "memo_hits": 3034,
       "threshold": 0.27,
-      "sigma": 0.436,
+      "sigma": 0.444,
       "inference": "filtered"
      },
-     "elapsed_s": 0.672
+     "elapsed_s": 0.833
     },
     {
      "index": 36,
@@ -2171,16 +2196,17 @@
       }
      ],
      "expert": {
-      "sampled": 854,
+      "sampled": 499,
       "consistent": 100,
       "traced": 0,
+      "carried": 46,
       "judged": 4,
-      "memo_hits": 3638,
+      "memo_hits": 2563,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.514
+     "elapsed_s": 0.433
     },
     {
      "index": 40,
@@ -2221,16 +2247,17 @@
       }
      ],
      "expert": {
-      "sampled": 610,
+      "sampled": 416,
       "consistent": 100,
       "traced": 0,
+      "carried": 29,
       "judged": 0,
-      "memo_hits": 2826,
+      "memo_hits": 2164,
       "threshold": 0.27,
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.391
+     "elapsed_s": 0.347
     },
     {
      "index": 47,
@@ -2245,7 +2272,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.006
+     "elapsed_s": 0.028
     },
     {
      "index": 50,
@@ -2260,7 +2287,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.016
+     "elapsed_s": 0.004
     }
    ]
   },
@@ -2272,16 +2299,16 @@
     "optimal": 10,
     "good": 1,
     "suboptimal": 0,
-    "total_trick_loss": 0.21,
-    "total_imp_loss": 1.5,
-    "total_time_s": 129.5,
-    "mean_s_per_graded": 11.77,
-    "max_decision_s": 40.425,
+    "total_trick_loss": 0.23,
+    "total_imp_loss": 1.66,
+    "total_time_s": 141.6,
+    "mean_s_per_graded": 12.87,
+    "max_decision_s": 40.773,
     "dds": {
      "solve": {
-      "calls": 1216,
-      "boards": 139034,
-      "seconds": 117.872
+      "calls": 1106,
+      "boards": 129826,
+      "seconds": 129.385
      },
      "table": {
       "calls": 0,
@@ -2295,11 +2322,11 @@
      }
     },
     "expert_totals": {
-     "sampled": 2725,
+     "sampled": 2015,
      "consistent": 1100,
      "traced": 0,
-     "judged": 3483,
-     "memo_hits": 9174
+     "judged": 3235,
+     "memo_hits": 8441
     }
    },
    "decisions": [
@@ -2336,13 +2363,14 @@
       "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 0,
       "judged": 100,
       "memo_hits": 0,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 8.239
+     "elapsed_s": 10.143
     },
     {
      "index": 7,
@@ -2362,44 +2390,45 @@
      "options": [
       {
        "card": "CQ",
-       "tricks": 6.36,
-       "success_rate": 0.73,
-       "score": 88.1,
+       "tricks": 6.33,
+       "success_rate": 0.74,
+       "score": 85.8,
        "imps": 0.0
       },
       {
        "card": "CT",
-       "tricks": 6.36,
-       "success_rate": 0.73,
-       "score": 88.1,
+       "tricks": 6.33,
+       "success_rate": 0.74,
+       "score": 85.8,
        "imps": 0.0
       },
       {
        "card": "C8",
-       "tricks": 6.36,
-       "success_rate": 0.73,
-       "score": 88.1,
+       "tricks": 6.33,
+       "success_rate": 0.74,
+       "score": 85.8,
        "imps": 0.0
       },
       {
        "card": "CA",
-       "tricks": 6.32,
-       "success_rate": 0.73,
-       "score": 80.1,
-       "imps": -0.2
+       "tricks": 6.3,
+       "success_rate": 0.74,
+       "score": 79.8,
+       "imps": -0.15
       }
      ],
      "expert": {
       "sampled": 266,
       "consistent": 100,
       "traced": 0,
-      "judged": 567,
-      "memo_hits": 0,
+      "carried": 15,
+      "judged": 562,
+      "memo_hits": 15,
       "threshold": 0.27,
-      "sigma": 0.391,
+      "sigma": 0.392,
       "inference": "filtered"
      },
-     "elapsed_s": 35.785
+     "elapsed_s": 40.671
     },
     {
      "index": 8,
@@ -2417,93 +2446,94 @@
      "options": [
       {
        "card": "SJ",
-       "tricks": 6.35,
-       "success_rate": 0.73,
-       "score": 86.1,
+       "tricks": 6.32,
+       "success_rate": 0.74,
+       "score": 83.8,
        "imps": 0.0
       },
       {
        "card": "CA",
-       "tricks": 6.31,
+       "tricks": 6.27,
        "success_rate": 0.73,
-       "score": 81.1,
-       "imps": -0.14
+       "score": 73.1,
+       "imps": -0.25
       },
       {
        "card": "CT",
-       "tricks": 6.26,
+       "tricks": 6.23,
        "success_rate": 0.73,
-       "score": 71.1,
-       "imps": -0.39
+       "score": 65.1,
+       "imps": -0.45
       },
       {
        "card": "C8",
-       "tricks": 6.2,
+       "tricks": 6.18,
        "success_rate": 0.72,
-       "score": 56.4,
-       "imps": -0.73
+       "score": 52.4,
+       "imps": -0.74
       },
       {
        "card": "D8",
-       "tricks": 6.11,
+       "tricks": 6.09,
        "success_rate": 0.69,
-       "score": 29.3,
-       "imps": -1.3
+       "score": 25.3,
+       "imps": -1.31
       },
       {
        "card": "D5",
-       "tricks": 6.11,
+       "tricks": 6.09,
        "success_rate": 0.69,
-       "score": 29.3,
-       "imps": -1.3
+       "score": 25.3,
+       "imps": -1.31
       },
       {
        "card": "D4",
-       "tricks": 6.11,
+       "tricks": 6.09,
        "success_rate": 0.69,
-       "score": 29.3,
-       "imps": -1.3
+       "score": 25.3,
+       "imps": -1.31
       },
       {
        "card": "D2",
-       "tricks": 6.11,
+       "tricks": 6.09,
        "success_rate": 0.69,
-       "score": 29.3,
-       "imps": -1.3
+       "score": 25.3,
+       "imps": -1.31
       },
       {
        "card": "DK",
-       "tricks": 6.08,
+       "tricks": 6.06,
        "success_rate": 0.69,
-       "score": 25.3,
-       "imps": -1.41
+       "score": 21.3,
+       "imps": -1.42
       },
       {
        "card": "HA",
-       "tricks": 6.05,
-       "success_rate": 0.67,
-       "score": 10.9,
-       "imps": -1.72
+       "tricks": 6.02,
+       "success_rate": 0.66,
+       "score": 1.2,
+       "imps": -1.84
       },
       {
        "card": "H8",
-       "tricks": 5.99,
-       "success_rate": 0.66,
-       "score": -3.8,
-       "imps": -2.06
+       "tricks": 5.95,
+       "success_rate": 0.65,
+       "score": -15.5,
+       "imps": -2.23
       }
      ],
      "expert": {
-      "sampled": 266,
+      "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 100,
       "judged": 0,
-      "memo_hits": 567,
+      "memo_hits": 400,
       "threshold": 0.27,
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.138
+     "elapsed_s": 0.105
     },
     {
      "index": 12,
@@ -2512,96 +2542,97 @@
      "card": "D2",
      "forced": false,
      "status": "good",
-     "diff": -0.21,
-     "imp_diff": -1.5,
-     "score_diff": -72.3,
+     "diff": -0.23,
+     "imp_diff": -1.66,
+     "score_diff": -80.7,
      "best_cards": [
-      "CA",
-      "CT"
+      "CT",
+      "CA"
      ],
      "options": [
       {
-       "card": "CA",
-       "tricks": 6.56,
-       "success_rate": 0.81,
-       "score": 166.7,
+       "card": "CT",
+       "tricks": 6.55,
+       "success_rate": 0.83,
+       "score": 165.1,
        "imps": 0.0
       },
       {
-       "card": "CT",
-       "tricks": 6.56,
-       "success_rate": 0.81,
-       "score": 163.7,
-       "imps": -0.06
+       "card": "CA",
+       "tricks": 6.54,
+       "success_rate": 0.83,
+       "score": 166.1,
+       "imps": 0.01
       },
       {
        "card": "C8",
-       "tricks": 6.54,
-       "success_rate": 0.81,
-       "score": 159.7,
-       "imps": -0.16
+       "tricks": 6.53,
+       "success_rate": 0.83,
+       "score": 161.1,
+       "imps": -0.1
       },
       {
        "card": "HA",
-       "tricks": 6.38,
-       "success_rate": 0.8,
-       "score": 120.0,
-       "imps": -1.1
-      },
-      {
-       "card": "D8",
-       "tricks": 6.35,
-       "success_rate": 0.72,
-       "score": 94.4,
-       "imps": -1.5
-      },
-      {
-       "card": "D5",
-       "tricks": 6.35,
-       "success_rate": 0.72,
-       "score": 94.4,
-       "imps": -1.5
-      },
-      {
-       "card": "D4",
-       "tricks": 6.35,
-       "success_rate": 0.72,
-       "score": 94.4,
-       "imps": -1.5
-      },
-      {
-       "card": "D2",
-       "tricks": 6.35,
-       "success_rate": 0.72,
-       "score": 94.4,
-       "imps": -1.5
+       "tricks": 6.39,
+       "success_rate": 0.82,
+       "score": 126.4,
+       "imps": -0.92
       },
       {
        "card": "H8",
-       "tricks": 6.33,
-       "success_rate": 0.77,
-       "score": 101.9,
-       "imps": -1.44
+       "tricks": 6.32,
+       "success_rate": 0.78,
+       "score": 100.6,
+       "imps": -1.42
+      },
+      {
+       "card": "D8",
+       "tricks": 6.32,
+       "success_rate": 0.72,
+       "score": 84.4,
+       "imps": -1.66
+      },
+      {
+       "card": "D5",
+       "tricks": 6.32,
+       "success_rate": 0.72,
+       "score": 84.4,
+       "imps": -1.66
+      },
+      {
+       "card": "D4",
+       "tricks": 6.32,
+       "success_rate": 0.72,
+       "score": 84.4,
+       "imps": -1.66
+      },
+      {
+       "card": "D2",
+       "tricks": 6.32,
+       "success_rate": 0.72,
+       "score": 84.4,
+       "imps": -1.66
       },
       {
        "card": "DK",
-       "tricks": 6.3,
+       "tricks": 6.28,
        "success_rate": 0.72,
-       "score": 86.4,
-       "imps": -1.67
+       "score": 78.4,
+       "imps": -1.78
       }
      ],
      "expert": {
-      "sampled": 398,
+      "sampled": 360,
       "consistent": 100,
       "traced": 0,
-      "judged": 867,
-      "memo_hits": 4,
+      "carried": 22,
+      "judged": 755,
+      "memo_hits": 92,
       "threshold": 0.27,
-      "sigma": 0.391,
+      "sigma": 0.384,
       "inference": "filtered"
      },
-     "elapsed_s": 40.425
+     "elapsed_s": 40.773
     },
     {
      "index": 19,
@@ -2621,44 +2652,45 @@
      "options": [
       {
        "card": "D8",
-       "tricks": 6.15,
-       "success_rate": 0.78,
-       "score": 56.6,
+       "tricks": 6.16,
+       "success_rate": 0.79,
+       "score": 61.3,
        "imps": 0.0
       },
       {
        "card": "D5",
-       "tricks": 6.15,
-       "success_rate": 0.78,
-       "score": 56.6,
+       "tricks": 6.16,
+       "success_rate": 0.79,
+       "score": 61.3,
        "imps": 0.0
       },
       {
        "card": "D4",
-       "tricks": 6.15,
-       "success_rate": 0.78,
-       "score": 56.6,
+       "tricks": 6.16,
+       "success_rate": 0.79,
+       "score": 61.3,
        "imps": 0.0
       },
       {
        "card": "DK",
-       "tricks": 6.08,
-       "success_rate": 0.78,
-       "score": 49.6,
+       "tricks": 6.09,
+       "success_rate": 0.79,
+       "score": 54.3,
        "imps": -0.21
       }
      ],
      "expert": {
-      "sampled": 396,
+      "sampled": 369,
       "consistent": 100,
       "traced": 0,
-      "judged": 1314,
-      "memo_hits": 30,
+      "carried": 6,
+      "judged": 1262,
+      "memo_hits": 60,
       "threshold": 0.27,
-      "sigma": 0.356,
+      "sigma": 0.353,
       "inference": "filtered"
      },
-     "elapsed_s": 31.836
+     "elapsed_s": 37.173
     },
     {
      "index": 21,
@@ -2677,37 +2709,38 @@
      "options": [
       {
        "card": "CT",
-       "tricks": 6.26,
+       "tricks": 6.25,
        "success_rate": 0.79,
-       "score": 81.3,
+       "score": 78.3,
        "imps": 0.0
       },
       {
        "card": "C8",
-       "tricks": 6.26,
+       "tricks": 6.25,
        "success_rate": 0.79,
-       "score": 81.3,
+       "score": 78.3,
        "imps": 0.0
       },
       {
        "card": "CA",
-       "tricks": 6.19,
+       "tricks": 6.2,
        "success_rate": 0.79,
-       "score": 67.3,
-       "imps": -0.35
+       "score": 68.3,
+       "imps": -0.25
       }
      ],
      "expert": {
-      "sampled": 425,
+      "sampled": 114,
       "consistent": 100,
       "traced": 0,
-      "judged": 185,
-      "memo_hits": 1357,
+      "carried": 100,
+      "judged": 96,
+      "memo_hits": 901,
       "threshold": 0.27,
-      "sigma": 0.342,
+      "sigma": 0.323,
       "inference": "filtered"
      },
-     "elapsed_s": 3.899
+     "elapsed_s": 1.352
     },
     {
      "index": 27,
@@ -2726,16 +2759,16 @@
      "options": [
       {
        "card": "D8",
-       "tricks": 4.64,
+       "tricks": 4.65,
        "success_rate": 0.12,
-       "score": -449.6,
+       "score": -448.6,
        "imps": 0.0
       },
       {
        "card": "D4",
-       "tricks": 4.64,
+       "tricks": 4.65,
        "success_rate": 0.12,
-       "score": -449.6,
+       "score": -448.6,
        "imps": 0.0
       },
       {
@@ -2743,20 +2776,21 @@
        "tricks": 4.3,
        "success_rate": 0.12,
        "score": -483.6,
-       "imps": -1.02
+       "imps": -1.05
       }
      ],
      "expert": {
       "sampled": 233,
       "consistent": 100,
       "traced": 0,
-      "judged": 407,
+      "carried": 1,
+      "judged": 417,
       "memo_hits": 776,
       "threshold": 0.27,
-      "sigma": 0.334,
+      "sigma": 0.333,
       "inference": "filtered"
      },
-     "elapsed_s": 8.215
+     "elapsed_s": 10.324
     },
     {
      "index": 29,
@@ -2775,30 +2809,31 @@
      "options": [
       {
        "card": "CA",
-       "tricks": 4.64,
+       "tricks": 4.65,
        "success_rate": 0.12,
-       "score": -449.6,
+       "score": -448.6,
        "imps": 0.0
       },
       {
        "card": "CT",
-       "tricks": 4.64,
+       "tricks": 4.65,
        "success_rate": 0.12,
-       "score": -449.6,
+       "score": -448.6,
        "imps": 0.0
       }
      ],
      "expert": {
-      "sampled": 233,
+      "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 100,
       "judged": 29,
-      "memo_hits": 1518,
+      "memo_hits": 1217,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.434
+     "elapsed_s": 0.384
     },
     {
      "index": 35,
@@ -2830,16 +2865,17 @@
       }
      ],
      "expert": {
-      "sampled": 191,
+      "sampled": 173,
       "consistent": 100,
       "traced": 0,
+      "carried": 19,
       "judged": 12,
-      "memo_hits": 1685,
+      "memo_hits": 1702,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.287
+     "elapsed_s": 0.383
     },
     {
      "index": 38,
@@ -2887,16 +2923,17 @@
       }
      ],
      "expert": {
-      "sampled": 117,
+      "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 100,
       "judged": 0,
-      "memo_hits": 1637,
+      "memo_hits": 1616,
       "threshold": 0.27,
       "sigma": null,
       "inference": "filtered"
      },
-     "elapsed_s": 0.099
+     "elapsed_s": 0.102
     },
     {
      "index": 42,
@@ -2940,13 +2977,14 @@
       "sampled": 100,
       "consistent": 100,
       "traced": 0,
+      "carried": 38,
       "judged": 2,
-      "memo_hits": 1600,
+      "memo_hits": 1662,
       "threshold": 0.27,
       "sigma": 0.3,
       "inference": "filtered"
      },
-     "elapsed_s": 0.099
+     "elapsed_s": 0.148
     },
     {
      "index": 45,
@@ -2961,7 +2999,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.029
+     "elapsed_s": 0.017
     },
     {
      "index": 48,
@@ -2976,7 +3014,7 @@
      "best_cards": [],
      "options": [],
      "expert": null,
-     "elapsed_s": 0.015
+     "elapsed_s": 0.016
     }
    ]
   }

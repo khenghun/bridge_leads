@@ -47,6 +47,8 @@ export interface ExpertStats {
   /** Inner judgements run; `memo_hits` were answered from the memo. */
   judged: number
   memo_hits: number
+  /** Of `sampled`, the layouts carried over from this seat's previous decision. */
+  carried?: number
   /** The filter rejects a play shown at least this many tricks worse. */
   threshold: number
   /** Observed sd of the paired difference, when any judgement ran. */

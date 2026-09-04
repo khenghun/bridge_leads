@@ -158,9 +158,14 @@ Two rulings/observations recorded for that work:
    s/decision; batch aggregation (2.2×), then memo-first priority ordering of
    the opponents' suspect plays and direct DDS struct building (a further
    1.2–1.3×, bit-identical grades) and exempting the opening lead from the
-   filter (declarer seats 2.8–4.3×) bring it to ~9 s per declarer decision
-   and ~25–40 s per defender decision on a 16-core laptop (board 7 rooms:
-   1 077 → 707 s and 1 569 → 986 s). Worker processes were **measured and
+   filter (declarer seats 2.8–4.3×) and carrying each seat's consistent pool
+   forward between its decisions (declarer seats a further 1.2–1.5×) bring
+   it to ~6 s per declarer decision and ~20–40 s per defender decision on
+   a 16-core laptop (board 7 rooms: 1 077 → 574 s and 1 569 → 853 s; board
+   14's 2♥x room 440 s). Found on the way: at 100 deals a big-swing
+   decision's status flips with the seed alone (c7 T9 ♦6: −0.03 to −0.43
+   tricks over five seeds) — the accuracy focus area's first problem is
+   sample size, not strategy fusion. Worker processes were **measured and
    rejected**: one process with
    16 DDS threads already saturates the 8 physical cores, every multi-process
    split is equal or slower. DDS is now 97 % of the time and the judgement

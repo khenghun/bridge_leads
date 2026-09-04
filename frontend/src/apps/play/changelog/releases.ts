@@ -44,9 +44,11 @@ export const RELEASES: Release[] = [
           + 'bigger batches. And the opening lead is no longer second-guessed '
           + 'when the deals are filtered — leads are the Opening Lead '
           + 'Simulator’s business, and judging one cost as much as the rest of '
-          + 'the hand while it almost never ruled a deal out. A strict run of a '
-          + 'declarer’s hand now takes about half the time; the plain '
-          + 'single-dummy grades are untouched.',
+          + 'the hand while it almost never ruled a deal out. Each decision '
+          + 'also starts from the deals the previous decision of the same seat '
+          + 'kept, so a declarer’s later decisions reuse most of the earlier '
+          + 'work. A strict run of a declarer’s hand now takes about a third '
+          + 'of the time; the plain single-dummy grades are untouched.',
       },
     ],
   },

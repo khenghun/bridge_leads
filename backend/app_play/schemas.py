@@ -128,6 +128,7 @@ class ExpertStats(BaseModel):
     sampled: int                    # layouts examined
     consistent: int                 # layouts graded on
     traced: int                     # layouts that went through the double-dummy trace
+    carried: int = 0                # layouts carried over from the seat's previous decision
     judged: int                     # inner judgements run (memo hits excluded)
     memo_hits: int = 0              # judgements answered from the memo
     threshold: float                # rejects plays shown at least this many tricks worse
