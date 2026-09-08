@@ -19,7 +19,6 @@ export const RELEASES: Release[] = [
     version: 'v1.4',
     date: '2026-09-08',
     title: 'How sure is that grade?',
-    unreleased: true,
     summary:
       'Every grade now says how sure it is, doubtful ones are graded on more '
       + 'deals, and Expert opponents is faster and right about dummy.',

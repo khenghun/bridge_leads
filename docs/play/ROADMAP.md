@@ -131,11 +131,19 @@ flagged unreleased (fixed in the release commit), and the expert seat line's
 sampled count moved from 1371 to 1406 with the batching change — same
 consistent count, identical grades — so the checks are re-pinned.
 
-## v1.4 — Trace the optimal line ⚪
+## v1.4 — How sure is that grade? ✅ (built and deployed 2026-09-08)
 
-From any position, play the best card for every seat a few tricks ahead
-(depth ≤ 5) and step the table through the traced line — "here is what should
-have happened next", not just "not that card". The source's
+What shipped as v1.4 is the two focus areas below — every grade carries its
+sampling error and a *marginal* flag, doubtful decisions are re-graded on
+×3 deals, and Expert opponents is faster and right about plays from dummy —
+released 2026-09-08 and verified on prod the same day against the
+`test-deployed` checklist (`docs/testing/REGRESSION-LOG.md`). The traced
+line described next did **not** ship and stays open for the next version.
+
+**Trace the optimal line ⚪.** From any position, play the best card for
+every seat a few tricks ahead (depth ≤ 5) and step the table through the
+traced line — "here is what should have happened next", not just "not that
+card". The source's
 `trace_optimal_line` has the engine shape; it becomes a `/api/play/trace`
 endpoint over repeated `grade_position` solves. Replaces the source's
 *compare two lines*, which the expandable options table already covers.

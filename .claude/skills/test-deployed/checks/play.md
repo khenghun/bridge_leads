@@ -172,43 +172,45 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
 - **P-1.3-5 [full] What's new.** The panel lists v1.3 *Expert opponents*
   with four entries above v1.2.
 
-## v1.4 — Expert opponents: faster, and right about dummy (unreleased)
+## v1.4 — Expert opponents: faster, and right about dummy
 
 - **P-1.4-1 [full] A defender's grade is filtered on declarer's plays from
   dummy.** Local, scripted: `scripts/bench_play.py docs/play/board7.lin --qx
   o7 --strict --deals 100 --seats E` against a fresh play API started with
   `BRIDGE_DDS_THREADS=16`, then `scripts/compare_bench.py
   docs/play/bench/board7-o7-strict100.json <run>.json` must pass for East.
-  Pinned in that file (2026-09-08, escalation on, **taken before the
-  unfiltered trigger was dropped** — its two `‡` rows, T6 ♥9 and T8 ♠T,
-  now stay at 100 deals, same status, and the seat is ~90 s faster; the
-  file is due a re-baseline on the next strict run): East **8 ✓ / 2 ~ /
-  0 ✗ of 10 · 3 marginal**, 0.48 tricks · 1.41 IMPs, `sampled 14956,
-  consistent 2000` over the seat (five decisions extended to 300 deals);
-  the trick-4 ♥J reads *good* (−0.17 ± 0.06) and the trick-6 ♥9 *optimal*
-  — the v1.3 build graded both *suboptimal* on unfiltered pools
-  (`2000→0`, inference `none`) because every layout shared one memoised
-  verdict on declarer's ♦A from dummy. Declarer (N): 18/0/2, 5.72 IMPs,
-  the opening lead no longer judged by the filter and each decision
-  starting from the previous one's pool (`carried` > 0 from the second
-  decision on; that seat took 209 s, 110 s before escalation). Decisions
-  must be requested in index order for the pins to hold — the UI and this
-  script do. (2026-09-04 pins, escalation off: E 8/2/0 · 0.53 · 1.45,
-  `10672 / 991`; N 17/2/1 · 5.82.)
+  Pinned in that file (re-baselined 2026-09-08 after the unfiltered trigger
+  was dropped, escalation on): East **8 ✓ / 2 ~ / 0 ✗ of 10 · 3 marginal**,
+  0.48 tricks · 1.41 IMPs, `sampled 8370, consistent 1596` over the seat
+  (three decisions extended to 300 deals; the trick-10 ♣4 reads 96 deals,
+  not 100, because the smaller carried-forward pool left the outer loop's
+  budget four layouts short — same grade); the trick-4 ♥J reads *good*
+  (−0.17 ± 0.06) and the trick-6 ♥9 *optimal* on 100 deals — the v1.3
+  build graded both *suboptimal* on unfiltered pools (`2000→0`, inference
+  `none`) because every layout shared one memoised verdict on declarer's
+  ♦A from dummy. Declarer (N): 18/0/2, 5.75 IMPs, 162 s, the opening lead
+  no longer judged by the filter and each decision starting from the
+  previous one's pool (`carried` > 0 from the second decision on). The
+  East seat takes ~375 s. Decisions must be requested in index order for
+  the pins to hold — the UI and this script do. (History: the first
+  2026-09-08 pins, taken with the unfiltered trigger still in, read E
+  `14956 / 2000` over five extensions in 468 s and N 5.72 IMPs in 209 s;
+  2026-09-04, escalation off: E 8/2/0 · 0.53 · 1.45, `10672 / 991`; N
+  17/2/1 · 5.82.)
 - **P-1.4-2 [full] Same verdicts, faster.** The closed room,
   `--qx c7 --strict --deals 100`, all seats: `compare_bench.py` against the
-  committed `board7-c7-strict100.json` passes except on its former `‡`
-  rows (19/0/1 · 11/0/0 · 10/0/0, 2.21 · 0 · 0.07 IMPs; S T9 ♦6 −0.16 ±
-  0.08 tricks / −2.03 IMPs, suboptimal and marginal). **The committed
-  strict baselines were taken with the unfiltered trigger still in**
-  (dropped 2026-09-08 without a re-run): their `‡` rows — c7 E T3 ♥9, W
-  T6 ♥3, W T9 ♥T; o7 S T5 ♣2, N T6 ♠4, E T6 ♥9, E T8 ♠T; c14 W T2 ♣2, S
-  T6 ♣8 — now stay at 100 deals with the same status, and the totals
-  drop by about those rows' time (c7 1 013 → ~670 s, o7 936 → ~780 s,
-  c14 665 → ~520 s expected; 814 / 535 / 384 s with escalation off,
-  1 569 s for c7 at the v1.3 build). Re-baseline on the next strict run
-  and re-pin here. This laptop's DDS rate drifts ±15 % with temperature,
-  so compare the `dds` counters too.
+  committed `board7-c7-strict100.json` passes (19/0/1 · 11/0/0 · 10/0/0,
+  2.21 · 0 · 0.07 IMPs; S T9 ♦6 −0.16 ± 0.08 tricks / −2.03 IMPs,
+  suboptimal and marginal). Likewise `docs/play/board14.lin --qx c14`
+  against `board14-c14-strict100.json` (19/2/0 · 9/0/1 · 10/1/0, 1.97 ·
+  1.20 · 1.62 IMPs). All three strict baselines were re-taken 2026-09-08
+  after the unfiltered trigger was dropped, in one fresh 16-thread API
+  process, o7 then c7 then c14: **801 / 817 / 496 s** (936 / 1 013 / 665 s
+  with the trigger in; 535 / 814 / 384 s with escalation off; 1 569 s for
+  c7 at the v1.3 build). Every former `‡` row now sits at 100 deals with
+  the same grade, and no response carries a trigger other than `status`
+  or `band`. This laptop's DDS rate drifts ±15 % with temperature, so
+  compare the `dds` counters too.
 - **P-1.4-3 [smoke] Plain grading untouched.** P-1.0-2 and P-1.3-2 still
   read their pinned numbers (P-1.3-2 at 4 threads).
 - **P-1.4-4 [full] What's new.** The panel lists v1.4 *How sure is that
