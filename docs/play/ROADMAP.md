@@ -180,6 +180,23 @@ Two rulings/observations recorded for that work:
    2026-09-04) the sample-size problem the timing work exposed — more deals
    only where a status sits near a threshold, or a confidence band on the
    status; cost is quadratic in the deal count, so spend deals selectively.
+   Designed and built 2026-09-08
+   ([`v1.4-sample-size-plan.md`](v1.4-sample-size-plan.md)): the seed
+   spread is ordinary sampling noise and the grader can quote a standard
+   error for free, so every grade carries a ± and a *marginal* flag (its
+   status is not firm within ±2σ), and a decision that does not read
+   clearly optimal — or is marginal — is re-graded on **×3** deals (caps
+   600 plain / 300 expert), extending its sample from a per-decision
+   stream so nothing else moves, with the expert filter's inner cap held
+   at the base count so the verdict does not change. On by default in
+   both modes, a checkbox turns it off. Plain runs cost the same; strict
+   expert runs cost more on the decisions in doubt (numbers in the plan).
+   A third trigger — the cheap unfiltered grade as a second opinion under
+   expert opponents — was built, measured (every extension it caused
+   ended firm optimal, at ~70 % of the added time) and **dropped** the
+   same day. Truth stays truth: the closed room's T9 ♦6 reads −0.16 ±
+   0.08 tricks on 300 deals and is still marked marginal, because its
+   true cost sits between the two status lines.
    Then **guess-aware grading**: the strategy-fusion ladder recorded below —
    detect candidates whose DD-best continuation diverges within an
    information set ("relies on a later guess"), then price flagged guesses

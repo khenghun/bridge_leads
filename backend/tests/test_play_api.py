@@ -321,7 +321,10 @@ def test_expert_toggle_fills_defaults_and_reports_counts():
     assert graded
     for d in graded:
         e = d['expert']
-        assert e['consistent'] == 5 and e['sampled'] >= 5
+        # 5 deals, or 15 when the grade was in doubt and escalated (x3)
+        assert d['sample']['deals'] in (5, 15)
+        assert d['sample']['escalated'] == (d['sample']['deals'] == 15)
+        assert e['consistent'] == d['sample']['deals'] and e['sampled'] >= e['consistent']
         assert e['inference'] in ('filtered', 'trivial')
         assert e['threshold'] > 0.1
 

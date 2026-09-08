@@ -29,7 +29,11 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   one grade, of West) → *Analyze*. One `POST /api/play/analyze` → 200 in
   ~1 s with `seat: "W"`, `method: "single_dummy"`, `num_deals: 40`. Under
   the **West** section, pinned: **13 ✓ / 2 ~ / 0 ✗ of 15 graded, 3
-  forced**; `Tricks given up: 0.45` · **0.82 IMPs (27 points)**.
+  forced**; `Tricks given up: 0.44` · **0.69 IMPs (23 points)** — since
+  v1.4 the four doubtful decisions are re-graded on 120 deals and the seat
+  line adds `· 4 marginal` and `(×3 when in doubt)`; the v1.0–v1.3 build
+  read 0.45 · 0.82 IMPs (27 points), and still does with *Spend more deals
+  on doubtful grades* unticked.
 - **P-1.0-3 [full] Step through the play.** With the hand loaded, press
   `ArrowRight` → the played-card counter advances by one and that card is
   struck through in its hand; `Shift+ArrowRight` advances a whole trick and
@@ -62,11 +66,14 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   (3 grades)** → Analyze. **Three** sequential `POST /api/play/analyze`
   (seats W, then N, then S), sections appearing one by one. Pinned:
   *Biggest swings* on top, `Ranked by IMPs`, first rows
-  `1 N ♠9 −0.55 IMPs / −0.50 tricks`, `7 W ♥4 −0.50 / −0.20`,
-  `8 S ♣3 −0.40 / −0.20`, `4 N ♦5 −0.40 / −0.17`; pair lines `E/W …
-  tricks given up 0.45 · 0.82 IMPs` and `N/S … defensive tricks given up
-  1.32 · 1.83 IMPs`. The
-  explanatory line says dummy (East) makes no decisions.
+  `1 N ♠9 −0.69 IMPs / −0.46 tricks · ✗ suboptimal ?`, `7 W ♥4 −0.42 /
+  −0.15 · ~ good ?`, `8 S ♣3 −0.35 / −0.17 · ~ good`, `6 N ♠8 −0.34 /
+  −0.38 · ✗ suboptimal ?`; pair lines `E/W … tricks given up 0.44 · 0.69
+  IMPs` and `N/S … 12✓ 2~ 2✗ of 16 graded · 3 marginal · defensive tricks
+  given up 1.19 · 1.76 IMPs` (v1.4 numbers, every swing row re-graded on
+  120 deals; before v1.4: `1 N ♠9 −0.55 / −0.50`, `7 W ♥4 −0.50 / −0.20`,
+  `8 S ♣3 −0.40 / −0.20`, `4 N ♦5 −0.40 / −0.17`, E/W 0.45 · 0.82, N/S
+  1.32 · 1.83). The explanatory line says dummy (East) makes no decisions.
 - **P-1.1-2 [full] N/S alone.** Board 17 → **N/S** → Analyze: exactly two
   requests (N, S), no West section, the N/S pair summary equals the one in
   P-1.1-1.
@@ -92,12 +99,14 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   teams championship`, each with its blurb; every one loads.
 - **P-1.2-2 [smoke] IMP pricing and the demoted badge.** Click **Board 6 ·
   7NT by East** (52 cards played) → **Whole table** → Analyze: three POSTs
-  → 200 (~60 s on prod). Pinned (40 deals): *Biggest swings* has two rows,
-  `4 · E (decl) · ♦Q · −3.00 IMPs · −0.15 tricks · ✗ suboptimal` — a card
-  that costs almost no tricks but three IMPs is **demoted to suboptimal** —
-  and `10 · E (decl) · ♠5 · −1.00 · −0.05 · ~ good`; pair lines `E/W …
-  tricks given up 0.20 · 4.00 IMPs` with the East footer `4.00 IMPs (464
-  points)`; `N/S … 0.00 · 0.38 IMPs`.
+  → 200 (~60 s on prod). Pinned (40 deals, v1.4): *Biggest swings* has two
+  rows, `4 · E (decl) · ♦Q · −2.50 IMPs · −0.13 tricks · ✗ suboptimal ?` —
+  a card that costs almost no tricks but IMPs is **demoted to suboptimal**
+  — and `10 · E (decl) · ♠5 · −0.50 · −0.03 · ~ good ?`; pair lines `E/W …
+  19✓ 1~ 1✗ of 21 graded · 2 marginal · tricks given up 0.15 · 3.00 IMPs`
+  with the East footer `3.00 IMPs (348 points)`; `N/S … 0.00 · 0.00 IMPs`
+  (both East swings re-graded on 120 deals; before v1.4 they read −3.00 /
+  −0.15 and −1.00 / −0.05, E/W 0.20 · 4.00 IMPs (464 points), N/S 0.38).
 - **P-1.2-3 [full] IMPs everywhere.** In every decisions table the headers
   are `Card · Act · Best · IMPs · Grade`; every options list has *Score*
   and *IMPs* columns; hovering an IMPs cell shows the points in its tooltip;
@@ -127,18 +136,23 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   `Graded on N of M sampled deals consistent with expert play by the
   opponents · rejects a play shown ≥ 0.32 tricks worse`; every graded row
   carries a small `c/s deals` count under its badge (60/60 early, more
-  examined later). Pinned: **Graded on 900 of 1406**, West **13 ✓ / 2 ~ /
-  0 ✗ of 15 graded (3 forced)**, tricks given up **0.48 · 0.96 IMPs (32
-  points)** — against the plain 40-deal run's 13/2/0 and 0.45 · 0.82 IMPs.
-  Eighteen requests, ~70 s on a 4-thread laptop, ~2 min on prod. (The
-  sampled count was 1371 at the v1.3 build; the v1.4 batch-aggregation
-  change of 2026-09-03 draws the outer deficit in different rounds, so it
-  now reads 1406 — same 900 consistent, identical grades. Re-pinned from
-  a local replay at that commit and confirmed on prod.) **Expert pins are
-  thread-dependent:** the inner sample schedule starts at the DDS thread
-  count, so replay this locally with `BRIDGE_DDS_THREADS=4` (prod runs 2;
-  both give the pinned 0.48 · 0.96) — at 16 threads it reads the same
-  900/1406 and 13/2/0 but 0.52 · 1.00. Plain grades do not depend on it.
+  examined later). Pinned (v1.4, escalation on): **Graded on 1380 of
+  1943**, West **13 ✓ / 2 ~ / 0 ✗ of 15 graded (3 forced) · 2 marginal**,
+  `60 deals (×3 when in doubt)`, tricks given up **0.41 · 0.76 IMPs (25
+  points)** — four decisions re-graded on 180 deals (`180/181`, `180/322`,
+  `180/332`, `180/270` under their badges) — against the plain 40-deal
+  run's 13/2/0 and 0.44 · 0.69 IMPs. Eighteen requests, ~80 s on a
+  4-thread laptop, ~2–3 min on prod. With *Spend more deals on doubtful
+  grades* unticked the v1.3 pins come back: graded on 900 of 1406, 0.48 ·
+  0.96 IMPs (32 points). (The sampled count was 1371 at the v1.3 build;
+  the v1.4 batch-aggregation change of 2026-09-03 draws the outer deficit
+  in different rounds, so it reads 1406 — same 900 consistent, identical
+  grades.) **Expert pins are thread-dependent:** the inner sample schedule
+  starts at the DDS thread count, so replay this locally with
+  `BRIDGE_DDS_THREADS=4` (prod runs 2; both give the pinned numbers) — at
+  16 threads the counts and grades hold but the totals move a few
+  hundredths. Plain grades do not depend on it. `scripts/pin_example.py`
+  replays both runs against a local API and prints every number here.
 - **P-1.3-6 [full] Interrupted runs resume.** Start the run above, then
   stop the play API (or go offline) after a few decisions: the West section
   keeps the decisions it has, shows the error with *press Resume*, and a
@@ -154,7 +168,7 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   4770.
 - **P-1.3-4 [full] Off means off.** Untick the toggle, Analyze: one request
   per seat, no `expert_opponents` field, no seat line, no per-row counts;
-  the plain v1.0 numbers (P-1.0-2) come back exactly.
+  the plain numbers (P-1.0-2) come back exactly.
 - **P-1.3-5 [full] What's new.** The panel lists v1.3 *Expert opponents*
   with four entries above v1.2.
 
@@ -165,27 +179,62 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   o7 --strict --deals 100 --seats E` against a fresh play API started with
   `BRIDGE_DDS_THREADS=16`, then `scripts/compare_bench.py
   docs/play/bench/board7-o7-strict100.json <run>.json` must pass for East.
-  Pinned in that file (2026-09-04): East **8 ✓ / 2 ~ / 0 ✗ of 10**, 0.53
-  tricks · 1.45 IMPs, `sampled 10672, consistent 991` over the seat; the
-  trick-4 ♥J reads *good* (−0.20) and the trick-6 ♥9 *optimal* — the v1.3
-  build graded both *suboptimal* on unfiltered pools (`2000→0`, inference
-  `none`) because every layout shared one memoised verdict on declarer's
-  ♦A from dummy. Declarer (N): 17/2/1, 5.82 IMPs, the opening lead no
-  longer judged by the filter and each decision starting from the
-  previous one's pool (`carried` > 0 from the second decision on; that
-  seat took 110 s). Decisions must be requested in index order for the
-  pins to hold — the UI and this script do.
+  Pinned in that file (2026-09-08, escalation on, **taken before the
+  unfiltered trigger was dropped** — its two `‡` rows, T6 ♥9 and T8 ♠T,
+  now stay at 100 deals, same status, and the seat is ~90 s faster; the
+  file is due a re-baseline on the next strict run): East **8 ✓ / 2 ~ /
+  0 ✗ of 10 · 3 marginal**, 0.48 tricks · 1.41 IMPs, `sampled 14956,
+  consistent 2000` over the seat (five decisions extended to 300 deals);
+  the trick-4 ♥J reads *good* (−0.17 ± 0.06) and the trick-6 ♥9 *optimal*
+  — the v1.3 build graded both *suboptimal* on unfiltered pools
+  (`2000→0`, inference `none`) because every layout shared one memoised
+  verdict on declarer's ♦A from dummy. Declarer (N): 18/0/2, 5.72 IMPs,
+  the opening lead no longer judged by the filter and each decision
+  starting from the previous one's pool (`carried` > 0 from the second
+  decision on; that seat took 209 s, 110 s before escalation). Decisions
+  must be requested in index order for the pins to hold — the UI and this
+  script do. (2026-09-04 pins, escalation off: E 8/2/0 · 0.53 · 1.45,
+  `10672 / 991`; N 17/2/1 · 5.82.)
 - **P-1.4-2 [full] Same verdicts, faster.** The closed room,
   `--qx c7 --strict --deals 100`, all seats: `compare_bench.py` against the
-  committed `board7-c7-strict100.json` passes (18/1/1 · 11/0/0 · 10/0/0,
-  2.78 · 0 · 0.33 IMPs) and the total is within noise of **814 s** on the
-  16-thread laptop (declarer 123 s, ~6 s a decision; this laptop's DDS
-  rate drifts ±15 % with temperature, so compare the `dds` counters
-  too) — the v1.3 build's sequential rerun took 1 569 s. Board 14's 2♥x
-  room (`board14-c14-strict100.json`): W 18/3/0 · N 9/0/1 · S 10/1/0,
-  384 s.
+  committed `board7-c7-strict100.json` passes except on its former `‡`
+  rows (19/0/1 · 11/0/0 · 10/0/0, 2.21 · 0 · 0.07 IMPs; S T9 ♦6 −0.16 ±
+  0.08 tricks / −2.03 IMPs, suboptimal and marginal). **The committed
+  strict baselines were taken with the unfiltered trigger still in**
+  (dropped 2026-09-08 without a re-run): their `‡` rows — c7 E T3 ♥9, W
+  T6 ♥3, W T9 ♥T; o7 S T5 ♣2, N T6 ♠4, E T6 ♥9, E T8 ♠T; c14 W T2 ♣2, S
+  T6 ♣8 — now stay at 100 deals with the same status, and the totals
+  drop by about those rows' time (c7 1 013 → ~670 s, o7 936 → ~780 s,
+  c14 665 → ~520 s expected; 814 / 535 / 384 s with escalation off,
+  1 569 s for c7 at the v1.3 build). Re-baseline on the next strict run
+  and re-pin here. This laptop's DDS rate drifts ±15 % with temperature,
+  so compare the `dds` counters too.
 - **P-1.4-3 [smoke] Plain grading untouched.** P-1.0-2 and P-1.3-2 still
   read their pinned numbers (P-1.3-2 at 4 threads).
-- **P-1.4-4 [full] What's new.** The panel lists v1.4 *Expert opponents:
-  faster, and right about dummy* with a *fixed* and an *improved* entry
-  above v1.3; *In development* until deployed.
+- **P-1.4-4 [full] What's new.** The panel lists v1.4 *How sure is that
+  grade?* with a *new*, a *fixed* and an *improved* entry above v1.3; *In
+  development* until deployed.
+- **P-1.4-5 [smoke] Every grade says how sure it is.** Board 17 → E/W →
+  Analyze (defaults). The sidebar has a ticked **Spend more deals on
+  doubtful grades (×3)** checkbox under the deal slider with its
+  explanation; the request carries `escalation: {factor: 3}`. The seat
+  line reads `13✓ 2~ of 15 graded (3 forced) · 4 marginal · 40 deals (×3
+  when in doubt) · saw W + E`. Four rows — T1 W ♠5, T5 E ♥2, T7 W ♥4, T7 E
+  ♥3 — carry a **dashed badge ending in `?`** whose tooltip starts `120
+  deals (extended: …)` and ends `the grade could read differently on
+  another sample of this size`; every other graded row's tooltip reads
+  `40 deals — firm within ±2σ`. The IMPs cell of an escalated row shows a
+  small `±0.1` / `±0.2` beside the value, and hovering the *Best* cell
+  gives `vs best: −0.15 ± 0.04 tricks over 120 deals` (T5 E ♥2). The
+  response's decisions carry `sample: {deals, se_tricks, se_imps, firm,
+  escalated, trigger}` (forced ones `null`) and `summary.marginal: 4`.
+- **P-1.4-6 [full] Escalation off reproduces the earlier pins.** Untick
+  the checkbox → Analyze: the request carries `escalation: null`, no row
+  shows `?` or `±`, and the seat reads exactly the v1.0–v1.3 pins — 13/2/0,
+  0.45 · 0.82 IMPs (27 points); with Expert opponents on, graded on 900 of
+  1406, 0.48 · 0.96 IMPs (32 points) at 4 threads. Re-tick it: the v1.4
+  pins (P-1.0-2, P-1.3-2) come back from the server cache at once.
+- **P-1.4-7 [full] Two triggers only.** No decision in any response
+  carries a `trigger` other than `"status"`, `"band"` or `null`; the
+  strict bench reports mark extensions `*` / `†` only. (An unfiltered
+  second-opinion trigger was built and dropped the same day.)

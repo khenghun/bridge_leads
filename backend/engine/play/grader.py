@@ -35,8 +35,11 @@ slow analysis can be fetched trick by trick.
 """
 
 import json
+import math
 import random
+import statistics
 from collections import defaultdict
+from dataclasses import dataclass
 
 from endplay.types import Deal, Denom, Player
 
@@ -105,6 +108,150 @@ def classify_with_imps(diff: float, is_best: bool, imp_diff=None) -> str:
     if lost >= IMP_GOOD and status == 'optimal':
         return 'good'
     return status
+
+
+# Sample-size confidence (v1.4, `docs/play/v1.4-sample-size-plan.md`). A grade
+# is a mean over sampled deals of the per-deal difference between the card
+# played and the best card, and the solve already returns every card's trick
+# count on every board — so the grade's standard error is free, and a grade
+# that is in doubt can be extended with more deals rather than redrawn.
+Z_BAND = 2.0                        # the band on a grade: diff ± Z_BAND · se
+ESCALATION_CAP = {'plain': 600, 'expert': 300}
+
+
+@dataclass
+class EscalationSettings:
+    """Re-grade a decision on `factor` × the base deal count when its base
+    grade is not clearly optimal: status not `optimal`, or band not firm.
+    The base sample is kept and extended; the extra layouts come from a stream
+    seeded per decision, so no other decision's draw moves. `max_deals` caps
+    the escalated count; None means the mode's default (600 plain, 300
+    expert — the expert cost per deal is an order of magnitude higher)."""
+    factor: int = 3
+    max_deals: int | None = None
+
+    def target(self, num_deals: int, expert_on: bool) -> int:
+        cap = self.max_deals or ESCALATION_CAP['expert' if expert_on else 'plain']
+        return max(num_deals, min(self.factor * num_deals, cap))
+
+
+def _escalation_settings(escalation):
+    """`None`, an `EscalationSettings`, or a dict of its fields."""
+    if escalation is None or isinstance(escalation, EscalationSettings):
+        return escalation
+    return EscalationSettings(**escalation)
+
+
+def _stream_rng(seed, index: int, tag: str):
+    """A private rng for one decision's extra draws — the pre-scan or the
+    escalation — so the seat's main stream (and every other decision's
+    sample) is exactly what it is without them."""
+    return random.Random(f'{seed}/{index}/{tag}') if seed is not None else random
+
+
+def _se(values) -> float:
+    n = len(values)
+    return statistics.pstdev(values) / math.sqrt(n) if n > 1 else 0.0
+
+
+def is_firm(diff, is_best, imp_diff, se_tricks, se_imps, z=Z_BAND) -> bool:
+    """Whether every corner of the band `diff ± z·se_tricks` × `imp_diff ±
+    z·se_imps` classifies as the point estimate does — the status would not
+    change on a re-draw within the band. `is_best` holds only at the centre:
+    a card that ties the best card at the point estimate is not taken to be
+    best at the band's edge."""
+    status = classify_with_imps(diff, is_best, imp_diff)
+    for a in (-1, 0, 1):
+        for b in (-1, 0, 1):
+            corner = classify_with_imps(
+                round(diff + a * z * se_tricks, 3), is_best and a == 0,
+                None if imp_diff is None else round(imp_diff + b * z * se_imps, 2))
+            if corner != status:
+                return False
+    return True
+
+
+def _sample_stats(per_board, card, best, sign, scoring, diff, is_best, imp_diff,
+                  trigger=None):
+    """The grade's own uncertainty: the standard error of the paired per-deal
+    difference `card − best`, in tricks and in IMPs, and whether the status
+    is firm within `Z_BAND` of it. `trigger` names why the sample was
+    extended (`status` / `band`), None when it was not. None if the card
+    has no boards."""
+    a, b = per_board.get(card), per_board.get(best)
+    if not a or not b or len(a) != len(b):
+        return None
+    d = [sign * (x - y) for x, y in zip(a, b)]
+    di = [imps(sign * (scoring.score(x) - scoring.score(y))) for x, y in zip(a, b)]
+    se_tricks, se_imps = _se(d), _se(di)
+    return {
+        'deals': len(d),
+        'se_tricks': round(se_tricks, 3),
+        'se_imps': round(se_imps, 2),
+        'firm': is_firm(diff, is_best, imp_diff, se_tricks, se_imps),
+        'escalated': trigger is not None,
+        'trigger': trigger,
+    }
+
+
+def _assess(options, per_board, played, sign, scoring, trigger=None):
+    """The card `played` against the best card: the decision record's
+    fields and its `sample` block (None when the card has no boards)."""
+    by_card = {o['card']: o for o in options}
+    best = options[0]['tricks'] if options else None
+    best_cards = [o['card'] for o in options
+                  if best is not None and abs(o['tricks'] - best) < 0.01]
+    mine = by_card.get(played)
+    fields = {
+        'best_cards': best_cards,
+        'best_tricks': best,
+        'actual_tricks': mine['tricks'] if mine else None,
+    }
+    if mine is None or best is None:
+        return fields, None
+    diff = round(mine['tricks'] - best, 3)
+    is_best = played in best_cards
+    fields.update({
+        'diff': diff,
+        'best_score': options[0].get('score'),
+        'actual_score': mine.get('score'),
+        'score_diff': (round(mine['score'] - options[0]['score'], 1)
+                       if 'score' in mine else None),
+        'imp_diff': mine.get('imps'),
+        'status': classify_with_imps(diff, is_best, mine.get('imps')),
+    })
+    sample = _sample_stats(per_board, played, options[0]['card'], sign, scoring,
+                           diff, is_best, mine.get('imps'), trigger)
+    return fields, sample
+
+
+def _doubt_reason(options, per_board, played, sign, scoring):
+    """The escalation trigger: why the card played does not read clearly
+    optimal — `status` (not optimal) or `band` (not firm) — or None."""
+    fields, sample = _assess(options, per_board, played, sign, scoring)
+    if fields.get('status') is None:
+        return None
+    if fields['status'] != 'optimal':
+        return 'status'
+    if sample is not None and not sample['firm']:
+        return 'band'
+    return None
+
+
+def _position_sample(options, per_board, sign, scoring, deals):
+    """For a position (no card played): the best card against the runner-up;
+    `firm` when the best card is ahead by more than the band."""
+    if len(options) < 2:
+        return {'deals': deals, 'se_tricks': 0.0, 'se_imps': 0.0,
+                'firm': True, 'escalated': False, 'trigger': None}
+    best, second = options[0]['card'], options[1]['card']
+    d = [sign * (x - y) for x, y in zip(per_board[second], per_board[best])]
+    di = [imps(sign * (scoring.score(x) - scoring.score(y)))
+          for x, y in zip(per_board[second], per_board[best])]
+    se_tricks, se_imps = _se(d), _se(di)
+    margin = sum(d) / len(d) if d else 0.0
+    return {'deals': deals, 'se_tricks': round(se_tricks, 3), 'se_imps': round(se_imps, 2),
+            'firm': margin + Z_BAND * se_tricks < 0, 'escalated': False, 'trigger': None}
 
 
 def visible_seats(position: Position, view: str) -> list[str]:
@@ -286,8 +433,19 @@ def _solve(position, layouts, level):
 
     Returns `(totals, successes, count)` keyed by card, in **declarer** tricks.
     """
-    per_board = _collect(position, solve_all(
+    per_board = _solve_boards(position, layouts)
+    totals, makes, counts = _tally(per_board, level)
+    return totals, makes, counts, per_board
+
+
+def _solve_boards(position, layouts):
+    """`layouts` at `position` solved in one DDS batch -> per-board tricks."""
+    return _collect(position, solve_all(
         [_build_deal(layout, position) for layout in layouts]))
+
+
+def _tally(per_board, level):
+    """Per-card totals / makes / counts from the per-board trick counts."""
     needed = level + 6
     totals = defaultdict(float)
     makes = defaultdict(int)
@@ -296,7 +454,7 @@ def _solve(position, layouts, level):
         counts[name] = len(values)
         totals[name] = float(sum(values))
         makes[name] = sum(1 for t in values if t >= needed)
-    return totals, makes, counts, per_board
+    return totals, makes, counts
 
 
 def _collect(position, boards):
@@ -391,28 +549,75 @@ def _options(position, view, totals, makes, counts, per_board=None, scoring=None
     return out
 
 
+def _layouts(position, view, level, method, num_deals, constraints, rng, expert,
+             all_constraints, context_key, memo, start=None, stats=None,
+             base_deals=None):
+    """The deals a grade rests on: the real one, the expert-filtered sample,
+    or the plain sample. Returns `(layouts, ExpertStats | None)`."""
+    if method == 'double_dummy':
+        return [position.layout()], None
+    if expert is not None:
+        return expert_layouts(
+            position, view, constraints, all_constraints or {}, num_deals, expert,
+            rng, level=level, context_key=context_key, memo=memo,
+            start=start, stats=stats, base_deals=base_deals)
+    return _sample_layouts(position, view, constraints, num_deals, rng), None
+
+
 def _grade(position, view, level, method, num_deals, constraints, rng,
            scoring=None, expert=None, all_constraints=None, context_key=None,
-           memo=None):
+           memo=None, escalation=None, played=None, seed=None):
     """Price every legal card at `position` through `view`'s eyes.
 
-    Returns `(options, deals_used, expert_stats)`; `expert_stats` is None
-    unless expert opponents are on (and sampling)."""
+    Returns `(options, per_board, deals_used, expert_stats, trigger)` —
+    `trigger` is why the sample was extended (`status`, `band`) or None;
+    `expert_stats` is None unless expert opponents are on (and sampling).
+
+    With `escalation` and the card `played`, a base grade that is in doubt
+    (`_in_doubt`: not optimal, or not firm within the band) is **extended**
+    to `escalation.target` deals — the base layouts stay and more are drawn
+    from the decision's own stream. (A third trigger — the unfiltered
+    grade at the base count as a second opinion under expert opponents —
+    was built, measured and dropped 2026-09-08: every extension it caused
+    on the benchmarks ended firm optimal, at ~70 % of the added time.)
+    The expert filter's inner cap stays at the base count throughout, so every earlier verdict is a memo hit and the
+    escalated sample is from the same population as the base one."""
     if method not in METHODS:
         raise ValueError(f"method must be one of {METHODS}, got {method!r}")
-    stats = None
-    if method == 'double_dummy':
-        layouts = [position.layout()]
-    elif expert is not None:
-        layouts, st = expert_layouts(
-            position, view, constraints, all_constraints or {}, num_deals, expert,
-            rng, level=level, context_key=context_key, memo=memo)
-        stats = st.as_dict(expert, expert.inner_cap(num_deals))
-    else:
-        layouts = _sample_layouts(position, view, constraints, num_deals, rng)
-    totals, makes, counts, per_board = _solve(position, layouts, level)
-    return (_options(position, view, totals, makes, counts, per_board, scoring),
-            len(layouts), stats)
+    layouts, st = _layouts(position, view, level, method, num_deals, constraints,
+                           rng, expert, all_constraints, context_key, memo)
+    per_board = _solve_boards(position, layouts)
+    options = _options(position, view, *_tally(per_board, level), per_board, scoring)
+    trigger = None
+    expert_on = expert is not None and method != 'double_dummy'
+    if (escalation is not None and played is not None and scoring is not None
+            and method != 'double_dummy'):
+        sign = 1 if view in position.declarer_side else -1
+        target = escalation.target(num_deals, expert_on)
+        if target > len(layouts):
+            trigger = _doubt_reason(options, per_board, played, sign, scoring)
+        if trigger is not None:
+            more = _stream_rng(seed, position.index, 'more')
+            if expert_on and st is not None and st.inference != 'none':
+                grown, st = _layouts(
+                    position, view, level, method, target, constraints, more, expert,
+                    all_constraints, context_key, memo, start=layouts, stats=st,
+                    base_deals=num_deals)
+                new = grown[len(layouts):]
+            else:
+                new = _sample_layouts(position, view, constraints,
+                                      target - len(layouts), more)
+                grown = layouts + new
+            if new:
+                for card, values in _solve_boards(position, new).items():
+                    per_board[card].extend(values)
+                layouts = grown
+                options = _options(position, view, *_tally(per_board, level),
+                                   per_board, scoring)
+            else:
+                trigger = None
+    stats = st.as_dict(expert, expert.inner_cap(num_deals)) if st is not None else None
+    return options, per_board, len(layouts), stats, trigger
 
 
 def _context_key(hands, level, strain, declarer, play, all_constraints):
@@ -454,9 +659,11 @@ def grade_position(hands, level, strain, declarer, play=(), *,
     scoring = Scoring(level, strain, position.declarer, vul, penalty)
     expert = _expert_settings(expert)
     ctx = _context_key(hands, level, strain, declarer, list(play), expert_constraints)
-    options, sampled, stats = ([], 0, None) if forced else _grade(
+    options, per_board, sampled, stats, _ = ([], {}, 0, None, False) if forced else _grade(
         position, view, level, method, num_deals, constraints, rng, scoring,
         expert=expert, all_constraints=expert_constraints, context_key=ctx, memo=memo)
+    sign = 1 if view in position.declarer_side else -1
+    sample = None if forced else _position_sample(options, per_board, sign, scoring, sampled)
 
     return {
         'to_play': to_play,
@@ -473,6 +680,7 @@ def grade_position(hands, level, strain, declarer, play=(), *,
         'method': method,
         'num_deals': sampled,
         'expert': stats,
+        'sample': sample,
     }
 
 
@@ -486,7 +694,7 @@ def _expert_settings(expert):
 def grade_play(hands, level, strain, declarer, play, seat, *,
                method='single_dummy', num_deals=40, constraints=None, seed=None,
                vul='none', penalty='none', expert=None, expert_constraints=None,
-               decisions=None, memo=None):
+               decisions=None, memo=None, escalation=None):
     """Grade every decision `seat` made in the recorded play.
 
     For declarer that includes the cards played from dummy; dummy itself makes
@@ -507,6 +715,12 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
     summary then covers the chunk. `expert` turns on the expert-opponents
     filter (`engine.play.expert`) and each graded decision carries its
     sampling counts under `expert`.
+
+    Every graded decision also carries `sample`: the deals it rests on, the
+    standard error of its diff in tricks and IMPs, and `firm` — whether the
+    status holds across the ±2σ band. `escalation` (an `EscalationSettings`
+    or its dict) re-grades a decision in doubt on more deals (`_grade`);
+    `summary.marginal` counts the graded decisions still not firm.
     """
     if method not in METHODS:
         raise ValueError(f"method must be one of {METHODS}, got {method!r}")
@@ -526,8 +740,10 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
     rng = random.Random(seed) if seed is not None else random
     scoring = Scoring(level, strain, final.declarer, vul, penalty)
     expert = _expert_settings(expert)
+    escalation = _escalation_settings(escalation)
     ctx = _context_key(hands, level, strain, declarer, list(play), expert_constraints)
     wanted = None if decisions is None else set(decisions)
+    sign = 1 if seat in final.declarer_side else -1
 
     decisions = []
     for position, card in walk(hands, strain, declarer, play):
@@ -554,32 +770,18 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
             'options': [],
             'best_cards': [],
             'expert': None,
+            'sample': None,
         }
         if not record['forced']:
-            options, _, stats = _grade(
+            options, per_board, _, stats, trigger = _grade(
                 position, seat, level, method, num_deals, constraints, rng, scoring,
                 expert=expert, all_constraints=expert_constraints, context_key=ctx,
-                memo=memo)
+                memo=memo, escalation=escalation, played=card, seed=seed)
             record['expert'] = stats
-            by_card = {o['card']: o for o in options}
-            best = options[0]['tricks'] if options else None
-            best_cards = [o['card'] for o in options
-                          if best is not None and abs(o['tricks'] - best) < 0.01]
-            played = by_card.get(card, {})
-            actual = played.get('tricks')
             record['options'] = options
-            record['best_cards'] = best_cards
-            record['best_tricks'] = best
-            record['actual_tricks'] = actual
-            if actual is not None and best is not None:
-                diff = round(actual - best, 3)
-                record['diff'] = diff
-                record['best_score'] = options[0]['score']
-                record['actual_score'] = played['score']
-                record['score_diff'] = round(played['score'] - options[0]['score'], 1)
-                record['imp_diff'] = played['imps']
-                record['status'] = classify_with_imps(
-                    diff, card in best_cards, played['imps'])
+            fields, sample = _assess(options, per_board, card, sign, scoring, trigger)
+            record.update(fields)
+            record['sample'] = sample
         decisions.append(record)
 
     graded = [d for d in decisions if not d['forced'] and d['diff'] is not None]
@@ -592,6 +794,7 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
         'optimal': sum(1 for d in graded if d['status'] == 'optimal'),
         'good': sum(1 for d in graded if d['status'] == 'good'),
         'suboptimal': sum(1 for d in graded if d['status'] == 'suboptimal'),
+        'marginal': sum(1 for d in graded if d['sample'] and not d['sample']['firm']),
         'total_trick_loss': round(loss, 2),
         'avg_trick_loss': round(loss / len(graded), 3) if graded else 0.0,
         'total_score_loss': round(score_loss, 1),
@@ -609,4 +812,5 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
         'method': method,
         'num_deals': 1 if method == 'double_dummy' else num_deals,
         'expert': expert.__dict__ if expert is not None else None,
+        'escalation': escalation.__dict__ if escalation is not None else None,
     }

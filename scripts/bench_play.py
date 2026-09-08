@@ -138,7 +138,8 @@ def bench_board(api, qx, board, seg, args):
                     'diff': d['diff'], 'imp_diff': d['imp_diff'],
                     'score_diff': d['score_diff'],
                     'best_cards': d['best_cards'], 'options': d['options'],
-                    'expert': d['expert'], 'elapsed_s': round(elapsed, 3),
+                    'expert': d['expert'], 'sample': d.get('sample'),
+                    'elapsed_s': round(elapsed, 3),
                 })
             print(f"  {qx} {seat} j={j:2d} T{rows[-1]['trick']:2d} "
                   f"{rows[-1]['hand']} {rows[-1]['card']} "
@@ -152,6 +153,8 @@ def bench_board(api, qx, board, seg, args):
             'suboptimal': sum(1 for d in graded if d['status'] == 'suboptimal'),
             'total_trick_loss': round(-sum(min(d['diff'], 0) for d in graded), 3),
             'total_imp_loss': round(-sum(min(d['imp_diff'] or 0, 0) for d in graded), 3),
+            'marginal': sum(1 for d in graded if d.get('sample') and not d['sample']['firm']),
+            'escalated': sum(1 for d in graded if d.get('sample') and d['sample']['escalated']),
             'total_time_s': round(seat_time, 1),
             'mean_s_per_graded': round(seat_time / max(len(graded), 1), 2),
             'max_decision_s': max((d['elapsed_s'] for d in rows), default=0.0),
@@ -188,22 +191,33 @@ def to_markdown(res):
                      f"{a['total_imp_loss']:.2f} IMPs lost — "
                      f"{a['total_time_s']} s ({a['mean_s_per_graded']} s/graded, "
                      f"max {a['max_decision_s']} s)")
+        if 'marginal' in a or 'escalated' in a:
+            lines.append(f"sample: {a.get('marginal', 0)} marginal, "
+                         f"{a.get('escalated', 0)} escalated (deals marked * not optimal, "
+                         f"† not firm; '?' = not firm)")
         if 'expert_totals' in a:
             e = a['expert_totals']
             lines.append(f"expert: sampled {e['sampled']}, consistent {e['consistent']}, "
                          f"traced {e['traced']}, judged {e['judged']}, "
                          f"memo hits {e['memo_hits']}")
         lines.append('')
-        lines.append('| j | T | hand | card | status | diff | IMPs | s | sampled→kept | judged (memo) |')
-        lines.append('| - | - | - | - | - | - | - | - | - | - |')
+        lines.append('| j | T | hand | card | status | diff ± se | IMPs ± se | deals | s | sampled→kept | judged (memo) |')
+        lines.append('| - | - | - | - | - | - | - | - | - | - | - |')
         for d in s['decisions']:
             e = d.get('expert') or {}
+            sm = d.get('sample') or {}
             ex = (f"{e['sampled']}→{e['consistent']}" if e else '')
             ju = (f"{e['judged']} ({e['memo_hits']})" if e else '')
             diff = '' if d['diff'] is None else f"{d['diff']:+.2f}"
             imp = '' if d['imp_diff'] is None else f"{d['imp_diff']:+.2f}"
+            if sm:
+                diff += f" ± {sm['se_tricks']:.2f}"
+                imp += f" ± {sm['se_imps']:.2f}"
+            status = d['status'] + (' ?' if sm and not sm['firm'] else '')
+            mark = {'status': '*', 'band': '†'}.get(sm.get('trigger'), '') if sm else ''
+            deals = (f"{sm['deals']}{mark}" if sm else '')
             lines.append(f"| {d['index']} | {d['trick']} | {d['hand']} | {d['card']} "
-                         f"| {d['status']} | {diff} | {imp} | {d['elapsed_s']} "
+                         f"| {status} | {diff} | {imp} | {deals} | {d['elapsed_s']} "
                          f"| {ex} | {ju} |")
         lines.append('')
     return '\n'.join(lines)

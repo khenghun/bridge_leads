@@ -30,7 +30,7 @@ import AnalysisPanel, {
   buildAnalysisMap, type AnalysisPlan, type SeatStatus, type Selection,
 } from './AnalysisPanel'
 import {
-  DEFAULT_DEALS, EXPERT_DEALS, EXPERT_DEFAULTS, PAIR_LABEL, chunkByDecision, constrainableSeats,
+  DEFAULT_DEALS, ESCALATION_FACTOR, EXPERT_DEALS, EXPERT_DEFAULTS, PAIR_LABEL, chunkByDecision, constrainableSeats,
   constraintsExcludeHand, constraintsForView, decisionIndices, hiddenFrom, mergeChunks,
   mergeDecisions, pairRole, pairsFor, pinnedCardsNotHeld, seatsToGrade, withRetry,
   type AnalysisAction, type Pair,
@@ -149,6 +149,8 @@ export default function PlayApp() {
   // Expert opponents (v1.3): the toggle, its knobs, and the Advanced disclosure.
   const [expert, setExpert] = useState(false)
   const [expertOpts, setExpertOpts] = useState<ExpertOptions>(EXPERT_DEFAULTS)
+  // Sample-size escalation (v1.4): on by default, ×3 deals for a decision in doubt.
+  const [escalate, setEscalate] = useState(true)
   const [advanced, setAdvanced] = useState(false)
   // Per-seat "trick 5 of 13" while a chunked analysis is arriving.
   const [progress, setProgress] = useState<Partial<Record<Seat, string>>>({})
@@ -274,7 +276,7 @@ export default function PlayApp() {
 
   /** The settings a run is made of — a resume must match them exactly. */
   const runSignature = () => JSON.stringify({
-    action, method, numDeals, expert, expertOpts, constraints, play: game?.play.length,
+    action, method, numDeals, expert, expertOpts, escalate, constraints, play: game?.play.length,
   })
 
   /** Start an analysis, or — with `resume` — continue the interrupted one.
@@ -325,6 +327,7 @@ export default function PlayApp() {
             expert: expertOn ? expertOpts : null,
             expertConstraints: expertOn
               ? constraintsForView(constraints, constrainableSeats(declarer)) : undefined,
+            escalation: escalate ? { factor: ESCALATION_FACTOR } : null,
           }
           if (!state.remaining[seat]) {
             const chunks: Array<number[] | undefined> = expertOn
@@ -469,6 +472,22 @@ export default function PlayApp() {
                 decisions × seats — 200 deals over a whole table runs for many minutes.
               </span>
             </label>
+          )}
+
+          {method === 'single_dummy' && (
+            <div className="field" data-escalation>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={escalate} onChange={(e) => setEscalate(e.target.checked)} />
+                <span>Spend more deals on doubtful grades (×{ESCALATION_FACTOR})</span>
+              </label>
+              <span className="caption tiny" style={{ margin: 0 }}>
+                Every grade carries its sampling error. A decision that does not read clearly
+                optimal — or whose grade could flip on another sample of this size — is re-graded
+                on {ESCALATION_FACTOR}× the deals{expert ? ', at most 300' : ', at most 600'}; the
+                rest cost nothing extra. A grade that is still a judgement call is marked{' '}
+                <span className="play-badge marginal" style={{ color: 'var(--status-good)' }}>~ good ?</span>.
+              </span>
+            </div>
           )}
 
           {method === 'single_dummy' && (

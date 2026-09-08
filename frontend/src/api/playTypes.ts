@@ -59,6 +59,33 @@ export interface ExpertStats {
   inference: 'filtered' | 'none' | 'trivial'
 }
 
+/** Sample-size escalation (v1.4): a decision whose grade is in doubt — not
+ * optimal, or not firm within its ±2σ band — is re-graded on `factor` ×
+ * the request's deals,
+ * capped at `max_deals` (null: 600 plain, 300 expert). */
+export interface EscalationOptions {
+  factor: number
+  max_deals?: number | null
+}
+
+/** How sure a grade is: the standard error of the per-deal paired difference
+ * between the card played and the best card, and whether the status holds
+ * across the ±2σ band. On a position (no card played) the comparison is best
+ * against runner-up and `firm` means the best card is ahead by more than the
+ * band. */
+export interface SampleStats {
+  /** Layouts the grade rests on, after any escalation. */
+  deals: number
+  se_tricks: number
+  se_imps: number
+  firm: boolean
+  /** The sample was extended beyond `num_deals`. */
+  escalated: boolean
+  /** Why it was extended: the first grade's status was not optimal, or its
+   * band was not firm. */
+  trigger?: 'status' | 'band' | null
+}
+
 /** The state every play request carries. */
 export interface PlayState {
   /** All four hands as PBN 'spades.hearts.diamonds.clubs' — 52 distinct cards. */
@@ -86,6 +113,8 @@ export interface PlayState {
    * opponent judging their own play knew them too. Unlike `constraints`,
    * the graded seat's own hand may appear here. */
   expert_constraints?: Constraints | null
+  /** Omitted = the server default (on, ×3); null = grade at `num_deals` only. */
+  escalation?: EscalationOptions | null
 }
 
 export interface AnalyzeRequest extends PlayState {
@@ -149,6 +178,8 @@ export interface Decision {
   best_cards: string[]
   /** Present when expert opponents were on and the decision was sampled. */
   expert?: ExpertStats | null
+  /** Null on a forced decision (nothing was sampled). */
+  sample?: SampleStats | null
 }
 
 export interface AnalyzeSummary {
@@ -159,6 +190,8 @@ export interface AnalyzeSummary {
   optimal: number
   good: number
   suboptimal: number
+  /** Graded decisions whose status is not firm within the band. */
+  marginal?: number
   total_trick_loss: number
   /** total_trick_loss / graded. */
   avg_trick_loss: number
@@ -183,6 +216,8 @@ export interface AnalyzeResponse {
   num_deals: number
   /** The expert settings the grade was made under; null when off. */
   expert?: ExpertOptions | null
+  /** The escalation the grade was made under; null when off. */
+  escalation?: EscalationOptions | null
 }
 
 /** The interactive primitive: grade whoever is on play at this position.
@@ -208,4 +243,5 @@ export interface PositionResponse {
   method: PlayMethod
   num_deals: number
   expert?: ExpertStats | null
+  sample?: SampleStats | null
 }

@@ -59,15 +59,19 @@ Play solver — http://localhost:5174/play.html
   **E/W** (declaring 1NT — one grade, of West) →
   **Analyze** (single dummy, 40 deals — the default since the 2× scaling).
   Expect the deterministic result under the "West" section: **13 ✓ / 2 ~ /
-  0 ✗ of 15 graded, 3 forced**, tricks given up 0.45 · **0.82 IMPs (27
-  points)**; one `/api/play/analyze` 200 in ~1 s with `seat: "W"`,
-  `num_deals: 40`. Every decisions/options table has an IMPs column.
+  0 ✗ of 15 graded, 3 forced · 4 marginal**, `40 deals (×3 when in
+  doubt)`, tricks given up 0.44 · **0.69 IMPs (23 points)**; one
+  `/api/play/analyze` 200 in ~1 s with `seat: "W"`, `num_deals: 40` and
+  `escalation: {factor: 3}`. Four rows carry a dashed `… ?` badge whose
+  tooltip reads `120 deals (extended: …)`. Every decisions/options table
+  has an IMPs column. (v1.0–v1.3 read 0.45 · 0.82 IMPs (27 points); so
+  does this build with *Spend more deals on doubtful grades* unticked.)
 - **Whole table** → Analyze: three sequential `/api/play/analyze` requests
   (W, then N, then S), sections filling in as each lands, a *Biggest swings*
-  panel on top, **ranked by IMPs**: `1 N ♠9 −0.55 IMPs / −0.50 tricks`,
-  `7 W ♥4 −0.50 / −0.20`, `8 S ♣3 −0.40 / −0.20`, `4 N ♦5 −0.40 / −0.17`,
-  … ; pair lines read `E/W … 0.45 · 0.82 IMPs` and `N/S … 1.32 · 1.83
-  IMPs`. Clicking a swing
+  panel on top, **ranked by IMPs**: `1 N ♠9 −0.69 IMPs / −0.46 tricks`,
+  `7 W ♥4 −0.42 / −0.15`, `8 S ♣3 −0.35 / −0.17`, `6 N ♠8 −0.34 / −0.38`,
+  … ; pair lines read `E/W … 0.44 · 0.69 IMPs` and `N/S … 12✓ 2~ 2✗ of 16
+  graded · 3 marginal · 1.19 · 1.76 IMPs`. Clicking a swing
   row jumps the viewer to that card, highlights the row in its seat's table
   and opens the options list (Score and IMPs columns present).
 - Constraint slicing: set North HCP min 8 and West HCP max 12, run the whole
@@ -81,14 +85,17 @@ Play solver — http://localhost:5174/play.html
   included), each with `expert_opponents: true`, the default `expert` block,
   `expert_constraints` and a one-element `decisions` (`[1]`, `[3]`, …); the
   West heading reads *solving… decision 4 of 18 done* while they arrive
-  (~70 s in all on a 4-thread laptop). Kill the API mid-run: the seat
+  (~80 s in all on a 4-thread laptop). Kill the API mid-run: the seat
   shows the error with "what was graded is kept; press Resume", and
   **Resume** continues from the first missing decision (the finished ones
-  come straight back from the server cache). Deterministic result: header `60 deals · saw W + E ·
-  expert opponents`, seat line **Graded on 900 of 1406 sampled deals … ≥
-  0.32 tricks worse**, **13 ✓ / 2 ~ / 0 ✗ of 15 graded (3 forced)**,
-  tricks given up **0.48 · 0.96 IMPs (32 points)**; every graded row shows
-  `c/s deals` under its badge (60/60 early, more examined later).
+  come straight back from the server cache). Deterministic result: header
+  `60 deals (×3 when in doubt) · saw W + E · expert opponents`, seat line
+  **Graded on 1380 of 1943 sampled deals … ≥ 0.32 tricks worse**, **13 ✓ /
+  2 ~ / 0 ✗ of 15 graded (3 forced) · 2 marginal**, tricks given up
+  **0.41 · 0.76 IMPs (25 points)**; every graded row shows `c/s deals`
+  under its badge (60/60 early, `180/322` on the four re-graded
+  decisions). Expert pins are thread-dependent: replay at
+  `BRIDGE_DDS_THREADS=4`; `scripts/pin_example.py` prints both runs.
 - Header **What's new · vX.Y** opens the play changelog panel.
 - Screenshots land in the repo root — delete them when done.
 

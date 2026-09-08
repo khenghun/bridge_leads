@@ -209,7 +209,7 @@ export function pairSummary(
   const have = seats.filter((s) => results[s])
   if (!have.length) return null
   const sum: PairSummary = {
-    seats: have, decisions: 0, graded: 0, optimal: 0, good: 0, suboptimal: 0,
+    seats: have, decisions: 0, graded: 0, optimal: 0, good: 0, suboptimal: 0, marginal: 0,
     total_trick_loss: 0, avg_trick_loss: 0, total_score_loss: 0, total_imp_loss: 0,
   }
   for (const s of have) {
@@ -219,6 +219,7 @@ export function pairSummary(
     sum.optimal += x.optimal
     sum.good += x.good
     sum.suboptimal += x.suboptimal
+    sum.marginal = (sum.marginal ?? 0) + (x.marginal ?? 0)
     sum.total_trick_loss += x.total_trick_loss
     sum.total_score_loss += x.total_score_loss ?? 0
     sum.total_imp_loss += x.total_imp_loss ?? 0
@@ -237,6 +238,18 @@ export const EXPERT_DEFAULTS: ExpertOptions = {
  * default, because the filter needs a few more layouts to be worth it. */
 export const EXPERT_DEALS = 60
 export const DEFAULT_DEALS = 40
+
+// ── sample-size escalation (v1.4) ───────────────────────────────────────────
+
+/** The engine's default: a decision in doubt is re-graded on ×3 deals. */
+export const ESCALATION_FACTOR = 3
+
+/** `−0.24 ± 0.13` for a decision's diff, or '' without a sample. */
+export function bandText(value: number | null | undefined, se: number | null | undefined, digits: number): string {
+  if (value == null || se == null) return ''
+  const sign = value > -0.0005 ? (value > 0.0005 ? '+' : '') : '−'
+  return `${sign}${Math.abs(value).toFixed(digits)} ± ${se.toFixed(digits)}`
+}
 
 /** The play indices at which `seat` decided — for declarer, dummy's cards
  * too — in play order. What a chunked analysis is split over. */
@@ -273,6 +286,7 @@ export function summarize(decisions: Decision[]): AnalyzeSummary {
     optimal: graded.filter((d) => d.status === 'optimal').length,
     good: graded.filter((d) => d.status === 'good').length,
     suboptimal: graded.filter((d) => d.status === 'suboptimal').length,
+    marginal: graded.filter((d) => d.sample && !d.sample.firm).length,
     total_trick_loss: r2(loss),
     avg_trick_loss: graded.length ? r3(loss / graded.length) : 0,
     total_score_loss: Math.round(scoreLoss * 10) / 10,

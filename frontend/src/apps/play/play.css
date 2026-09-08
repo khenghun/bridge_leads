@@ -207,6 +207,12 @@ body.light .play-felt {
   border: 1px solid currentColor;
   white-space: nowrap;
 }
+/* A status that is not firm within its band: a judgement call at this
+   sample size, shown with a dashed border and a trailing '?'. */
+.play-badge.marginal {
+  border-style: dashed;
+  opacity: 0.85;
+}
 
 .play-spinner {
   display: inline-block;

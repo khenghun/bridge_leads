@@ -65,6 +65,16 @@ class ExpertOptions(BaseModel):
     depth: conint(ge=1, le=2) = 1
 
 
+class EscalationOptions(BaseModel):
+    """Sample-size escalation (v1.4): a decision whose grade is in doubt —
+    not optimal, or not firm within its ±2σ band — is re-graded on
+    `factor` × the request's deals, capped at `max_deals` (None: 600 plain, 300 expert).
+    On by default; send `escalation: null` to grade at the base count only.
+    Defaults mirror `engine.play.grader.EscalationSettings`."""
+    factor: conint(ge=2, le=5) = 3
+    max_deals: Optional[conint(ge=50, le=1000)] = None
+
+
 class PlayStateRequest(BaseModel):
     """The board plus the play so far — shared by both solve endpoints."""
     hands: dict[Seat, str] = Field(
@@ -88,6 +98,10 @@ class PlayStateRequest(BaseModel):
         default=None,
         description="The user's constraints on all four seats (the auction was "
                     "public), sliced per opponent view when judging their plays")
+    escalation: Optional[EscalationOptions] = Field(
+        default_factory=EscalationOptions,
+        description="More deals for a decision whose grade is in doubt; "
+                    "null grades every decision at num_deals")
 
     @field_validator('hands')
     @classmethod
@@ -136,6 +150,20 @@ class ExpertStats(BaseModel):
     inference: str                  # filtered | none | trivial
 
 
+class SampleStats(BaseModel):
+    """How sure the grade is. `se_*` is the standard error of the per-deal
+    paired difference between the card played and the best card; `firm`
+    means the status holds across the ±2σ band. On a position (no card
+    played) the comparison is best against runner-up and `firm` means the
+    best card is ahead by more than the band."""
+    deals: int                      # layouts the grade rests on, after any escalation
+    se_tricks: float
+    se_imps: float
+    firm: bool
+    escalated: bool                 # the sample was extended beyond num_deals
+    trigger: Optional[str] = None   # why the sample was extended: status | band
+
+
 class Decision(BaseModel):
     index: int                      # index into `play`
     trick: int                      # 1-based
@@ -154,6 +182,7 @@ class Decision(BaseModel):
     options: list[PlayOption]       # best first
     best_cards: list[str]
     expert: Optional[ExpertStats] = None
+    sample: Optional[SampleStats] = None
 
 
 class AnalysisSummary(BaseModel):
@@ -162,6 +191,7 @@ class AnalysisSummary(BaseModel):
     optimal: int
     good: int
     suboptimal: int
+    marginal: int = 0               # graded decisions whose status is not firm
     total_trick_loss: float
     avg_trick_loss: float
     total_score_loss: float         # points given up across graded decisions
@@ -178,6 +208,7 @@ class AnalyzeResponse(BaseModel):
     method: str
     num_deals: int
     expert: Optional[ExpertOptions] = None
+    escalation: Optional[EscalationOptions] = None
 
 
 class PositionResponse(BaseModel):
@@ -195,6 +226,7 @@ class PositionResponse(BaseModel):
     method: str
     num_deals: int                  # deals actually sampled (1 for double_dummy)
     expert: Optional[ExpertStats] = None
+    sample: Optional[SampleStats] = None
 
 
 class HealthResponse(BaseModel):

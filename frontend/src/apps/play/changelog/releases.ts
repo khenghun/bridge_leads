@@ -17,13 +17,31 @@ export { KIND_LABEL } from '../../../components/Changelog'
 export const RELEASES: Release[] = [
   {
     version: 'v1.4',
-    date: '2026-09-04',
-    title: 'Expert opponents: faster, and right about dummy',
+    date: '2026-09-08',
+    title: 'How sure is that grade?',
     unreleased: true,
     summary:
-      'Expert opponents judges the opponents’ plays faster and no longer '
-      + 'mis-remembers a play made from dummy.',
+      'Every grade now says how sure it is, doubtful ones are graded on more '
+      + 'deals, and Expert opponents is faster and right about dummy.',
     changes: [
+      {
+        kind: 'new',
+        text: 'A grade is an average over sampled deals, and on a big-swing '
+          + 'decision that average can move a lot from one sample to the '
+          + 'next — the same play read as “good” or “suboptimal” depending '
+          + 'on which deals happened to be dealt. Every grade now carries '
+          + 'its own sampling error (hover a decision’s IMPs or Best column '
+          + 'for the ± band), and a badge whose grade could read differently '
+          + 'on another sample of the same size is marked with a dashed '
+          + 'border and a “?”; each seat’s summary counts these marginal '
+          + 'grades. And a decision that does not read clearly optimal — or '
+          + 'whose grade is marginal — is automatically re-graded on three '
+          + 'times the deals (the first sample kept and extended, never '
+          + 'redrawn), so the deals go where the doubt is: on a typical hand '
+          + 'about one decision in five is extended and the rest cost '
+          + 'nothing extra. The switch is under the deals slider if you '
+          + 'would rather grade everything at one count.',
+      },
       {
         kind: 'fixed',
         text: 'When a defender was graded with Expert opponents on, a play '

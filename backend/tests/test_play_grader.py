@@ -150,7 +150,7 @@ def test_no_play_at_all_grades_nothing_for_a_seat_yet_to_play():
                             method='double_dummy')
     assert res['decisions'] == []
     assert res['summary'] == {'decisions': 0, 'graded': 0, 'optimal': 0,
-                              'good': 0, 'suboptimal': 0,
+                              'good': 0, 'suboptimal': 0, 'marginal': 0,
                               'total_trick_loss': 0.0, 'avg_trick_loss': 0.0,
                               'total_score_loss': 0.0, 'total_imp_loss': 0.0}
 

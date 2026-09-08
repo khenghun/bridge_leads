@@ -176,6 +176,7 @@ function response(seat: Seat, role: 'declarer' | 'defender', decisions: Decision
       optimal: graded.filter((d) => d.status === 'optimal').length,
       good: graded.filter((d) => d.status === 'good').length,
       suboptimal: graded.filter((d) => d.status === 'suboptimal').length,
+      marginal: graded.filter((d) => d.sample && !d.sample.firm).length,
       total_trick_loss: loss, avg_trick_loss: graded.length ? loss / graded.length : 0,
       total_score_loss: 0, total_imp_loss: impLoss,
     },
@@ -325,9 +326,22 @@ describe('summarize / mergeChunks', () => {
     const s = summarize([xdec(1, 'optimal', 0), xdec(3, 'good', -0.2, -0.5),
                          xdec(5, 'suboptimal', -1, -3), xdec(7, 'forced', null)])
     expect(s).toEqual({
-      decisions: 4, graded: 3, optimal: 1, good: 1, suboptimal: 1,
+      decisions: 4, graded: 3, optimal: 1, good: 1, suboptimal: 1, marginal: 0,
       total_trick_loss: 1.2, avg_trick_loss: 0.4, total_score_loss: 36, total_imp_loss: 3.5,
     })
+  })
+
+  it('counts the grades that are not firm within their band as marginal', () => {
+    const firm = { deals: 40, se_tricks: 0, se_imps: 0, firm: true, escalated: false }
+    const shaky = { deals: 120, se_tricks: 0.11, se_imps: 0.8, firm: false, escalated: true }
+    const s = summarize([
+      { ...xdec(1, 'optimal', 0), sample: firm },
+      { ...xdec(3, 'good', -0.2, -0.5), sample: shaky },
+      { ...xdec(5, 'suboptimal', -1, -3), sample: shaky },
+      { ...xdec(7, 'forced', null), sample: null },
+    ])
+    expect(s.marginal).toBe(2)
+    expect(s.graded).toBe(3)
   })
 
   it('merges chunks into one result in play order with a whole-run summary', () => {

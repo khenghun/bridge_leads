@@ -6,7 +6,7 @@
 // `toAnalyzeRequest` below is the bridge between the two representations.
 
 import type { Constraints, Seat, Suit } from '../api/types'
-import type { AnalyzeRequest, ExpertOptions, PlayMethod } from '../api/playTypes'
+import type { AnalyzeRequest, EscalationOptions, ExpertOptions, PlayMethod } from '../api/playTypes'
 
 /** Clockwise around the table: N -> E -> S -> W -> N. */
 export const CLOCKWISE: Seat[] = ['N', 'E', 'S', 'W']
@@ -369,6 +369,9 @@ export interface AnalyzeOptions {
   expertConstraints?: Constraints
   /** Only these play indices — one chunk of a trick-by-trick analysis. */
   decisions?: number[]
+  /** Sample-size escalation (v1.4). Undefined = the server default (on);
+   * null = off, every decision graded at `numDeals`. */
+  escalation?: EscalationOptions | null
 }
 
 /** True when the parse produced everything the API needs. */
@@ -415,5 +418,6 @@ export function toAnalyzeRequest(
       expert_constraints: options.expertConstraints ?? options.constraints,
     } : {}),
     ...(options.decisions ? { decisions: options.decisions } : {}),
+    ...(options.escalation !== undefined ? { escalation: options.escalation } : {}),
   }
 }

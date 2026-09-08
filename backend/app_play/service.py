@@ -49,6 +49,7 @@ def _key(req, extra: dict) -> str:
         'c': build_constraints(req.constraints.model_dump()),
         'x': req.expert.model_dump() if req.expert_opponents else None,
         'xc': _expert_constraints(req),
+        'esc': _escalation(req),
         **extra,
     }, sort_keys=True, default=list)
 
@@ -61,6 +62,14 @@ def _expert_constraints(req):
         return None
     src = req.expert_constraints if req.expert_constraints is not None else req.constraints
     return build_constraints(src.model_dump())
+
+
+def _escalation(req):
+    """The escalation settings as the engine takes them; None when the client
+    turned it off or nothing is sampled."""
+    if req.escalation is None or req.method == 'double_dummy':
+        return None
+    return req.escalation.model_dump()
 
 
 def _expert_kwargs(req) -> dict:
@@ -90,7 +99,8 @@ def run_analysis(req) -> dict:
             declarer=req.declarer, play=list(req.play), seat=req.seat,
             method=req.method, num_deals=req.num_deals,
             constraints=constraints, seed=0, vul=req.vul, penalty=req.penalty,
-            decisions=req.decisions, **_expert_kwargs(req))
+            decisions=req.decisions, escalation=_escalation(req),
+            **_expert_kwargs(req))
 
     return _cache.get_or_compute(
         _key(req, {'seat': req.seat, 'dec': req.decisions}), compute)

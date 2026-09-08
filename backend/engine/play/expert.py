@@ -665,24 +665,32 @@ def _carry_forward(prior, position, view, play) -> list:
 
 
 def expert_layouts(position, view, constraints, all_constraints, num_deals,
-                   settings, rng, *, level, context_key, memo=None):
+                   settings, rng, *, level, context_key, memo=None,
+                   start=None, stats=None, base_deals=None):
     """Layouts for grading `position` through `view`'s eyes, each consistent
     with expert play by `view`'s opponents so far. Returns
     `(layouts, ExpertStats)`; on zero survivors the unfiltered pool with
-    `inference='none'`."""
+    `inference='none'`.
+
+    `start` are layouts already accepted for this position (an earlier,
+    smaller pass): they lead the result unexamined and only the deficit to
+    `num_deals` is drawn; `stats` continues that pass's counts. `base_deals`
+    fixes the inner cap — the judgement's sample size and so its verdict —
+    to the base pass's count, so an extension judges by the same rule and
+    every earlier verdict is a memo hit."""
     from . import grader  # lazy: grader imports this module
 
     memo = memo if memo is not None else MEMO
-    stats = ExpertStats()
+    stats = stats if stats is not None else ExpertStats()
     n = num_deals
-    inner_cap = settings.inner_cap(num_deals)
+    inner_cap = settings.inner_cap(base_deals or num_deals)
     play = list(position.history)
     i = position.index
     strain, declarer = position.strain, position.declarer
     ctx = (context_key, settings.key(), inner_cap)
 
-    accepted: list = []
-    pool_all: list = []
+    accepted: list = list(start or [])
+    pool_all: list = list(start or [])
 
     def examine(pool):
         """Filter one batch of layouts into `accepted` (up to `n`)."""
@@ -725,7 +733,11 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
     # a predicate is a uniform sample of the smaller set), and its earlier
     # verdicts are memo hits — only the plays since then get judged.
     pool_key = (ctx, view, json.dumps(constraints or {}, sort_keys=True, default=list))
-    carried = _carry_forward(memo.pool_before(pool_key, i), position, view, play)
+    # Capped at n before examination: an escalated decision leaves a pool
+    # several times n, and a uniform pool's prefix is a uniform sample —
+    # judging the rest would only be paid for and thrown away.
+    carried = ([] if start else
+               _carry_forward(memo.pool_before(pool_key, i), position, view, play)[:n])
     if carried:
         stats.carried = len(carried)
         pool_all.extend(carried)

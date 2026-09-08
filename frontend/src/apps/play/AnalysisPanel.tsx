@@ -12,10 +12,10 @@
  */
 import { Fragment, useEffect, useState } from 'react'
 import type { Seat, Suit } from '../../api/types'
-import type { AnalyzeResponse, CardOption, Decision, DecisionStatus } from '../../api/playTypes'
+import type { AnalyzeResponse, CardOption, Decision, DecisionStatus, SampleStats } from '../../api/playTypes'
 import { SEAT_NAME, SUIT_COLOR, SUIT_SYMBOL } from '../../lib/bridge'
 import {
-  PAIR_LABEL, expertDigest, pairRole, pairSummary, rankSwings, seatsOfPair,
+  PAIR_LABEL, bandText, expertDigest, pairRole, pairSummary, rankSwings, seatsOfPair,
   type AnalysisAction, type Pair, type Swing,
 } from './analysis'
 
@@ -76,10 +76,22 @@ function impColor(n: number | null | undefined): string {
   return n < 0 ? 'var(--status-suboptimal)' : 'var(--status-optimal)'
 }
 
-function StatusBadge({ status }: { status: DecisionStatus }) {
+/** The grade's badge; with `sample`, a status that is not firm within its
+ * ±2σ band is marked as a judgement call (dashed, '?'), and the tooltip
+ * carries the deal count and the band. */
+function StatusBadge({ status, sample }: { status: DecisionStatus; sample?: SampleStats | null }) {
+  const marginal = sample != null && !sample.firm
+  const why: Record<string, string> = {
+    status: 'the first grade was not optimal',
+    band: 'the first grade could have read differently on another sample',
+  }
+  const title = sample == null ? undefined
+    : `${sample.deals} deals${sample.escalated ? ` (extended: ${why[sample.trigger ?? ''] ?? 'the first grade was in doubt'})` : ''}`
+      + (marginal ? ' — the grade could read differently on another sample of this size' : ' — firm within ±2σ')
   return (
-    <span className="play-badge" style={{ color: STATUS_COLOR[status] ?? 'var(--muted)' }}>
-      {STATUS_LABEL[status] ?? status}
+    <span className={`play-badge${marginal ? ' marginal' : ''}`}
+      style={{ color: STATUS_COLOR[status] ?? 'var(--muted)' }} title={title}>
+      {STATUS_LABEL[status] ?? status}{marginal ? ' ?' : ''}
     </span>
   )
 }
@@ -181,8 +193,18 @@ function DecisionsTable({ result, selected, onSelect }: {
         {summary.decisions > summary.graded && (
           <span>({summary.decisions - summary.graded} forced)</span>
         )}
+        {(summary.marginal ?? 0) > 0 && (
+          <span title="Grades whose status is not firm within ±2σ of the sample — a judgement call at this deal count">
+            · {summary.marginal} marginal
+          </span>
+        )}
         <span>·</span>
         <span>{result.method === 'double_dummy' ? 'double dummy' : `${result.num_deals} deals`}</span>
+        {result.escalation && result.method !== 'double_dummy' && (
+          <span title={`A decision whose first grade was in doubt was re-graded on ×${result.escalation.factor} deals`}>
+            (×{result.escalation.factor} when in doubt)
+          </span>
+        )}
         {result.visible?.length > 0 && <span>· saw {result.visible.join(' + ')}</span>}
         {result.expert && <span>· expert opponents{result.expert.strict ? ' (strict)' : ''}</span>}
       </div>
@@ -224,17 +246,28 @@ function DecisionsTable({ result, selected, onSelect }: {
                     </td>
                     <td><CardText card={d.card} /></td>
                     <td>{d.actual_tricks == null ? '—' : d.actual_tricks.toFixed(2)}</td>
-                    <td>{d.best_tricks == null ? '—' : d.best_tricks.toFixed(2)}</td>
+                    <td title={d.sample && d.diff != null
+                      ? `vs best: ${bandText(d.diff, d.sample.se_tricks, 2)} tricks over ${d.sample.deals} deals`
+                      : undefined}>
+                      {d.best_tricks == null ? '—' : d.best_tricks.toFixed(2)}
+                    </td>
                     <td className="tabular-nums" style={{ color: impColor(d.imp_diff) }}
-                      title={d.score_diff == null ? undefined : `${signed(d.score_diff, 0)} points`}>
+                      title={d.score_diff == null ? undefined
+                        : `${signed(d.score_diff, 0)} points`
+                          + (d.sample ? ` · ${bandText(d.imp_diff, d.sample.se_imps, 2)} IMPs` : '')}>
                       {d.forced ? '—' : signed(d.imp_diff, 2)}
+                      {d.sample && d.sample.se_imps > 0 && !d.forced && (
+                        <span className="ml-0.5 text-[0.6rem]" style={{ color: 'var(--muted)' }}>
+                          ±{d.sample.se_imps.toFixed(1)}
+                        </span>
+                      )}
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       {/* A forced card is not a decision — grading it would
                           read as praise for having no alternative. */}
                       {d.forced
                         ? <span className="text-[0.68rem]" style={{ color: 'var(--muted)' }}>forced</span>
-                        : <StatusBadge status={d.status} />}
+                        : <StatusBadge status={d.status} sample={d.sample} />}
                       {d.expert && <Consistency stats={d.expert} />}
                     </td>
                   </tr>
@@ -364,6 +397,9 @@ function PairCard({ pair, plan, results, statuses, progress, errors, contractTex
           {sum.good > 0 && <span style={{ color: 'var(--status-good)' }}>{sum.good}~</span>}
           {sum.suboptimal > 0 && <span style={{ color: 'var(--status-suboptimal)' }}>{sum.suboptimal}✗</span>}
           <span>of {sum.graded} graded</span>
+          {(sum.marginal ?? 0) > 0 && (
+            <span title="Grades whose status is not firm within ±2σ of the sample">· {sum.marginal} marginal</span>
+          )}
           <span>·</span>
           <span>
             {role === 'defender' ? 'defensive tricks' : 'tricks'} given up{' '}
@@ -460,7 +496,9 @@ function Swings({ swings, results, done, onSelect }: {
                     <td className="tabular-nums" style={{ color: 'var(--status-suboptimal)' }}>
                       −{s.loss.toFixed(2)}
                     </td>
-                    <td style={{ textAlign: 'center' }}><StatusBadge status={s.decision.status} /></td>
+                    <td style={{ textAlign: 'center' }}>
+                      <StatusBadge status={s.decision.status} sample={s.decision.sample} />
+                    </td>
                   </tr>
                 )
               })}
