@@ -44,7 +44,8 @@ its DNS record, and the edge vhost in the FBO repo.
 
 Everything below grades from the same primitive: one Monte-Carlo grade of one
 seat's decisions (`grade_play`). v1.1 composes it, v1.2 changes how it prices,
-v1.3 changes what it samples, v1.4 and v1.5 drive it from new places. The
+v1.3 changes what it samples, v1.4 says how sure it is, v1.5 moves the
+slow part off the VPS, then drives it from new places. The
 order is value-per-effort: v1.1 and v1.2 are small and land quickly; v1.3 is
 the one deep engine feature and the thing no free tool does.
 
@@ -131,85 +132,65 @@ flagged unreleased (fixed in the release commit), and the expert seat line's
 sampled count moved from 1371 to 1406 with the batching change — same
 consistent count, identical grades — so the checks are re-pinned.
 
-## v1.4 — How sure is that grade? ✅ (built and deployed 2026-09-08)
+## v1.4 — How sure is that grade? ✅ (built and deployed 2026-09-08, closed 2026-09-09)
 
-What shipped as v1.4 is the two focus areas below — every grade carries its
-sampling error and a *marginal* flag, doubtful decisions are re-graded on
-×3 deals, and Expert opponents is faster and right about plays from dummy —
-released 2026-09-08 and verified on prod the same day against the
-`test-deployed` checklist (`docs/testing/REGRESSION-LOG.md`). The traced
-line described next did **not** ship and stays open for the next version.
+Design: [`v1.4-sample-size-plan.md`](v1.4-sample-size-plan.md) and
+[`v1.4-performance-plan.md`](v1.4-performance-plan.md). Released 2026-09-08
+and verified on prod the same day against the `test-deployed` checklist
+(`docs/testing/REGRESSION-LOG.md`). Closed 2026-09-09: the two items that
+were still open — the traced optimal line and guess-aware grading — moved
+to v1.5 unchanged.
 
-**Trace the optimal line ⚪.** From any position, play the best card for
-every seat a few tricks ahead (depth ≤ 5) and step the table through the
-traced line — "here is what should have happened next", not just "not that
-card". The source's
-`trace_optimal_line` has the engine shape; it becomes a `/api/play/trace`
-endpoint over repeated `grade_position` solves. Replaces the source's
-*compare two lines*, which the expandable options table already covers.
-
-**Benchmarks to test against (added 2026-09-03).** Board 7 of a real team
-match is pinned as the accuracy/timing benchmark: `docs/play/board7.lin`
-(both rooms, player names replaced by seats) plus `scripts/bench_play.py`,
-which grades a board one decision per request (the UI's pattern) and writes
-`docs/play/bench/*.{json,md}` pinning every grade, option list and timing.
-seed=0 end to end — a fresh process reproduces the numbers exactly. Laptop
-reference: plain ≈ 0.17 s/decision, expert-strict ≈ 60–105 s/decision
-(benchmark through `127.0.0.1`, never `localhost` — Windows' IPv6 fallback
-adds a flat ~2 s to every request). v1.4's analysis work tests against these.
-Two rulings/observations recorded for that work:
-
-**Two focus areas folded into v1.4 (2026-09-03), beside the traced line:**
-
-1. **Faster local computation, same accuracy** — done as far as it goes
-   (2026-09-03/04, `v1.4-performance-plan.md`). Strict mode cost 60–105
-   s/decision; batch aggregation (2.2×), then memo-first priority ordering of
-   the opponents' suspect plays and direct DDS struct building (a further
-   1.2–1.3×, bit-identical grades) and exempting the opening lead from the
-   filter (declarer seats 2.8–4.3×) and carrying each seat's consistent pool
-   forward between its decisions (declarer seats a further 1.2–1.5×) bring
-   it to ~6 s per declarer decision and ~20–40 s per defender decision on
-   a 16-core laptop (board 7 rooms: 1 077 → 535 s and 1 569 → 814 s; board
-   14's 2♥x room 384 s; the inner sample is drawn lazily, the last exact
-   lever — a further ~5 %). Found on the way: at 100 deals a big-swing
-   decision's status flips with the seed alone (c7 T9 ♦6: −0.03 to −0.43
-   tricks over five seeds) — the accuracy focus area's first problem is
-   sample size, not strategy fusion. Worker processes were **measured and
-   rejected**: one process with
-   16 DDS threads already saturates the 8 physical cores, every multi-process
-   split is equal or slower. DDS is now 97 % of the time and the judgement
-   count is at its floor, so the rest is a faster solver or a different
-   verdict — neither planned. The work also found and fixed a v1.3 accuracy
-   bug: a play from dummy was memoised on dummy's public cards instead of
-   declarer's hidden hand, so one layout's verdict decided every layout;
-   defenders' expert grades are now genuinely filtered (three board-7 open
-   room defender calls moved from suboptimal to good/optimal).
-2. **Accuracy: sample size before strategy fusion.** First (KIV
-   2026-09-04) the sample-size problem the timing work exposed — more deals
-   only where a status sits near a threshold, or a confidence band on the
-   status; cost is quadratic in the deal count, so spend deals selectively.
-   Designed and built 2026-09-08
-   ([`v1.4-sample-size-plan.md`](v1.4-sample-size-plan.md)): the seed
-   spread is ordinary sampling noise and the grader can quote a standard
-   error for free, so every grade carries a ± and a *marginal* flag (its
-   status is not firm within ±2σ), and a decision that does not read
-   clearly optimal — or is marginal — is re-graded on **×3** deals (caps
-   600 plain / 300 expert), extending its sample from a per-decision
-   stream so nothing else moves, with the expert filter's inner cap held
-   at the base count so the verdict does not change. On by default in
-   both modes, a checkbox turns it off. Plain runs cost the same; strict
-   expert runs cost more on the decisions in doubt (numbers in the plan).
+1. **Accuracy: a standard error on every grade, and ×3 deals where the
+   grade is in doubt.** The seed spread the timing work exposed (at 100
+   deals a big-swing decision's status flipped with the seed alone — c7 T9
+   ♦6: −0.03 to −0.43 tricks over five seeds) is ordinary sampling noise,
+   and the grader can quote a standard error for free. So every grade
+   carries a ± and a *marginal* flag (its status is not firm within ±2σ),
+   and a decision that does not read clearly optimal — or is marginal — is
+   re-graded on **×3** deals (caps 600 plain / 300 expert), extending its
+   sample from a per-decision stream so nothing else moves, with the expert
+   filter's inner cap held at the base count so the verdict does not
+   change. On by default in both modes, a checkbox turns it off. Plain runs
+   cost the same; strict expert runs cost more on the decisions in doubt.
    A third trigger — the cheap unfiltered grade as a second opinion under
-   expert opponents — was built, measured (every extension it caused
-   ended firm optimal, at ~70 % of the added time) and **dropped** the
-   same day. Truth stays truth: the closed room's T9 ♦6 reads −0.16 ±
-   0.08 tricks on 300 deals and is still marked marginal, because its
-   true cost sits between the two status lines.
-   Then **guess-aware grading**: the strategy-fusion ladder recorded below —
-   detect candidates whose DD-best continuation diverges within an
-   information set ("relies on a later guess"), then price flagged guesses
-   by max-of-means at that node. Tested against the benchmark's T7 ♣A-vs-♦7
-   case.
+   expert opponents — was built, measured (every extension it caused ended
+   firm optimal, at ~70 % of the added time) and **dropped** the same day.
+   Truth stays truth: the closed room's T9 ♦6 reads −0.16 ± 0.08 tricks on
+   300 deals and is still marked marginal, because its true cost sits
+   between the two status lines.
+2. **Faster local computation, same accuracy** (2026-09-03/04). Strict mode
+   cost 60–105 s/decision; batch aggregation (2.2×), then memo-first
+   priority ordering of the opponents' suspect plays and direct DDS struct
+   building (a further 1.2–1.3×, bit-identical grades), exempting the
+   opening lead from the filter (declarer seats 2.8–4.3×), carrying each
+   seat's consistent pool forward between its decisions (declarer seats a
+   further 1.2–1.5×) and drawing the inner sample lazily (~5 %) bring it to
+   ~6 s per declarer decision and ~20–40 s per defender decision on a
+   16-core laptop (board 7 rooms: 1 077 → 535 s and 1 569 → 814 s; board
+   14's 2♥x room 384 s; strict benches re-baselined after the trigger drop
+   at 801 / 817 / 496 s). Worker processes were **measured and rejected**:
+   one process with 16 DDS threads already saturates the 8 physical cores,
+   every multi-process split is equal or slower. DDS is now 97 % of the time
+   and the judgement count is at its floor, so the rest is a faster solver
+   or a different verdict — neither planned.
+3. **A v1.3 accuracy bug found and fixed on the way:** a play from dummy
+   was memoised on dummy's public cards instead of declarer's hidden hand,
+   so one layout's verdict decided every layout; defenders' expert grades
+   are now genuinely filtered (three board-7 open room defender calls moved
+   from suboptimal to good/optimal).
+4. **Benchmarks to test against** (added 2026-09-03). Board 7 of a real
+   team match is pinned as the accuracy/timing benchmark:
+   `docs/play/board7.lin` (both rooms, player names replaced by seats) plus
+   `scripts/bench_play.py`, which grades a board one decision per request
+   (the UI's pattern) and writes `docs/play/bench/*.{json,md}` pinning every
+   grade, option list and timing; board 14 joined it for the strict run.
+   seed=0 end to end — a fresh process reproduces the numbers exactly.
+   Laptop reference: plain ≈ 0.17 s/decision (benchmark through
+   `127.0.0.1`, never `localhost` — Windows' IPv6 fallback adds a flat ~2 s
+   to every request).
+
+Two rulings recorded for this work, still in force:
 
 - **The opening lead is exempt from accuracy judgements.** Leads are the
   Opening Lead Simulator's problem and are made with dummy unseen; the play
@@ -220,20 +201,61 @@ Two rulings/observations recorded for that work:
   highest price — a full-deal solve over three hidden hands, about half the
   cost of every declarer decision, rejecting one layout in twenty — so
   `opponent_decisions` skips index 0 (numbers in `v1.4-performance-plan.md`).
-- **DD continuations are clairvoyant (strategy fusion):** a card that merely
-  defers a guess can read "makes 100%" because each sampled layout is
-  continued double-dummy. The benchmark's T7 options list shows it: ♦7 (a
-  genuine guess-free squeeze) and ♣A both read make 1.00. Candidate fix to
-  analyze: flag candidates whose DD-best continuation diverges across layouts
-  at the same information set ("relies on a later guess"), then price flagged
-  guesses by max-of-means at that node.
+- **Sample size before strategy fusion.** The accuracy problem the timing
+  work exposed was noise, not clairvoyance, so the ± band shipped first and
+  guess-aware grading (below, v1.5) is judged against the band.
 
-## v1.5 — Play it from here ⚪
+## v1.5 — Strict mode on the website, through AWS Lambda ⚪
 
-Interactive play from any position on the same table: click a card, the other
-seats answer with their best play, undo, and see the trick count move. The
-`/api/play/position` primitive already exists; this is the UI and the turn
-loop around it.
+Design: [`v1.5-lambda-strict-plan.md`](v1.5-lambda-strict-plan.md)
+(architecture drafted 2026-09-09, decisions listed at its end; nothing built).
+
+**The headline.** Strict *Expert opponents* is unusable on prod: measured
+2026-09-09, a declarer seat takes 593 s on the deployed app against 162 s on
+the laptop (a whole table ≈ 50 min), because the `vhp-2c-4gb` VPS is one
+physical core. Bigger boxes were priced and rejected — DDS's batch solver
+flattens after four cores, so the 8-vCPU plan is the last step that pays
+(≈ 3×) and it idles between a handful of sittings a week. Instead the
+judgements are fanned out to **AWS Lambda**: the play API on the VPS keeps
+every piece of state (the verdict memo, the carried pools, the result cache,
+the query log) and sends each wave's memo misses to a worker Lambda in
+groups, which runs today's `_judge_batch` on them and returns the verdicts —
+bit-identical to the local ones by construction, since a verdict is a pure
+function of its memo key. The default mode's double-dummy trace goes the
+same way. Any group that fails is judged locally, so an outage is slow,
+never wrong. Estimates before the spike: a strict seat from ~10 min to 2–4
+min (about 1 min with 3 decisions in flight), a table from ~50 min to 4–15
+min, at cents per table and $0 a month inside the free tier at today's
+traffic; the VPS stays on its plan. Steps: a measurement spike, the judge
+backend seam in the engine, the worker image (a target of the backend
+Dockerfile, deployed by `deploy-play`), the client with fallback, bench and
+gate against the laptop baselines, ship.
+
+After it, in order, the three items v1.4 left open:
+
+1. **Guess-aware grading** (moved from v1.4). **DD continuations are
+   clairvoyant (strategy fusion):** a card that merely defers a guess can
+   read "makes 100%" because each sampled layout is continued double-dummy.
+   The board-7 benchmark's T7 options list shows it: ♦7 (a genuine
+   guess-free squeeze) and ♣A both read make 1.00. The ladder to build:
+   detect candidates whose DD-best continuation diverges across layouts at
+   the same information set ("relies on a later guess"), then price flagged
+   guesses by max-of-means at that node. Tested against the benchmark's T7
+   ♣A-vs-♦7 case, and judged against v1.4's ± band — a change only counts
+   if it moves a grade by more than its own noise.
+2. **Trace the optimal line** (moved from v1.4). From any position, play
+   the best card for every seat a few tricks ahead (depth ≤ 5) and step the
+   table through the traced line — "here is what should have happened
+   next", not just "not that card". The source's `trace_optimal_line` has
+   the engine shape; it becomes a `/api/play/trace` endpoint over repeated
+   `grade_position` solves. Replaces the source's *compare two lines*, which
+   the expandable options table already covers.
+3. **Play it from here.** Interactive play from any position on the same
+   table: click a card, the other seats answer with their best play, undo,
+   and see the trick count move. The `/api/play/position` primitive already
+   exists; this is the UI and the turn loop around it. Also the natural
+   home for a per-decision manual re-grade button, which v1.4's ± band
+   makes the case for.
 
 ## Later
 
