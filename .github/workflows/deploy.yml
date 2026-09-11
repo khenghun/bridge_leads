@@ -160,6 +160,12 @@ jobs:
           context: ./backend
           target: worker
           push: true
+          # Lambda accepts a single image manifest only. The action's default
+          # provenance attestation turns the push into an OCI image index
+          # (image + attestation manifest), which Lambda rejects with "image
+          # manifest, config or layer media type ... is not supported".
+          provenance: false
+          sbom: false
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.WORKER_REPO }}:latest
             ${{ steps.ecr.outputs.registry }}/${{ env.WORKER_REPO }}:${{ github.sha }}
