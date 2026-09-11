@@ -155,6 +155,75 @@ pointing here). Certs persist in the `caddy_data` volume.
 - GitHub → Actions → **Build & Deploy** → Run workflow (leave tag `latest`) —
   confirms the CI deploy path end to end.
 
+## 9. Play worker (AWS Lambda) — one-time setup
+
+Play v1.5 fans the expert filter's judgements out to a Lambda function
+(`docs/play/v1.5-lambda-strict-plan.md`). The image is built and pushed by
+CI (`build-worker`), the function code is updated by CI (`deploy-worker`),
+and the pieces below are created once by hand. **No AWS identifier goes in
+the repo** — account id, ECR URI, role ARNs and keys live only in GitHub
+secrets and in `/opt/bridge_play/.env`. Everything is in `ap-southeast-1`.
+The AWS CLI is not needed on any machine of yours: the GitHub runner has it,
+the VPS uses boto3.
+
+Console (IAM / ECR), already done 2026-09-10/11 — listed so the names match:
+
+| Item | Setting |
+| --- | --- |
+| ECR private repository | `bridge-play-worker` (mutable tags) |
+| OIDC identity provider | `token.actions.githubusercontent.com`, audience `sts.amazonaws.com` |
+| Deploy role `bridge-play-deploy` | custom trust policy on that provider for `repo:khenghun/bridge_leads:*`; inline policy `bridge-play-deploy-policy`: `ecr:GetAuthorizationToken` + push on the one repo, `lambda:UpdateFunctionCode` / `GetFunction` / `GetFunctionConfiguration` on `function:bridge-play-worker` |
+| Execution role `bridge-play-worker-role` | `AWSLambdaBasicExecutionRole` only |
+| Lambda concurrency quota | request an increase if the account shows 50 (new accounts do) |
+
+Then, in this order:
+
+1. **GitHub secret** — Repo → Settings → Secrets and variables → Actions:
+
+   | Secret | Value |
+   | --- | --- |
+   | `AWS_DEPLOY_ROLE_ARN` | the ARN of `bridge-play-deploy` (IAM → Roles → the role → *ARN*) |
+
+   Nothing else: the ECR registry host is read from the role at run time and
+   the region is fixed in the workflow.
+2. **First image push** — push to `main` (or Actions → *Test, Build & Deploy*
+   → Run workflow, stack `worker`). The `build-worker` job pushes
+   `bridge-play-worker:latest` and `:<sha>`; `deploy-worker` reports that the
+   function does not exist yet and succeeds.
+3. **Create the function** — Lambda → Create function → *Container image*:
+   name `bridge-play-worker`, image = browse ECR → `bridge-play-worker:latest`,
+   architecture x86_64, execution role = existing `bridge-play-worker-role`.
+   Then Configuration → General: memory **1769 MB** (exactly one vCPU),
+   timeout **60 s**, ephemeral storage default. Environment variables:
+   `BRIDGE_DDS_THREADS=4` (schedule parity — the worker's health check
+   reports `schedule_ok`). No function URL, no trigger, provisioned
+   concurrency off.
+4. **Prove it** — Test tab, event `{"op": "health"}`: expect `ok: true`,
+   `schedule_ok: true`, `dds_threads: 4`, a `solve_ms` in the tens, and
+   `engine_sha` equal to the API's (`python -c "from engine.version import
+   engine_sha; print(engine_sha())"` in the same image). A failure here is
+   the DDS `.so` not loading under the Lambda runtime. Then
+   `{"op": "bench", "boards": 200, "seed": 0, "engine_sha": "<that sha>"}`
+   for the per-vCPU speed; run the same op in-process on the laptop and the
+   VPS to compare.
+5. **Invoke-only user for the VPS** — IAM → Users → `bridge-play-invoker`, no
+   console access, inline policy allowing only `lambda:InvokeFunction` on the
+   function's ARN. Create an access key (*Application running outside AWS*)
+   and add to `/opt/bridge_play/.env`:
+
+   ```
+   AWS_ACCESS_KEY_ID=...
+   AWS_SECRET_ACCESS_KEY=...
+   AWS_DEFAULT_REGION=ap-southeast-1
+   BRIDGE_WORKER_FUNCTION=bridge-play-worker
+   BRIDGE_JUDGE_BACKEND=local     # flip to lambda when the v1.5 client ships
+   ```
+6. **Billing alert** (optional) — Billing → Budgets, a few dollars a month.
+
+From then on every play deploy (`stack: play`) updates the function to the
+same tag as the API; `stack: worker` updates the function alone; rollback is
+the same `image_tag` input as the stacks.
+
 ## Routine operations
 
 | Task | How |

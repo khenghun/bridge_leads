@@ -208,9 +208,12 @@ Two rulings recorded for this work, still in force:
 ## v1.5 — Strict mode on the website, through AWS Lambda ⚪
 
 Design: [`v1.5-lambda-strict-plan.md`](v1.5-lambda-strict-plan.md)
-(architecture drafted 2026-09-09, decisions listed at its end; nothing built.
-AWS account provisioning started 2026-09-10: quota, ECR repo, deploy and
-execution roles exist — see the plan's *Provisioning progress* table).
+(architecture drafted 2026-09-09, decisions listed at its end. AWS account
+provisioning started 2026-09-10: quota, ECR repo, deploy and execution roles
+exist; the spike worker — `backend/worker/handler.py`, the Dockerfile's
+`worker` target, the `build-worker` / `deploy-worker` CI jobs — since
+2026-09-11. Next: the function itself, then the step-0 measurements — see
+the plan's *Provisioning progress* table and `deploy/provision.md` §9).
 
 **The headline.** Strict *Expert opponents* is unusable on prod: measured
 2026-09-09, a declarer seat takes 593 s on the deployed app against 162 s on

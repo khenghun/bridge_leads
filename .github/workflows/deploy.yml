@@ -16,6 +16,7 @@ on:
         options:
           - lead
           - play
+          - worker
         default: lead
       image_tag:
         description: "Image tag to deploy (a commit SHA for rollback, or latest)"
@@ -30,6 +31,14 @@ env:
   BACKEND_IMAGE: ghcr.io/${{ github.repository }}-backend
   FRONTEND_IMAGE: ghcr.io/${{ github.repository }}-frontend
   PLAY_FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/bridge_play-frontend
+  # The play solver's Lambda worker (docs/play/v1.5-lambda-strict-plan.md)
+  # lives in ECR, not GHCR. Only the repository NAME is written here: the
+  # registry host (which carries the account id) comes from the ECR login
+  # step at run time, and the deploy role's ARN is the AWS_DEPLOY_ROLE_ARN
+  # secret. Region is the one nearest the VPS.
+  AWS_REGION: ap-southeast-1
+  WORKER_REPO: bridge-play-worker
+  WORKER_FUNCTION: bridge-play-worker
 
 jobs:
   # One test job for everything: the monorepo's contract is that a change to
@@ -85,6 +94,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend
+          target: backend
           push: true
           tags: |
             ${{ env.BACKEND_IMAGE }}:latest
@@ -117,6 +127,80 @@ jobs:
             ${{ env.PLAY_FRONTEND_IMAGE }}:${{ github.sha }}
           cache-from: type=gha,scope=frontend-play
           cache-to: type=gha,scope=frontend-play,mode=max
+
+  build-worker:
+    # The play solver's Lambda worker: the backend Dockerfile's `worker` target
+    # (same engine, plus the Lambda runtime client and worker/handler.py),
+    # pushed to ECR under the same tags as the GHCR images so API and worker
+    # can be deployed as a pair. Authenticates through the GitHub OIDC deploy
+    # role — no long-lived AWS key anywhere. Needs the AWS_DEPLOY_ROLE_ARN
+    # secret; until it is set this job fails on its own and nothing else waits
+    # on it.
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push worker
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          target: worker
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.WORKER_REPO }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.WORKER_REPO }}:${{ github.sha }}
+          cache-from: |
+            type=gha,scope=backend
+            type=gha,scope=worker
+          cache-to: type=gha,scope=worker,mode=max
+
+  deploy-worker:
+    # Points the Lambda function at the pushed image. Runs with a play deploy
+    # (the pair moves together) or on its own with stack=worker (the v1.5
+    # spike, before the API has a client). The function itself is created
+    # once by hand in the console (deploy/provision.md §9) — until it exists
+    # this job just says so and succeeds, so the very first image push works.
+    if: github.event_name == 'workflow_dispatch' && (inputs.stack == 'play' || inputs.stack == 'worker')
+    needs: build-worker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update function code
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag || 'latest' }}
+        run: |
+          set -e
+          if ! aws lambda get-function --function-name "$WORKER_FUNCTION" >/dev/null 2>&1; then
+            echo "::notice::Function $WORKER_FUNCTION does not exist yet — create it from the pushed image (deploy/provision.md §9); nothing to update."
+            exit 0
+          fi
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          URI="$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/$WORKER_REPO:$IMAGE_TAG"
+          aws lambda update-function-code --function-name "$WORKER_FUNCTION" --image-uri "$URI" >/dev/null
+          aws lambda wait function-updated --function-name "$WORKER_FUNCTION"
+          aws lambda get-function-configuration --function-name "$WORKER_FUNCTION" \
+            --query '{state:State,updated:LastModified,memory:MemorySize,timeout:Timeout}' --output table
 
   deploy-lead:
     # Manual gate: only a workflow_dispatch run deploys; plain pushes stop at
