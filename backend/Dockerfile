@@ -44,5 +44,10 @@ RUN pip install --no-cache-dir awslambdaric
 
 COPY worker ./worker
 
+# endplay imports matplotlib on package import; on Lambda the home directory
+# is read-only, so without this matplotlib warns and rebuilds its font cache
+# in a fresh temp dir on every cold start.
+ENV MPLCONFIGDIR=/tmp/matplotlib
+
 ENTRYPOINT ["python", "-m", "awslambdaric"]
 CMD ["worker.handler.handler"]

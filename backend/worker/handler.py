@@ -16,14 +16,19 @@ refused. Dispatch is on the event's `op`:
 
 The `judge` and `trace` operations arrive with the judge-backend seam
 (plan step 1); until then the worker is the spike's measuring instrument.
-No AWS SDK is imported here — the worker only answers.
+No AWS SDK is imported here — the worker only answers. The bench deals its
+own random boards rather than using `endplay.dealer` (the engine never does,
+and the worker should exercise what the engine exercises). Note that
+`endplay` itself imports matplotlib on package import — unavoidable, hence
+`MPLCONFIGDIR` in the Dockerfile's worker stage.
 """
 
 import os
 import platform
+import random
 import time
 
-from endplay.dealer import generate_deal
+from endplay.types import Deal
 
 from engine import dds_runtime
 from engine.play.expert import INNER_FIRST
@@ -80,7 +85,7 @@ def _health(event):
     # One tiny solve: if the bundled DDS `.so` (and libgomp1) is missing, this
     # is where it fails.
     t0 = time.perf_counter()
-    board = dds_runtime.solve_all([generate_deal(seed=1)])[0]
+    board = dds_runtime.solve_all([_random_deal(random.Random(1))])[0]
     solve_ms = (time.perf_counter() - t0) * 1000
     return {
         'ok': True,
@@ -107,7 +112,8 @@ def _bench(event):
         raise WorkerError('boards must be 1..2000')
     seed = int(event.get('seed', 0))
     t0 = time.perf_counter()
-    deals = [generate_deal(seed=seed + i) for i in range(boards)]
+    rng = random.Random(seed)
+    deals = [_random_deal(rng) for _ in range(boards)]
     deal_s = time.perf_counter() - t0
     t0 = time.perf_counter()
     results = dds_runtime.solve_all(deals)
@@ -121,6 +127,23 @@ def _bench(event):
         'dds_threads': dds_runtime.DDS_THREADS,
         'checksum': sum(max(t for _, t in r) for r in results),
     }
+
+
+_DECK = [s + r for s in 'SHDC' for r in 'AKQJT98765432']
+_RANK_ORDER = {r: i for i, r in enumerate('AKQJT98765432')}
+
+
+def _random_deal(rng) -> Deal:
+    """A uniformly random full deal, North on lead at notrumps, as a PBN."""
+    cards = _DECK[:]
+    rng.shuffle(cards)
+    hands = []
+    for i in range(4):
+        hand = cards[i * 13:(i + 1) * 13]
+        hands.append('.'.join(
+            ''.join(sorted((c[1] for c in hand if c[0] == suit), key=_RANK_ORDER.get))
+            for suit in 'SHDC'))
+    return Deal('N:' + ' '.join(hands))
 
 
 def _endplay_version():
