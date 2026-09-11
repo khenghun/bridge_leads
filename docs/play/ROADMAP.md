@@ -211,9 +211,13 @@ Design: [`v1.5-lambda-strict-plan.md`](v1.5-lambda-strict-plan.md)
 (architecture drafted 2026-09-09, decisions listed at its end. AWS account
 provisioning started 2026-09-10: quota, ECR repo, deploy and execution roles
 exist; the spike worker — `backend/worker/handler.py`, the Dockerfile's
-`worker` target, the `build-worker` / `deploy-worker` CI jobs — since
-2026-09-11. Next: the function itself, then the step-0 measurements — see
-the plan's *Provisioning progress* table and `deploy/provision.md` §9).
+`worker` target, the `build-worker` / `deploy-worker` CI jobs — and the
+function `bridge-play-worker` itself since 2026-09-11, health passing and
+a first solve-rate measurement taken at the account's 3008 MB memory cap.
+Waiting on AWS for the memory and concurrency raises; next the invoke user,
+the RTT measurement, then plan step 1 — the handoff list is in the plan's
+*Provisioning progress* section, the console steps in
+`deploy/provision.md` §9).
 
 **The headline.** Strict *Expert opponents* is unusable on prod: measured
 2026-09-09, a declarer seat takes 593 s on the deployed app against 162 s on
