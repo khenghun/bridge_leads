@@ -208,16 +208,15 @@ Two rulings recorded for this work, still in force:
 ## v1.5 — Strict mode on the website, through AWS Lambda ⚪
 
 Design: [`v1.5-lambda-strict-plan.md`](v1.5-lambda-strict-plan.md)
-(architecture drafted 2026-09-09, decisions listed at its end. AWS account
-provisioning started 2026-09-10: quota, ECR repo, deploy and execution roles
-exist; the spike worker — `backend/worker/handler.py`, the Dockerfile's
-`worker` target, the `build-worker` / `deploy-worker` CI jobs — and the
-function `bridge-play-worker` itself since 2026-09-11, health passing and
-a first solve-rate measurement taken at the account's then 3008 MB memory cap (both quota raises granted 2026-09-14; the function now runs at 7076 MB).
-Waiting on AWS for the memory and concurrency raises; next the invoke user,
-the RTT measurement, then plan step 1 — the handoff list is in the plan's
-*Provisioning progress* section, the console steps in
-`deploy/provision.md` §9).
+(architecture drafted 2026-09-09, decisions listed at its end). **Step 0,
+the spike, is complete (2026-09-14):** the AWS account is provisioned
+(ECR repo, OIDC deploy role, execution role, invoke-only user for the VPS,
+concurrency 1 000, memory cap raised), the worker — `backend/worker/handler.py`,
+the Dockerfile's `worker` target, the `build-worker` / `deploy-worker` CI
+jobs — is live as the function `bridge-play-worker` at 7076 MB, and the
+measurements are in the plan: 18.6 ms per full board, 16 ms warm invoke
+from the VPS. Next is plan step 1, the seam, after confirming the plan's
+five decisions; the console steps live in `deploy/provision.md` §9.
 
 **The headline.** Strict *Expert opponents* is unusable on prod: measured
 2026-09-09, a declarer seat takes 593 s on the deployed app against 162 s on
