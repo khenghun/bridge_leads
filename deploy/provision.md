@@ -222,6 +222,16 @@ Then, in this order:
    BRIDGE_WORKER_FUNCTION=bridge-play-worker
    BRIDGE_JUDGE_BACKEND=local     # flip to lambda when the v1.5 client ships
    ```
+
+   Create it with `umask 077` so it is mode 600 — it holds a live key.
+   Compose reads a `.env` beside the compose file only for `${VAR}`
+   substitution; the container sees these values once the play compose
+   file's backend service carries `env_file: .env` (v1.5 seam). To check the
+   key from the box without installing anything on the host:
+
+   ```
+   docker run --rm --env-file /opt/bridge_play/.env python:3.12-slim sh -c      "pip install -q boto3; python -c \"import boto3,json;print(json.load(boto3.client('lambda').invoke(FunctionName='bridge-play-worker',Payload=b'{\\\"op\\\":\\\"health\\\"}')['Payload']))\""
+   ```
 6. **Billing alert** (optional) — Billing → Budgets, a few dollars a month.
 
 From then on every play deploy (`stack: play`) updates the function to the
