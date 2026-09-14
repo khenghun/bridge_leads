@@ -174,8 +174,8 @@ Console (IAM / ECR), already done 2026-09-10/11 — listed so the names match:
 | OIDC identity provider | `token.actions.githubusercontent.com`, audience `sts.amazonaws.com` |
 | Deploy role `bridge-play-deploy` | custom trust policy on that provider for `repo:khenghun/bridge_leads:*`; inline policy `bridge-play-deploy-policy`: `ecr:GetAuthorizationToken` + push on the one repo, `lambda:UpdateFunctionCode` / `GetFunction` / `GetFunctionConfiguration` on `function:bridge-play-worker` |
 | Execution role `bridge-play-worker-role` | `AWSLambdaBasicExecutionRole` only |
-| Lambda concurrency quota | request an increase if the account shows 50 (new accounts do): Service Quotas → AWS Lambda → *Concurrent executions* → Request increase (1 000). Check the **applied** value on the quota row afterwards, the request history only says "Case Closed" |
-| Lambda memory cap | new accounts are capped at **3008 MB** per function (the console rejects more with `'MemorySize' ... less than or equal to 3008`). Not a Service Quotas entry — open a **support case**: Support Center → describe the issue → *Create a case* → subject "Raise maximum Lambda function memory to 10240 MB in ap-southeast-1", description = the function name, that it is CPU-bound and vCPUs scale with memory, low traffic. Free on Basic Support; a day or so. Until then run the function at 3008 MB (≈ 1.7 vCPU) |
+| Lambda concurrency quota | request an increase if the account shows 50 (new accounts do): Service Quotas → AWS Lambda → *Concurrent executions* → Request increase (1 000). Check the **applied** value on the quota row afterwards, the request history only says "Case Closed" (this account: 1 000 applied, verified 2026-09-14) |
+| Lambda memory cap | new accounts are capped at **3008 MB** per function (the console rejects more with `'MemorySize' ... less than or equal to 3008`). Not a Service Quotas entry — open a **support case**: Support Center → describe the issue → *Create a case* → subject "Raise maximum Lambda function memory to 10240 MB in ap-southeast-1", description = the function name, that it is CPU-bound and vCPUs scale with memory, low traffic. Free on Basic Support; granted within three days on this account (2026-09-11 → by 2026-09-14). Until then run the function at 3008 MB (≈ 1.7 vCPU); once granted, edit memory to 7076 MB and the save just succeeds |
 
 Then, in this order:
 
@@ -195,7 +195,7 @@ Then, in this order:
    name `bridge-play-worker`, image = browse ECR → `bridge-play-worker:latest`,
    architecture x86_64, execution role = existing `bridge-play-worker-role`.
    Then Configuration → General: memory **7076 MB** (four vCPUs for the four
-   DDS threads; **3008 MB** while the account cap stands), timeout **60 s**,
+   DDS threads; **3008 MB** while a fresh account's cap stands), timeout **60 s**,
    ephemeral storage default. The create wizard leaves the timeout at 3 s,
    which a cold start exceeds — `Task timed out after 3.00 seconds` means
    this step was skipped. Environment variables:

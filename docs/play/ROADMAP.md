@@ -213,7 +213,7 @@ provisioning started 2026-09-10: quota, ECR repo, deploy and execution roles
 exist; the spike worker — `backend/worker/handler.py`, the Dockerfile's
 `worker` target, the `build-worker` / `deploy-worker` CI jobs — and the
 function `bridge-play-worker` itself since 2026-09-11, health passing and
-a first solve-rate measurement taken at the account's 3008 MB memory cap.
+a first solve-rate measurement taken at the account's then 3008 MB memory cap (both quota raises granted 2026-09-14; the function now runs at 7076 MB).
 Waiting on AWS for the memory and concurrency raises; next the invoke user,
 the RTT measurement, then plan step 1 — the handoff list is in the plan's
 *Provisioning progress* section, the console steps in
