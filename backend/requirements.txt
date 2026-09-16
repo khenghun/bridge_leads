@@ -1,3 +1,4 @@
 fastapi>=0.110
 uvicorn[standard]>=0.29
 endplay>=0.5.11
+boto3>=1.34          # play v1.5: the Lambda judge backend (app_play/worker_client.py); imported lazily

@@ -16,6 +16,14 @@ from engine.play import grader, state
 from app.common.cache import ResultCache
 from app.common.constraints import build_constraints
 
+from . import worker_client
+
+# Where the expert filter's judgements and traces run (play v1.5): this
+# process, or the bridge-play-worker Lambda with local fallback. Chosen once
+# from the environment at import; tests swap it. Verdicts are the same either
+# way, so the result cache key does not mention it.
+JUDGE_BACKEND = worker_client.from_env()
+
 # A graded full hand is 26 decisions x an options list — far smaller than a
 # 1000-deal lead matrix, so a roomier cache is cheap. An expert-opponents run
 # arrives as one request per decision, and a client that dropped (a sleeping
@@ -100,7 +108,7 @@ def run_analysis(req) -> dict:
             method=req.method, num_deals=req.num_deals,
             constraints=constraints, seed=0, vul=req.vul, penalty=req.penalty,
             decisions=req.decisions, escalation=_escalation(req),
-            **_expert_kwargs(req))
+            judge_backend=JUDGE_BACKEND, **_expert_kwargs(req))
 
     return _cache.get_or_compute(
         _key(req, {'seat': req.seat, 'dec': req.decisions}), compute)
@@ -125,6 +133,7 @@ def run_position(req) -> dict:
             hands=req.hands, level=req.level, strain=req.strain,
             declarer=req.declarer, play=list(req.play), method=req.method,
             num_deals=req.num_deals, constraints=constraints, seed=0,
-            vul=req.vul, penalty=req.penalty, **_expert_kwargs(req))
+            vul=req.vul, penalty=req.penalty, judge_backend=JUDGE_BACKEND,
+            **_expert_kwargs(req))
 
     return _cache.get_or_compute(_key(req, {'seat': None}), compute)

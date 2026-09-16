@@ -50,6 +50,14 @@ def dds_stats():
     return {**dds_runtime.stats(), 'threads': dds_runtime.DDS_THREADS}
 
 
+@router.get('/debug/judge')
+def judge_backend_stats():
+    """Where the expert filter's judgements run (play v1.5) and, for the
+    Lambda backend, how much went remote and how often the local fallback
+    fired since process start. `kind: local` means everything ran here."""
+    return service.JUDGE_BACKEND.stats()
+
+
 @router.post('/analyze', response_model=AnalyzeResponse)
 def analyze(req: AnalyzeRequest):
     """Grade every decision one seat made in a recorded hand."""

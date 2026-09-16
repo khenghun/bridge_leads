@@ -7,10 +7,16 @@ so a play deploy never redeploys the lead API. In prod it sits behind nginx
 (same-origin), so CORS is a dev-only convenience.
 """
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import service
 from .routes import router as play_router, shared_router
+
+logging.getLogger('bridge.play.worker').info(
+    'judge backend: %s', service.JUDGE_BACKEND.stats())
 
 app = FastAPI(
     title='Bridge Play Solver API',
