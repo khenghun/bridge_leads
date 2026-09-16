@@ -227,7 +227,24 @@ judgements against a 16 ms round trip says bigger groups are cheap on
 latency but narrow the fan-out), and decision 5 — 2–4 decisions in flight
 from the frontend, the second lever, which is what turns "a decision in
 seconds" into "a seat in a minute". Each is a small, separate piece of
-work; none changes a grade.
+work; none changes a grade. Also KIV, **first among them: AWS billing
+alerts** — the account has none. Two layers, both console-side, no code:
+an **AWS Budgets** monthly cost budget (a few dollars, alerts at 50 / 80 /
+100 % of actual and forecast to the account email) and a **CloudWatch
+billing alarm** on `EstimatedCharges` (metric lives in `us-east-1`; needs
+*Receive Billing Alerts* enabled under Billing preferences first). At
+today's traffic the function runs inside the free tier, so the alerts are
+the safeguard against a runaway client, not a forecast; note the result
+in the plan's *Provisioning progress* table when done.
+
+**Hand-off state (2026-09-16, end of session):** the release commit
+`92c0169` and the two before it are on local `main`, **not yet pushed**;
+`/opt/bridge_play/.env` already reads `BRIDGE_JUDGE_BACKEND=lambda` but the
+running container still has `local` — the next `stack=play` deploy (or a
+`docker compose up -d` there) is what makes it live. Then verify with
+checks P-1.5-1..3 (`scripts/probe_lambda.py --api
+https://bridge-play.icycookie.xyz`), pin P-1.5-3's wall clock, log the
+run, commit the release-verified row.
 
 **The headline.** Strict *Expert opponents* is unusable on prod: measured
 2026-09-09, a declarer seat takes 593 s on the deployed app against 162 s on
