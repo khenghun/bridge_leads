@@ -205,18 +205,29 @@ Two rulings recorded for this work, still in force:
   work exposed was noise, not clairvoyance, so the ± band shipped first and
   guess-aware grading (below, v1.5) is judged against the band.
 
-## v1.5 — Strict mode on the website, through AWS Lambda ⚪
+## v1.5 — Expert opponents, at speed (strict mode through AWS Lambda) ✅ (built and shipped 2026-09-16)
 
 Design: [`v1.5-lambda-strict-plan.md`](v1.5-lambda-strict-plan.md)
-(architecture drafted 2026-09-09, decisions listed at its end). **Step 0,
-the spike, is complete (2026-09-14):** the AWS account is provisioned
-(ECR repo, OIDC deploy role, execution role, invoke-only user for the VPS,
-concurrency 1 000, memory cap raised), the worker — `backend/worker/handler.py`,
-the Dockerfile's `worker` target, the `build-worker` / `deploy-worker` CI
-jobs — is live as the function `bridge-play-worker` at 7076 MB, and the
-measurements are in the plan: 18.6 ms per full board, 16 ms warm invoke
-from the VPS. Next is plan step 1, the seam, after confirming the plan's
-five decisions; the console steps live in `deploy/provision.md` §9.
+(architecture drafted 2026-09-09; its *Provisioning progress* and *Build
+progress* tables are the record). The spike closed 2026-09-14 (function
+`bridge-play-worker` at 7076 MB, concurrency 1 000, 18.6 ms per full board,
+16 ms warm invoke from the VPS); the seam, the worker's `judge` / `trace`
+ops, the Lambda client with local fallback and the compose wiring landed
+2026-09-16 as four commits, deployed the same day with prod still on the
+local backend, and the first real invoke from the VPS graded a strict
+decision in 13.6 s with all 317 judgements remote, no fallback, the grade
+identical to the local path's. **Shipped on that evidence** — the switch
+on prod (`BRIDGE_JUDGE_BACKEND=lambda` in `/opt/bridge_play/.env`) flipped
+2026-09-16.
+
+**KIV (kept in view, not done):** plan step 5's sequential bench (board 7
+strict at 100 deals through the Lambda path against the laptop baselines,
+`compare_bench.py`), tuning the group size `G` (0.39 s per invoke of four
+judgements against a 16 ms round trip says bigger groups are cheap on
+latency but narrow the fan-out), and decision 5 — 2–4 decisions in flight
+from the frontend, the second lever, which is what turns "a decision in
+seconds" into "a seat in a minute". Each is a small, separate piece of
+work; none changes a grade.
 
 **The headline.** Strict *Expert opponents* is unusable on prod: measured
 2026-09-09, a declarer seat takes 593 s on the deployed app against 162 s on

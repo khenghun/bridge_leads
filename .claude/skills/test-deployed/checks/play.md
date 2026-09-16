@@ -247,3 +247,47 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   carries a `trigger` other than `"status"`, `"band"` or `null`; the
   strict bench reports mark extensions `*` / `†` only. (An unfiltered
   second-opinion trigger was built and dropped the same day.)
+
+## v1.5 — Expert opponents, at speed (strict mode through AWS Lambda)
+
+Shipped 2026-09-16 on the evidence of one decision (the plan's sequential
+bench, group-size tuning and frontend concurrency are KIV — see the
+roadmap). The grades are the local path's by construction; what these
+checks guard is that the fan-out is really on, really remote, and never
+falls back silently.
+
+- **P-1.5-1 [smoke] The switch is on.** `curl /api/play/health` still
+  `{"status":"ok"}`; `curl /api/play/debug/judge` → `kind: "lambda"`,
+  `function: "bridge-play-worker"`, `group_size: 4`, `concurrency: 64`,
+  `trace_slice: 200`, and `sha_mismatch: 0` (a non-zero count means the API
+  and worker images are from different commits — redeploy the pair). The
+  header's *What's new* button reads `v1.5`.
+- **P-1.5-2 [smoke] A strict decision goes remote and reads the local
+  grade.** `python scripts/probe_lambda.py --api
+  https://bridge-play.icycookie.xyz` (Board 17, West's ♦3 at play index 12,
+  40 deals, strict, escalation off). Pinned (2026-09-16, first real
+  invoke from the VPS, and the laptop's local path reads the same):
+  **optimal, 7.825 / 7.825 tricks, best ♦6/♦3; sampled 140, consistent
+  40**; `remote this run`: invocations ≈ 99, remote_items 317 (the
+  `judged` count moves by one or two — it is timing-driven), **fallback_groups
+  0, sha_mismatch 0, errors 0**; wall clock **≤ 20 s** (13.6 s measured
+  from the box; the plan's local-prod figure for a declarer decision was
+  ~30 s). A second run answers from the result cache in under a second
+  with no counter movement.
+- **P-1.5-3 [smoke] A strict seat on the website.** Board 17 → **E/W** →
+  Expert opponents on (60 deals) → *Advanced* → **Strict** → Analyze. The
+  requests carry `strict: true`, the header says `expert opponents
+  (strict)`, eighteen requests, and `debug/judge` afterwards shows
+  `fallback_groups: 0`, `sha_mismatch: 0`. Wall clock pinned on the release
+  run (P-1.3-3 measured ~20 min on prod before v1.5): **see the regression
+  log row of 2026-09-16 for the release figure**. The grades are not pinned
+  (P-1.3-3's rule: strict verdicts move with the draw order), but the seat
+  must read 15 graded, 3 forced, and `Graded on 900 of …`.
+- **P-1.5-4 [full] Fallback is local and silent.** Locally: start the play
+  API with `BRIDGE_JUDGE_BACKEND=lambda` and **no** AWS credentials (or a
+  wrong `BRIDGE_WORKER_FUNCTION`), run `scripts/probe_lambda.py` against
+  it: the grade is exactly P-1.5-2's, `fallback_groups` > 0 equals the
+  group count, `remote_items` 0, `last_error` names the cause, and the API
+  log carries one `play worker fallback #1` warning (then every hundredth).
+- **P-1.5-5 [full] What's new.** The panel lists v1.5 *Expert opponents, at
+  speed* with two *improved* entries above v1.4.

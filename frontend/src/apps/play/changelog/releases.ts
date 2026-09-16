@@ -16,6 +16,40 @@ export { KIND_LABEL } from '../../../components/Changelog'
 
 export const RELEASES: Release[] = [
   {
+    version: 'v1.5',
+    date: '2026-09-16',
+    title: 'Expert opponents, at speed',
+    summary:
+      'The judging behind Expert opponents now runs in parallel on cloud '
+      + 'compute, so Strict is usable on the website.',
+    changes: [
+      {
+        kind: 'improved',
+        text: 'Expert opponents works by judging, for every sampled deal, '
+          + 'whether each earlier play by an opponent was the best one given '
+          + 'what that opponent could see — hundreds of small solves per '
+          + 'decision, and thousands with Strict on. The website runs on a '
+          + 'single core, so a strict decision took half a minute and a '
+          + 'whole seat the better part of an hour. Those judgements are now '
+          + 'sent out in batches to cloud compute and run side by side, '
+          + 'while the website keeps everything it has already learnt about '
+          + 'the hand and reuses it. Measured on the first decision through '
+          + 'it, a strict grade came back in under fifteen seconds — faster '
+          + 'than a sixteen-thread laptop grading it locally. Every verdict '
+          + 'is the same one the website would have reached on its own, '
+          + 'only sooner; grades do not change.',
+      },
+      {
+        kind: 'improved',
+        text: 'If the cloud side is unreachable for any batch, the website '
+          + 'judges that batch itself and carries on — a run can be slower '
+          + 'than usual, never different. Decisions still run one at a time, '
+          + 'so a whole seat is the sum of its decisions; grading several '
+          + 'decisions at once is the next step.',
+      },
+    ],
+  },
+  {
     version: 'v1.4',
     date: '2026-09-08',
     title: 'How sure is that grade?',
