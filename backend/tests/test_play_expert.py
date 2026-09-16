@@ -361,10 +361,11 @@ def test_decisions_chunk_returns_only_those_indices():
 
 
 def test_expert_grading_is_deterministic():
+    from tests.test_play_wire import stable       # drops the wall-clock-driven counters
     kw = dict(num_deals=8, seed=0, expert=ExpertSettings(), decisions=[10, 12])
     a = grader.grade_play(HANDS, 1, 'N', 'W', PLAY, 'W', memo=VerdictMemo(), **kw)
     b = grader.grade_play(HANDS, 1, 'N', 'W', PLAY, 'W', memo=VerdictMemo(), **kw)
-    assert a['decisions'] == b['decisions']
+    assert stable(a['decisions']) == stable(b['decisions'])
 
 
 # --- _resolve: memo-first, priority-ordered, order-independent ---------------

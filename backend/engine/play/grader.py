@@ -551,7 +551,7 @@ def _options(position, view, totals, makes, counts, per_board=None, scoring=None
 
 def _layouts(position, view, level, method, num_deals, constraints, rng, expert,
              all_constraints, context_key, memo, start=None, stats=None,
-             base_deals=None):
+             base_deals=None, backend=None):
     """The deals a grade rests on: the real one, the expert-filtered sample,
     or the plain sample. Returns `(layouts, ExpertStats | None)`."""
     if method == 'double_dummy':
@@ -560,13 +560,13 @@ def _layouts(position, view, level, method, num_deals, constraints, rng, expert,
         return expert_layouts(
             position, view, constraints, all_constraints or {}, num_deals, expert,
             rng, level=level, context_key=context_key, memo=memo,
-            start=start, stats=stats, base_deals=base_deals)
+            start=start, stats=stats, base_deals=base_deals, backend=backend)
     return _sample_layouts(position, view, constraints, num_deals, rng), None
 
 
 def _grade(position, view, level, method, num_deals, constraints, rng,
            scoring=None, expert=None, all_constraints=None, context_key=None,
-           memo=None, escalation=None, played=None, seed=None):
+           memo=None, escalation=None, played=None, seed=None, backend=None):
     """Price every legal card at `position` through `view`'s eyes.
 
     Returns `(options, per_board, deals_used, expert_stats, trigger)` —
@@ -585,7 +585,8 @@ def _grade(position, view, level, method, num_deals, constraints, rng,
     if method not in METHODS:
         raise ValueError(f"method must be one of {METHODS}, got {method!r}")
     layouts, st = _layouts(position, view, level, method, num_deals, constraints,
-                           rng, expert, all_constraints, context_key, memo)
+                           rng, expert, all_constraints, context_key, memo,
+                           backend=backend)
     per_board = _solve_boards(position, layouts)
     options = _options(position, view, *_tally(per_board, level), per_board, scoring)
     trigger = None
@@ -602,7 +603,7 @@ def _grade(position, view, level, method, num_deals, constraints, rng,
                 grown, st = _layouts(
                     position, view, level, method, target, constraints, more, expert,
                     all_constraints, context_key, memo, start=layouts, stats=st,
-                    base_deals=num_deals)
+                    base_deals=num_deals, backend=backend)
                 new = grown[len(layouts):]
             else:
                 new = _sample_layouts(position, view, constraints,
@@ -638,7 +639,7 @@ def tricks_needed_for(role: str, level: int) -> int:
 def grade_position(hands, level, strain, declarer, play=(), *,
                    method='single_dummy', num_deals=40, constraints=None,
                    expert=None, expert_constraints=None, memo=None,
-                   seed=None, vul='none', penalty='none'):
+                   seed=None, vul='none', penalty='none', judge_backend=None):
     """Grade the legal cards for whoever is on play, from that player's view.
 
     The interactive primitive: no `seat`, `play` is simply the history up to the
@@ -661,7 +662,8 @@ def grade_position(hands, level, strain, declarer, play=(), *,
     ctx = _context_key(hands, level, strain, declarer, list(play), expert_constraints)
     options, per_board, sampled, stats, _ = ([], {}, 0, None, False) if forced else _grade(
         position, view, level, method, num_deals, constraints, rng, scoring,
-        expert=expert, all_constraints=expert_constraints, context_key=ctx, memo=memo)
+        expert=expert, all_constraints=expert_constraints, context_key=ctx, memo=memo,
+        backend=judge_backend)
     sign = 1 if view in position.declarer_side else -1
     sample = None if forced else _position_sample(options, per_board, sign, scoring, sampled)
 
@@ -694,7 +696,7 @@ def _expert_settings(expert):
 def grade_play(hands, level, strain, declarer, play, seat, *,
                method='single_dummy', num_deals=40, constraints=None, seed=None,
                vul='none', penalty='none', expert=None, expert_constraints=None,
-               decisions=None, memo=None, escalation=None):
+               decisions=None, memo=None, escalation=None, judge_backend=None):
     """Grade every decision `seat` made in the recorded play.
 
     For declarer that includes the cards played from dummy; dummy itself makes
@@ -776,7 +778,8 @@ def grade_play(hands, level, strain, declarer, play, seat, *,
             options, per_board, _, stats, trigger = _grade(
                 position, seat, level, method, num_deals, constraints, rng, scoring,
                 expert=expert, all_constraints=expert_constraints, context_key=ctx,
-                memo=memo, escalation=escalation, played=card, seed=seed)
+                memo=memo, escalation=escalation, played=card, seed=seed,
+                backend=judge_backend)
             record['expert'] = stats
             record['options'] = options
             fields, sample = _assess(options, per_board, card, sign, scoring, trigger)

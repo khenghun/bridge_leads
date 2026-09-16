@@ -35,6 +35,16 @@ The pieces, in the order the outer loop uses them:
   unfiltered pool when nothing survives. The carried pool lives in the memo
   (`VerdictMemo.pool_put/pool_before`), keyed like the verdicts.
 
+The judgements and the trace go through a **judge backend** (play v1.5,
+`docs/play/v1.5-lambda-strict-plan.md`): `JudgeBackend` is the two-method
+protocol, `LocalBackend` runs them in this process, and the coordinator
+(`_resolve` / `_judge_batch` / `examine`) keeps every piece of state — the
+memo, the priority evidence, the carried pools — on its side of the seam,
+so a remote backend needs only a list of memo misses and returns verdicts.
+`judge_items` is the pure judging loop both sides run; a verdict is a pure
+function of its memo key, so whichever backend computes it, it is the same.
+The engine never imports a cloud SDK — the Lambda client lives in `app_play`.
+
 Perspective, three times over: `analyse_plays` values are **declarer** tricks;
 `grader._solve` returns **declarer** tricks per card; an opponent's "best" is
 best for **the opponent's side**. Each conversion happens in exactly one
@@ -51,6 +61,7 @@ import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from typing import Protocol
 
 from ..dds_runtime import DDS_THREADS, analyse_plays, solve_all
 from .state import SEATS, SUITS, RANKS, card_sort_key, next_seat, walk
@@ -492,9 +503,9 @@ def _judge_fresh(layout_hands, decision, *, level, strain, declarer, play,
     return test.cap()
 
 
-def _judge_batch(items, *, level, strain, declarer, play, all_constraints,
-                 settings, inner_cap, context_key, memo, stats) -> dict:
-    """Judge many memo-missed decisions together.
+def judge_items(items, *, level, strain, declarer, play, all_constraints,
+                settings, inner_cap, context_key) -> list:
+    """Judge many decisions together — the pure loop both backends run.
 
     Each item runs the same sequential rule on the same seeded inner sample as
     a lone `judge` call — verdicts are identical — but every wave's deals go
@@ -502,24 +513,30 @@ def _judge_batch(items, *, level, strain, declarer, play, all_constraints,
     thread pool idle (measured: 12 ms/board at 5 boards/call vs 3.5 at 64);
     aggregation is the v1.4 performance plan's step 3.
 
-    `items` is `[(memo key, layout_hands, decision), ...]`; returns
-    `{key: Verdict}`, memoising and counting each fresh verdict in `stats`.
+    `items` is `[(layout_hands, decision), ...]`; returns, index-aligned,
+    `[(Verdict, [seconds of each inner wave]), ...]`. No memo, no stats: the
+    caller owns those (so a remote worker can run this on a throw-away
+    process and the coordinator's memo learns from what comes back). Depth
+    is 1 here — recursive judgements keep the one-at-a-time `judge` path.
     """
     from . import grader  # lazy: grader imports this module
 
-    verdicts: dict = {}
+    if settings.depth != 1:
+        raise ValueError('judge_items handles depth 1 only; deeper judgements go through judge()')
+
+    results: list = [None] * len(items)
     live = []
-    for key, L, d in items:
+    for idx, (L, d) in enumerate(items):
         prep = _prep(L, d, level=level, strain=strain, declarer=declarer,
                      play=play, all_constraints=all_constraints, settings=settings,
-                     inner_cap=inner_cap, context_key=context_key, memo=memo)
+                     inner_cap=inner_cap, context_key=context_key, memo=None)
         if isinstance(prep, Verdict):
-            verdicts[key] = prep
+            results[idx] = (prep, [])
             continue
         position, stream = prep
-        live.append({'key': key, 'position': position, 'stream': stream,
+        live.append({'idx': idx, 'position': position, 'stream': stream,
                      'test': _SeqTest(d, declarer, settings), 'step': INNER_FIRST,
-                     'drawn': 0})
+                     'drawn': 0, 'costs': []})
 
     while live:
         deals, spans = [], []
@@ -527,7 +544,6 @@ def _judge_batch(items, *, level, strain, declarer, play, all_constraints,
             batch = it['stream'].take(it['step'])
             it['step'] *= 2
             it['drawn'] += len(batch)
-            it['batch'] = batch
             spans.append((it, len(batch)))
             deals.extend(grader._build_deal(layout, it['position']) for layout in batch)
         t0 = time.perf_counter()
@@ -538,19 +554,72 @@ def _judge_batch(items, *, level, strain, declarer, play, all_constraints,
             if count == 0:
                 # The stream is exhausted: the cap verdict on what was seen,
                 # or nothing could be dealt at all.
-                verdicts[it['key']] = (it['test'].cap() if it['drawn']
-                                       else Verdict(True, 0.0, 0, SD_FLOOR, 'infeasible'))
+                results[it['idx']] = ((it['test'].cap() if it['drawn']
+                                       else Verdict(True, 0.0, 0, SD_FLOOR, 'infeasible')),
+                                      it['costs'])
                 continue
             per_board = grader._collect(it['position'], boards[i:i + count])
             i += count
-            memo.note_cost(it['key'], per_board_s * count)
+            it['costs'].append(per_board_s * count)
             v = it['test'].feed(per_board, count)
             if v is not None:
-                verdicts[it['key']] = v
+                results[it['idx']] = (v, it['costs'])
             else:
                 still.append(it)
         live = still
+    return results
 
+
+class JudgeBackend(Protocol):
+    """Where the expert filter's DDS-heavy work runs. Two methods, both pure:
+    `judge` is `judge_items` (same arguments, same index-aligned result) and
+    `trace` is the double-dummy trace of `play` on each layout (`analyse_plays`
+    values: declarer tricks before any card, then after each). The coordinator
+    keeps the memo and every other piece of state, so a backend that judges a
+    batch elsewhere returns verdicts bit-identical to the local ones."""
+
+    def judge(self, items, **kwargs) -> list: ...
+
+    def trace(self, layouts, strain, declarer, play) -> list: ...
+
+
+class LocalBackend:
+    """Today's path: everything in this process, under `dds_runtime`'s lock."""
+
+    kind = 'local'
+
+    def judge(self, items, **kwargs) -> list:
+        return judge_items(items, **kwargs)
+
+    def trace(self, layouts, strain, declarer, play) -> list:
+        from . import grader  # lazy: grader imports this module
+        deals = [grader._build_deal(L, grader._position_on(L, strain, declarer, []))
+                 for L in layouts]
+        return analyse_plays(deals, [list(play)] * len(layouts))
+
+    def stats(self) -> dict:
+        return {'kind': self.kind}
+
+
+LOCAL = LocalBackend()
+
+
+def _judge_batch(items, *, memo, stats, backend=None, **kwargs) -> dict:
+    """Judge memo-missed decisions through `backend` and record what came
+    back: the verdict in the memo, each inner wave's cost as priority
+    evidence (one `note_cost` per wave, as the in-process loop always did),
+    the count and sigma in `stats`.
+
+    `items` is `[(memo key, layout_hands, decision), ...]`; returns
+    `{key: Verdict}`.
+    """
+    backend = backend if backend is not None else LOCAL
+    results = backend.judge([(L, d) for _, L, d in items], **kwargs)
+    verdicts: dict = {}
+    for (key, _, _), (v, costs) in zip(items, results):
+        for seconds in costs:
+            memo.note_cost(key, seconds)
+        verdicts[key] = v
     for key, v in verdicts.items():
         memo.put(key, v)
         stats.judged += 1
@@ -666,7 +735,7 @@ def _carry_forward(prior, position, view, play) -> list:
 
 def expert_layouts(position, view, constraints, all_constraints, num_deals,
                    settings, rng, *, level, context_key, memo=None,
-                   start=None, stats=None, base_deals=None):
+                   start=None, stats=None, base_deals=None, backend=None):
     """Layouts for grading `position` through `view`'s eyes, each consistent
     with expert play by `view`'s opponents so far. Returns
     `(layouts, ExpertStats)`; on zero survivors the unfiltered pool with
@@ -677,10 +746,12 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
     `num_deals` is drawn; `stats` continues that pass's counts. `base_deals`
     fixes the inner cap — the judgement's sample size and so its verdict —
     to the base pass's count, so an extension judges by the same rule and
-    every earlier verdict is a memo hit."""
+    every earlier verdict is a memo hit. `backend` is where judgements and
+    traces run (`JudgeBackend`); default local."""
     from . import grader  # lazy: grader imports this module
 
     memo = memo if memo is not None else MEMO
+    backend = backend if backend is not None else LOCAL
     stats = stats if stats is not None else ExpertStats()
     n = num_deals
     inner_cap = settings.inner_cap(base_deals or num_deals)
@@ -704,9 +775,7 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
         if settings.strict:
             costs = [None] * len(pool)
         else:
-            deals = [grader._build_deal(L, grader._position_on(L, strain, declarer, []))
-                     for L in pool]
-            traces = analyse_plays(deals, [play[:i]] * len(pool))
+            traces = backend.trace(pool, strain, declarer, play[:i])
             stats.traced += len(pool)
             costs = [dd_costs(t, ds, declarer) for t, ds in zip(traces, decisions)]
 
@@ -718,7 +787,7 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
         verdicts = _resolve(plan, ctx, settings, memo, stats, judge_kwargs=dict(
             level=level, strain=strain, declarer=declarer, play=play,
             all_constraints=all_constraints, settings=settings,
-            inner_cap=inner_cap, context_key=ctx, memo=memo))
+            inner_cap=inner_cap, context_key=ctx, memo=memo, backend=backend))
 
         for (L, _), ok in zip(plan, verdicts):
             if len(accepted) >= n:
