@@ -232,10 +232,17 @@ deals; the same figures the `run-apps` skill expects. (The v1.2 prod pins at
   escalated, trigger}` (forced ones `null`) and `summary.marginal: 4`.
 - **P-1.4-6 [full] Escalation off reproduces the earlier pins.** Untick
   the checkbox → Analyze: the request carries `escalation: null`, no row
-  shows `?` or `±`, and the seat reads exactly the v1.0–v1.3 pins — 13/2/0,
-  0.45 · 0.82 IMPs (27 points); with Expert opponents on, graded on 900 of
-  1406, 0.48 · 0.96 IMPs (32 points) at 4 threads. Re-tick it: the v1.4
-  pins (P-1.0-2, P-1.3-2) come back from the server cache at once.
+  shows `±` or an *extended* tooltip (the `?` marginal marks stay — 4 plain
+  rows, 3 expert — since a grade can be unsure without being extended), and
+  the seat reads exactly the v1.0–v1.3 pins — 13/2/0, 0.45 · 0.82 IMPs (27
+  points); with Expert opponents on, **graded on 900 of 1229, 0.47 · 0.83
+  IMPs (28 points) · 3 marginal** at 4 threads (re-pinned 2026-09-16: the
+  1406 · 0.48 · 0.96 written here on 2026-09-08 restated the 2026-09-03
+  figure, but the carry-forward and opening-lead changes of 2026-09-04 had
+  already moved it and the check had never been run since — the pre-seam
+  commit `4524913` and the v1.5 seam `3ba796a` both read 1229 in a fresh
+  process, and prod agrees). Re-tick it: the v1.4 pins (P-1.0-2, P-1.3-2)
+  come back from the server cache at once.
 - **P-1.4-7 [full] Two triggers only.** No decision in any response
   carries a `trigger` other than `"status"`, `"band"` or `null`; the
   strict bench reports mark extensions `*` / `†` only. (An unfiltered
