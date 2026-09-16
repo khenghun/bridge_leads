@@ -225,9 +225,14 @@ Then, in this order:
 
    Create it with `umask 077` so it is mode 600 — it holds a live key.
    Compose reads a `.env` beside the compose file only for `${VAR}`
-   substitution; the container sees these values once the play compose
-   file's backend service carries `env_file: .env` (v1.5 seam). To check the
-   key from the box without installing anything on the host:
+   substitution; the container sees these values because the play compose
+   file's backend service carries `env_file: .env` (since the v1.5 seam,
+   2026-09-16 — so the file must exist, even with every line unset).
+   Optional tunables: `BRIDGE_WORKER_GROUP` (judgements per invoke, 4) and
+   `BRIDGE_WORKER_CONCURRENCY` (invokes in flight, 64). `GET
+   /api/play/debug/judge` on the running API shows which backend is active
+   and, for `lambda`, its invoke and fallback counters. To check the key
+   from the box without installing anything on the host:
 
    ```
    docker run --rm --env-file /opt/bridge_play/.env python:3.12-slim sh -c      "pip install -q boto3; python -c \"import boto3,json;print(json.load(boto3.client('lambda').invoke(FunctionName='bridge-play-worker',Payload=b'{\\\"op\\\":\\\"health\\\"}')['Payload']))\""

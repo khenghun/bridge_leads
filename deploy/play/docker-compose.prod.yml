@@ -16,6 +16,13 @@ services:
     image: ghcr.io/khenghun/bridge_leads-backend:${IMAGE_TAG:-latest}
     command: ["uvicorn", "app_play.main:app", "--host", "0.0.0.0", "--port", "8000"]
     restart: unless-stopped
+    # The play v1.5 judge backend reads its configuration and the invoke-only
+    # AWS key from /opt/bridge_play/.env (deploy/provision.md §9 step 5;
+    # template: deploy/.env.example). Compose reads that file for ${VAR}
+    # substitution on its own, but the *container* only sees it through
+    # env_file — so the file must exist. BRIDGE_JUDGE_BACKEND=local there
+    # keeps everything on this box; `lambda` fans strict judgements out.
+    env_file: .env
     environment:
       # DDS worker-thread cap (0 = all cores). 2-vCPU VPS: let DDS use both.
       # A play solve running beside a lead batch contends for CPU at the OS
