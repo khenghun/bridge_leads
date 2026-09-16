@@ -64,6 +64,59 @@ def test_bench_refuses_sha_mismatch_and_bad_sizes():
 
 def test_unknown_or_missing_op():
     with pytest.raises(w.WorkerError, match='unknown op'):
-        w.handler({'op': 'judge'})
+        w.handler({'op': 'nope'})
     with pytest.raises(w.WorkerError, match="missing 'op'"):
         w.handler({})
+
+
+# --- judge / trace: the seam's ops, bit-identical to the local path ----------
+
+def _through_lambda(request):
+    """What the client sees: the request and the answer both cross JSON."""
+    import json
+    return json.loads(json.dumps(w.handler(json.loads(json.dumps(request)))))
+
+
+def test_judge_op_returns_the_local_verdicts():
+    from engine.play import wire
+    from engine.play.expert import judge_items
+    from tests.test_play_wire import _board17_judge_inputs
+    items, kwargs = _board17_judge_inputs()
+    local = judge_items(items, **kwargs)
+    r = _through_lambda(wire.judge_request(items, **kwargs))
+    assert r['op'] == 'judge' and r['items'] == len(items) and r['boards'] > 0
+    remote = wire.judge_results(r, len(items))
+    assert [v for v, _ in remote] == [v for v, _ in local]
+    assert [len(c) for _, c in remote] == [len(c) for _, c in local]
+
+
+def test_trace_op_returns_the_local_trace():
+    import random
+    from engine.play import grader, state, wire
+    from engine.play.expert import LOCAL
+    from tests.test_play_wire import HANDS, PLAY
+    # Layouts consistent with the play so far, as the filter always has:
+    # the real deal and two sampled through West's eyes.
+    position = state.replay(HANDS, 'N', 'W', PLAY[:9])
+    layouts = [dict(HANDS)] + grader._sample_layouts(position, 'W', {}, 2, random.Random(1))
+    r = _through_lambda(wire.trace_request(layouts, 'N', 'W', PLAY[:9]))
+    assert r['op'] == 'trace' and r['layouts'] == 3
+    assert wire.trace_results(r, 3) == LOCAL.trace(layouts, 'N', 'W', PLAY[:9])
+    assert all(len(t) == 10 for t in r['traces'])       # before any card, then after each
+
+
+def test_judge_and_trace_refuse_bad_requests():
+    from engine.play import wire
+    from tests.test_play_wire import HANDS, PLAY, _board17_judge_inputs
+    items, kwargs = _board17_judge_inputs()
+    req = wire.judge_request(items, **kwargs)
+    with pytest.raises(w.WorkerError, match='sha_mismatch'):
+        w.handler({**req, 'engine_sha': 'nope'})
+    with pytest.raises(w.WorkerError, match='judge items'):
+        w.handler({**req, 'items': []})
+    with pytest.raises(w.WorkerError, match='bad judge request'):
+        w.handler({**req, 'items': [{'layout': dict(HANDS)}]})
+    with pytest.raises(w.WorkerError, match='trace layouts'):
+        w.handler(wire.trace_request([], 'N', 'W', PLAY[:3]))
+    with pytest.raises(w.WorkerError, match='trace failed'):
+        w.handler(wire.trace_request([dict(HANDS)], 'N', 'W', ['SA', 'SA']))

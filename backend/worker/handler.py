@@ -13,14 +13,24 @@ refused. Dispatch is on the event's `op`:
               assertion the plan asks for: the first inner batch must be 5.
 - `bench`   — solves `boards` random deals and reports the per-board speed,
               the spike's per-vCPU measurement (`seed` makes it repeatable).
+- `judge`   — the seam's unit of work: one group of memo-missed judgements
+              (`engine.play.wire.judge_request`), run through the very
+              `judge_items` the API runs, verdicts returned index-aligned.
+              The worker keeps no memo — the coordinator on the VPS owns it.
+- `trace`   — the double-dummy trace of the play so far on a slice of
+              layouts (`wire.trace_request`), for the default mode's
+              fast-accept.
 
-The `judge` and `trace` operations arrive with the judge-backend seam
-(plan step 1); until then the worker is the spike's measuring instrument.
-No AWS SDK is imported here — the worker only answers. The bench deals its
-own random boards rather than using `endplay.dealer` (the engine never does,
-and the worker should exercise what the engine exercises). Note that
-`endplay` itself imports matplotlib on package import — unavoidable, hence
-`MPLCONFIGDIR` in the Dockerfile's worker stage.
+Both `judge` and `trace` are pure functions of their request (the inner
+sample is seeded from the request's context key), so their answers are
+bit-identical to the local path's — provided this process's inner schedule
+matches, which is why the function is pinned to four DDS threads and
+`health` reports `schedule_ok`. No AWS SDK is imported here — the worker
+only answers. The bench deals its own random boards rather than using
+`endplay.dealer` (the engine never does, and the worker should exercise what
+the engine exercises). Note that `endplay` itself imports matplotlib on
+package import — unavoidable, hence `MPLCONFIGDIR` in the Dockerfile's
+worker stage.
 """
 
 import os
@@ -31,11 +41,14 @@ import time
 from endplay.types import Deal
 
 from engine import dds_runtime
-from engine.play.expert import INNER_FIRST
+from engine.play import wire
+from engine.play.expert import INNER_FIRST, LOCAL, judge_items
 from engine.version import engine_sha
 
 FUNCTION_NAME = 'bridge-play-worker'
 EXPECTED_INNER_FIRST = 5   # the value every regression pin was taken at
+MAX_JUDGE_ITEMS = 200      # a group is a handful; this only bounds a bad client
+MAX_TRACE_LAYOUTS = 1000   # analyse_plays batches 200 per DDS call internally
 
 _BOOT = time.time()
 _INVOCATIONS = 0
@@ -129,6 +142,41 @@ def _bench(event):
     }
 
 
+def _judge(event):
+    try:
+        items, kwargs = wire.judge_inputs(event)
+    except (KeyError, TypeError, ValueError) as e:
+        raise WorkerError(f'bad judge request: {e}') from e
+    if not 1 <= len(items) <= MAX_JUDGE_ITEMS:
+        raise WorkerError(f'judge items must be 1..{MAX_JUDGE_ITEMS}, got {len(items)}')
+    boards_before = dds_runtime.stats()['solve']['boards']
+    try:
+        results = judge_items(items, **kwargs)
+    except Exception as e:              # any failure is a function error; name it
+        raise WorkerError(f'judge failed: {e}') from e
+    return {
+        **wire.judge_response(results),
+        'items': len(items),
+        'boards': dds_runtime.stats()['solve']['boards'] - boards_before,
+        'dds_threads': dds_runtime.DDS_THREADS,
+    }
+
+
+def _trace(event):
+    try:
+        layouts, strain, declarer, play = wire.trace_inputs(event)
+    except (KeyError, TypeError, ValueError) as e:
+        raise WorkerError(f'bad trace request: {e}') from e
+    if not 1 <= len(layouts) <= MAX_TRACE_LAYOUTS:
+        raise WorkerError(f'trace layouts must be 1..{MAX_TRACE_LAYOUTS}, got {len(layouts)}')
+    try:
+        traces = LOCAL.trace(layouts, strain, declarer, play)
+    except Exception as e:              # a layout that does not hold the play, a DDS error
+        raise WorkerError(f'trace failed: {e}') from e
+    return {**wire.trace_response(traces), 'layouts': len(layouts),
+            'dds_threads': dds_runtime.DDS_THREADS}
+
+
 _DECK = [s + r for s in 'SHDC' for r in 'AKQJT98765432']
 _RANK_ORDER = {r: i for i, r in enumerate('AKQJT98765432')}
 
@@ -159,4 +207,5 @@ def _int_env(name):
     return int(v) if v and v.isdigit() else None
 
 
-_OPS = {'echo': _echo, 'health': _health, 'bench': _bench}
+_OPS = {'echo': _echo, 'health': _health, 'bench': _bench,
+        'judge': _judge, 'trace': _trace}
