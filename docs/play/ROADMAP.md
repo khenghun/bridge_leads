@@ -220,22 +220,22 @@ identical to the local path's. **Shipped on that evidence** — the switch
 on prod (`BRIDGE_JUDGE_BACKEND=lambda` in `/opt/bridge_play/.env`) flipped
 2026-09-16.
 
-**KIV (kept in view, not done):** plan step 5's sequential bench (board 7
-strict at 100 deals through the Lambda path against the laptop baselines,
-`compare_bench.py`), tuning the group size `G` (0.39 s per invoke of four
-judgements against a 16 ms round trip says bigger groups are cheap on
-latency but narrow the fan-out), and decision 5 — 2–4 decisions in flight
-from the frontend, the second lever, which is what turns "a decision in
-seconds" into "a seat in a minute". Each is a small, separate piece of
-work; none changes a grade. Also KIV, **first among them: AWS billing
-alerts** — the account has none. Two layers, both console-side, no code:
-an **AWS Budgets** monthly cost budget (a few dollars, alerts at 50 / 80 /
-100 % of actual and forecast to the account email) and a **CloudWatch
-billing alarm** on `EstimatedCharges` (metric lives in `us-east-1`; needs
-*Receive Billing Alerts* enabled under Billing preferences first). At
-today's traffic the function runs inside the free tier, so the alerts are
-the safeguard against a runaway client, not a forecast; note the result
-in the plan's *Provisioning progress* table when done.
+**Sequential bench done 2026-09-17** (board 7 strict at 100 deals
+through prod, `docs/play/bench/board7-o7-strict100-prod-lambda.*`):
+grades within noise of the laptop baseline (one known −0.30-line flip),
+declarer seat 148 s against 593 s prod-local and 162 s on the 16-thread
+laptop, but the defender seats 1.2–1.5× slower than the laptop — their
+outer loop draws only the deficit per round, so waves are ~2 judgements
+wide and the invoke round trip is paid per round. **KIV (kept in view, not
+done):** widening the waves (over-draw the deficit when acceptance is
+low) — `G` tuning was ruled out by the bench (3.4 judgements per invoke,
+groups never fill) — and decision 5, 2–4 decisions in flight from the
+frontend, which is what turns "a decision in seconds" into "a seat in a
+minute". Each is a small, separate piece of work; none changes a grade. **Billing alerts done 2026-09-17:** an AWS
+Budgets monthly cost budget (`bridge-play-monthly`, 10 USD, alerts at 50 /
+80 % actual and 100 % forecast) beside the account's zero-spend budget;
+the CloudWatch `EstimatedCharges` alarm was skipped as unnecessary at
+free-tier traffic (recorded in the plan's *Provisioning progress* table).
 
 **Released and verified on prod (2026-09-17).** Pushed and deployed with
 the switch live; P-1.5-1..3 and P-1.5-5 pass (regression log row of
