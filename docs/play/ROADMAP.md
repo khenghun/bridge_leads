@@ -205,7 +205,7 @@ Two rulings recorded for this work, still in force:
   work exposed was noise, not clairvoyance, so the ± band shipped first and
   guess-aware grading (below, v1.5) is judged against the band.
 
-## v1.5 — Expert opponents, at speed (strict mode through AWS Lambda) ✅ (built and shipped 2026-09-16)
+## v1.5 — Expert opponents, at speed (strict mode through AWS Lambda) ✅ (shipped 2026-09-16, verified on prod 2026-09-17)
 
 Design: [`v1.5-lambda-strict-plan.md`](v1.5-lambda-strict-plan.md)
 (architecture drafted 2026-09-09; its *Provisioning progress* and *Build
@@ -237,14 +237,12 @@ today's traffic the function runs inside the free tier, so the alerts are
 the safeguard against a runaway client, not a forecast; note the result
 in the plan's *Provisioning progress* table when done.
 
-**Hand-off state (2026-09-16, end of session):** the release commit
-`92c0169` and the two before it are on local `main`, **not yet pushed**;
-`/opt/bridge_play/.env` already reads `BRIDGE_JUDGE_BACKEND=lambda` but the
-running container still has `local` — the next `stack=play` deploy (or a
-`docker compose up -d` there) is what makes it live. Then verify with
-checks P-1.5-1..3 (`scripts/probe_lambda.py --api
-https://bridge-play.icycookie.xyz`), pin P-1.5-3's wall clock, log the
-run, commit the release-verified row.
+**Released and verified on prod (2026-09-17).** Pushed and deployed with
+the switch live; P-1.5-1..3 and P-1.5-5 pass (regression log row of
+2026-09-17): the probe decision in 16.6 s with all 317 judgements remote,
+and the strict declarer seat of Board 17 (18 requests, 60 deals, default
+×3 escalation) in **229 s** against ~20 min before v1.5 — 2 889
+invocations, 8 635 judgements remote, no fallback, no sha mismatch.
 
 **The headline.** Strict *Expert opponents* is unusable on prod: measured
 2026-09-09, a declarer seat takes 593 s on the deployed app against 162 s on

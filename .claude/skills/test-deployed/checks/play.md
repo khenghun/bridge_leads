@@ -279,10 +279,17 @@ falls back silently.
   requests carry `strict: true`, the header says `expert opponents
   (strict)`, eighteen requests, and `debug/judge` afterwards shows
   `fallback_groups: 0`, `sha_mismatch: 0`. Wall clock pinned on the release
-  run (P-1.3-3 measured ~20 min on prod before v1.5): **see the regression
-  log row of 2026-09-16 for the release figure**. The grades are not pinned
-  (P-1.3-3's rule: strict verdicts move with the draw order), but the seat
-  must read 15 graded, 3 forced, and `Graded on 900 of …`.
+  run (prod, 2026-09-17, first strict seat through Lambda; P-1.3-3 measured
+  ~20 min on prod before v1.5): **229 s from the first request to the last
+  response, slowest single request 74 s** — call it a regression above
+  ~6 min. The counters after the run read `invocations 2889 · remote_items
+  8635 · remote_seconds 429`. The grades are not pinned (P-1.3-3's rule:
+  strict verdicts move with the draw order; the release run read 13 ✓ / 2 ~
+  / 0 ✗ · 2 marginal · 0.37 tricks · 0.41 IMPs), but the seat must read 15
+  graded, 3 forced, and `Graded on 900 + 120 per extended decision of …` —
+  the default ×3 escalation extends a doubtful decision to 180 deals, so
+  the release run read `Graded on 1260 of 5687` with three extended (an
+  exact 900 means escalation was off).
 - **P-1.5-4 [full] Fallback is local and silent.** Locally: start the play
   API with `BRIDGE_JUDGE_BACKEND=lambda` and **no** AWS credentials (or a
   wrong `BRIDGE_WORKER_FUNCTION`), run `scripts/probe_lambda.py` against
