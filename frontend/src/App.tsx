@@ -5,6 +5,10 @@ import LeadApp from './apps/lead/LeadApp'
 import ContractApp from './apps/contract/ContractApp'
 import ChangelogApp from './apps/changelog/ChangelogApp'
 
+/** The play solver is a separate product on its own domain, so this is a plain
+ * link, not a tab — the mirror of the play app's link back here. */
+const PLAY_APP_URL = 'https://bridge-play.icycookie.xyz'
+
 const TABS = [
   { id: 'lead', label: '♠ Opening Lead' },
   { id: 'contract', label: '♦ Optimal Contract' },
@@ -68,6 +72,10 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <a href={PLAY_APP_URL} className="topbar-link"
+          title="Grade the play of a completed hand (BBO .lin)">
+          ♣ Play solver →
+        </a>
         <label className="toggle">
           <input type="checkbox" checked={light} onChange={(e) => setLight(e.target.checked)} />
           Light mode

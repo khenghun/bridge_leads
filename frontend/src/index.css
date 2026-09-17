@@ -48,6 +48,12 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   border-bottom-color: var(--panel-2); color: var(--accent);
 }
 .topbar .toggle { margin: 0; }
+/* Cross-link to the play solver: sits after the tabs, pushes the toggle right. */
+.topbar-link {
+  margin-right: auto; color: var(--accent); font-size: 0.85rem;
+  text-decoration: none; white-space: nowrap;
+}
+.topbar-link:hover { text-decoration: underline; }
 
 .layout { display: flex; min-height: 100vh; align-items: flex-start; }
 .sidebar {
