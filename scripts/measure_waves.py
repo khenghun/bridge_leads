@@ -60,6 +60,8 @@ def main():
     ap.add_argument('--decisions', help='comma-separated play indices (default: all of the seat)')
     ap.add_argument('--escalate', action='store_true', help='default ×3 escalation (off by default)')
     ap.add_argument('--json', help='write per-decision rows here')
+    ap.add_argument('--width', type=int, default=1,
+                    help='backend width (1 = local, no over-draw; 256 = the Lambda client)')
     args = ap.parse_args()
 
     text = Path(args.lin).read_text(encoding='utf-8')
@@ -74,6 +76,7 @@ def main():
         mine = [int(x) for x in args.decisions.split(',')]
 
     backend = CountingBackend()
+    backend.width = args.width
     memo = VerdictMemo()
     settings = ExpertSettings(strict=args.strict)
     escalation = grader.EscalationSettings() if args.escalate else None
@@ -89,7 +92,7 @@ def main():
 
     print(f'{args.qx}: {level}{strain} by {declarer}, seat {seat}, {len(play)} cards, '
           f'{"strict" if args.strict else "expert"} {args.deals} deals, '
-          f'DDS threads {expert.DDS_THREADS}', flush=True)
+          f'DDS threads {expert.DDS_THREADS}, width {args.width}', flush=True)
     print(f'{"j":>3} {"T":>2} card {"status":>10} {"secs":>6} {"rounds":>6} {"waves":>5} '
           f'{"items":>6} {"w/round":>7} {"mean w":>6} {"max w":>5} {"w<=4":>5} '
           f'{"samp":>5} {"kept":>4} {"judged":>6} {"hits":>5}', flush=True)

@@ -316,6 +316,9 @@ waves two or three judgements wide, each wave an invoke round trip.
    first `n` consistent layouts — and every grade are unchanged;
    `tests/test_play_wire.py` pins a wide backend bit-identical to a narrow
    one and in fewer rounds. Only `traced`/`judged` (cost counters) move.
+   Predicted on the same measurement at width 256: E 207 → 43 rounds and
+   611 → 150 waves, W 253 → 42 and 1 112 → 261, for 1–2 % more
+   judgements and identical grades (`bench/*-waves-*-width256.txt`).
 2. **Seats side by side (frontend, decision 5 of the v1.5 plan in its
    deterministic form).** `runAnalysis` runs the seats of a pair or table
    concurrently; each seat's decisions stay one request at a time, because
