@@ -226,8 +226,8 @@ grades within noise of the laptop baseline (one known −0.30-line flip),
 declarer seat 148 s against 593 s prod-local and 162 s on the 16-thread
 laptop, but the defender seats 1.2–1.5× slower than the laptop — their
 outer loop draws only the deficit per round, so waves are ~2 judgements
-wide and the invoke round trip is paid per round. **KIV (kept in view, not
-done):** widening the waves (over-draw the deficit when acceptance is
+wide and the invoke round trip is paid per round. **KIV (built as v1.6,
+2026-10-01 — see below):** widening the waves (over-draw the deficit when acceptance is
 low) — `G` tuning was ruled out by the bench (3.4 judgements per invoke,
 groups never fill) — and decision 5, 2–4 decisions in flight from the
 frontend, which is what turns "a decision in seconds" into "a seat in a
@@ -291,7 +291,7 @@ After it, in order, the three items v1.4 left open:
    home for a per-decision manual re-grade button, which v1.4's ± band
    makes the case for.
 
-## v1.6 — Fewer trips to the cloud, and seats side by side (built 2026-10-01)
+## v1.6 — Fewer trips to the cloud, and seats side by side (built and pushed 2026-10-01; deploy + prod bench pending)
 
 Design: [`v1.6-wave-width-plan.md`](v1.6-wave-width-plan.md). The two
 levers v1.5 left KIV, built on the measurement the hand-off asked for.
@@ -329,6 +329,13 @@ waves two or three judgements wide, each wave an invoke round trip.
    lock, the result cache dogpile-protects. Decisions-in-flight within a
    seat stays KIV with a deterministic design sketched in the plan doc
    (chunks that carry from the chunk's predecessor).
+
+**Where it stands (end of session 2026-10-01):** commits `7cdfae6` and
+`c44c262` on origin main, images built by CI on push, **not deployed**.
+To release: dispatch `deploy.yml` with stack `play`, then run checks
+P-1.6-1..3 and the bench P-1.6-4 (the plan doc's *Hand-off* lists the
+exact commands and what to pin), date the `releases.ts` entry, add the
+regression-log row. Nothing in the lead stack changed.
 
 ## Later
 
