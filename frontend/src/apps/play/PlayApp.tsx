@@ -283,12 +283,18 @@ export default function PlayApp() {
    *
    * Expert opponents is slow by nature, so its requests go out one decision
    * at a time and the table fills in as each lands (`decisions` chunks,
-   * merged here); the plain run stays a single request per seat. A request
-   * that fails on the network is retried, because the server keeps computing
-   * after the client drops and caches every chunk — so a retry, or a Resume
-   * after the browser gave up (a sleeping laptop, a throttled tab), mostly
-   * collects answers that are already there. A screen wake-lock is held for
-   * the duration where the browser allows it. */
+   * merged here); the plain run stays a single request per seat. The seats
+   * run side by side: a seat's decisions are a chain (each starts from the
+   * deals its predecessor accepted, so the chain is what keeps a run
+   * deterministic), but the chains are independent, and with Expert
+   * opponents on most of a request is time spent waiting on the cloud side —
+   * so a pair or a whole table takes about as long as its slowest seat, and
+   * every grade is exactly what the one-seat-at-a-time run would give. A
+   * request that fails on the network is retried, because the server keeps
+   * computing after the client drops and caches every chunk — so a retry,
+   * or a Resume after the browser gave up (a sleeping laptop, a throttled
+   * tab), mostly collects answers that are already there. A screen
+   * wake-lock is held for the duration where the browser allows it. */
   async function runAnalysis(resume = false) {
     if (!game || !declarer) return
     const signature = runSignature()
@@ -315,55 +321,56 @@ export default function PlayApp() {
 
     const expertOn = expert && method === 'single_dummy'
     let interrupted = false
-    try {
-      for (const seat of seats) {
-        if (runRef.current !== run) return
-        if (state.remaining[seat]?.length === 0) continue          // finished before the interruption
-        setStatuses((prev) => ({ ...prev, [seat]: 'solving' }))
-        try {
-          const options = {
-            method, numDeals,
-            constraints: constraintsForView(constraints, hiddenFrom(seat, declarer)),
-            expert: expertOn ? expertOpts : null,
-            expertConstraints: expertOn
-              ? constraintsForView(constraints, constrainableSeats(declarer)) : undefined,
-            escalation: escalate ? { factor: ESCALATION_FACTOR } : null,
-          }
-          if (!state.remaining[seat]) {
-            const chunks: Array<number[] | undefined> = expertOn
-              ? chunkByDecision(decisionIndices(game.play, seat, declarer)) : []
-            if (!chunks.length) chunks.push(undefined)
-            state.remaining[seat] = chunks
-            state.parts[seat] = []
-          }
-          const parts = state.parts[seat]!
-          const total = parts.length + state.remaining[seat]!.length
-          while (state.remaining[seat]!.length) {
-            const decisions = state.remaining[seat]![0]
-            const res = await withRetry(() =>
-              analyzePlay(toAnalyzeRequest(game, seat, { ...options, decisions })))
-            if (runRef.current !== run) return
-            parts.push(res)
-            state.remaining[seat]!.shift()
-            const merged = total > 1 ? mergeChunks(parts)! : res
-            setResults((prev) => ({ ...prev, [seat]: merged }))
-            if (total > 1 && state.remaining[seat]!.length) {
-              setProgress((prev) => ({ ...prev, [seat]: `decision ${parts.length} of ${total} done` }))
-            }
-          }
-          setProgress((prev) => ({ ...prev, [seat]: undefined }))
-          setStatuses((prev) => ({ ...prev, [seat]: 'done' }))
-        } catch (e) {
-          if (runRef.current !== run) return
-          interrupted = true
-          setErrors((prev) => ({ ...prev, [seat]: `${(e as Error).message} — what was graded is kept; press Resume to continue.` }))
-          setStatuses((prev) => ({ ...prev, [seat]: 'failed' }))
-          break
+    const runSeat = async (seat: Seat) => {
+      if (runRef.current !== run) return
+      if (state.remaining[seat]?.length === 0) return          // finished before the interruption
+      setStatuses((prev) => ({ ...prev, [seat]: 'solving' }))
+      try {
+        const options = {
+          method, numDeals,
+          constraints: constraintsForView(constraints, hiddenFrom(seat, declarer)),
+          expert: expertOn ? expertOpts : null,
+          expertConstraints: expertOn
+            ? constraintsForView(constraints, constrainableSeats(declarer)) : undefined,
+          escalation: escalate ? { factor: ESCALATION_FACTOR } : null,
         }
+        if (!state.remaining[seat]) {
+          const chunks: Array<number[] | undefined> = expertOn
+            ? chunkByDecision(decisionIndices(game.play, seat, declarer)) : []
+          if (!chunks.length) chunks.push(undefined)
+          state.remaining[seat] = chunks
+          state.parts[seat] = []
+        }
+        const parts = state.parts[seat]!
+        const total = parts.length + state.remaining[seat]!.length
+        while (state.remaining[seat]!.length) {
+          const decisions = state.remaining[seat]![0]
+          const res = await withRetry(() =>
+            analyzePlay(toAnalyzeRequest(game, seat, { ...options, decisions })))
+          if (runRef.current !== run) return
+          parts.push(res)
+          state.remaining[seat]!.shift()
+          const merged = total > 1 ? mergeChunks(parts)! : res
+          setResults((prev) => ({ ...prev, [seat]: merged }))
+          if (total > 1 && state.remaining[seat]!.length) {
+            setProgress((prev) => ({ ...prev, [seat]: `decision ${parts.length} of ${total} done` }))
+          }
+        }
+        setProgress((prev) => ({ ...prev, [seat]: undefined }))
+        setStatuses((prev) => ({ ...prev, [seat]: 'done' }))
+      } catch (e) {
+        if (runRef.current !== run) return
+        interrupted = true
+        setErrors((prev) => ({ ...prev, [seat]: `${(e as Error).message} — what was graded is kept; press Resume to continue.` }))
+        setStatuses((prev) => ({ ...prev, [seat]: 'failed' }))
       }
+    }
+    try {
+      await Promise.all(seats.map(runSeat))
     } finally {
       try { await wakeLock?.release() } catch { /* ignore */ }
     }
+    if (runRef.current !== run) return                          // a newer run took over
     setCanResume(interrupted)
     if (!interrupted) pendingRef.current = null
     setLoading(false)

@@ -16,6 +16,38 @@ export { KIND_LABEL } from '../../../components/Changelog'
 
 export const RELEASES: Release[] = [
   {
+    version: 'v1.6',
+    date: 'unreleased',
+    title: 'Fewer trips to the cloud, and seats side by side',
+    summary:
+      'Expert opponents makes far fewer round trips to the cloud side, and a '
+      + 'pair or a whole table is graded seat by seat at the same time.',
+    changes: [
+      {
+        kind: 'improved',
+        text: 'Expert opponents samples deals in rounds and keeps going '
+          + 'until enough of them pass the test of expert play. A round used '
+          + 'to draw only as many deals as were still missing, so late in a '
+          + 'defender\u2019s analysis \u2014 when most deals fail the test \u2014 it ran '
+          + 'dozens of tiny rounds, each paying a trip to the cloud side for '
+          + 'two or three judgements. A round now draws as many deals as the '
+          + 'pass rate so far says it will take, up to what the cloud side can '
+          + 'judge in one trip. The deals themselves and their verdicts are '
+          + 'unchanged \u2014 the same deals are examined in the same order \u2014 so '
+          + 'every grade is identical; only the waiting is shorter.',
+      },
+      {
+        kind: 'improved',
+        text: 'Analyzing a pair or the whole table now grades the seats at '
+          + 'the same time instead of one after another. Within a seat the '
+          + 'decisions still go in order (each starts from the deals the one '
+          + 'before it accepted, which is what keeps a run repeatable), so '
+          + 'the grades are exactly the one-seat-at-a-time ones, and a table '
+          + 'takes about as long as its slowest seat.',
+      },
+    ],
+  },
+  {
     version: 'v1.5',
     date: '2026-09-16',
     title: 'Expert opponents, at speed',

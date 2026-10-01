@@ -587,6 +587,12 @@ class LocalBackend:
     """Today's path: everything in this process, under `dds_runtime`'s lock."""
 
     kind = 'local'
+    # Judgements one wave can run without adding wall clock. Locally the DDS
+    # pool is saturated by a single judgement's first step, so a wider wave
+    # is just more work: no over-draw (`round_size`). A fan-out backend sets
+    # this to its parallelism, and the outer loop draws enough layouts per
+    # round to fill it.
+    width = 1
 
     def judge(self, items, **kwargs) -> list:
         return judge_items(items, **kwargs)
@@ -709,6 +715,22 @@ def _resolve(plan, ctx, settings, memo, stats, judge_kwargs) -> list[bool]:
 
 # --- the outer loop ---------------------------------------------------------
 
+def round_size(deficit: int, accepted: int, drawn: int, width: int) -> int:
+    """How many layouts the next outer round should draw, given `deficit`
+    still wanted, `accepted` of the `drawn` layouts of earlier rounds found
+    consistent, and the backend's `width`. With no fan-out to fill, or
+    before any round has measured the acceptance rate, it is the deficit.
+    Otherwise it is what the measured rate (with an even prior) says fills
+    the deficit in one round, never fewer than the deficit and never more
+    than `width` beyond it: a wide round carries its waves to the fan-out in
+    one trip, where the deficit alone would take rounds of two or three.
+    Only the round count moves; the layouts and their verdicts do not."""
+    if width <= 1 or drawn <= 0 or deficit <= 0:
+        return deficit
+    rate = (accepted + 1) / (drawn + 2)
+    return max(deficit, min(width, math.ceil(deficit / rate)))
+
+
 def _carry_forward(prior, position, view, play) -> list:
     """The layouts of `prior` (`(index, layouts)` from an earlier decision of
     the same view, or None) that are still consistent at `position`: every
@@ -814,10 +836,18 @@ def expert_layouts(position, view, constraints, all_constraints, num_deals,
 
     drawn = 0
     limit = settings.budget * n
+    base_accepted = len(accepted)
+    width = getattr(backend, 'width', 1)
     while len(accepted) < n and drawn < limit:
-        # Draw only the deficit: every drawn layout is traced, and the trace
-        # (one DDS line analysis from trick one) is the dominant cost.
-        want = min(max(n - len(accepted), POOL_MIN), limit - drawn)
+        # Locally, draw only the deficit: every drawn layout is traced, and
+        # the trace (one DDS line analysis from trick one) is the dominant
+        # cost. Through a fan-out backend a round costs its waves' round
+        # trips whatever their width, so draw what the acceptance rate so far
+        # says will fill the deficit, up to the backend's width (`round_size`).
+        # Layouts are examined in draw order either way, so the accepted set
+        # — the first `n` consistent layouts of the stream — is the same.
+        want = round_size(n - len(accepted), len(accepted) - base_accepted, drawn, width)
+        want = min(max(want, POOL_MIN), limit - drawn)
         pool = grader._sample_layouts(position, view, constraints, want, rng)
         if not pool:
             break

@@ -123,17 +123,18 @@ def test_judge_items_through_the_wire_gives_the_same_verdicts():
 
 
 def stable(decisions):
-    """Graded decisions minus the counters that depend on wall-clock time:
-    `judged` / `memo_hits` (suspect priority learns from measured seconds, so
-    two identical local runs can differ by a judgement) and `sigma` (the
-    mean over the judged verdicts). Grades, layouts examined and layouts
-    accepted must match exactly."""
+    """Graded decisions minus the cost counters: `judged` / `memo_hits`
+    depend on wall-clock time (suspect priority learns from measured
+    seconds, so two identical local runs can differ by a judgement), `sigma`
+    is the mean over the judged verdicts, and `traced` counts every drawn
+    layout, which a fan-out backend over-draws (`round_size`). Grades,
+    layouts examined and layouts accepted must match exactly."""
     out = []
     for d in decisions:
         d = dict(d)
         if d.get('expert'):
             d['expert'] = {k: v for k, v in d['expert'].items()
-                           if k not in ('judged', 'memo_hits', 'sigma')}
+                           if k not in ('judged', 'memo_hits', 'sigma', 'traced')}
         out.append(d)
     return out
 
@@ -170,3 +171,60 @@ def test_grade_position_accepts_a_judge_backend():
                               expert=ExpertSettings(strict=True), memo=VerdictMemo(),
                               judge_backend=backend)
     assert r['expert']['consistent'] > 0 and backend.judge_calls > 0
+
+
+# --- wave width: a fan-out backend over-draws, the answer does not move ------
+
+class WideBackend(WireBackend):
+    """The wire backend with a fan-out's width, so the outer loop over-draws."""
+
+    kind = 'wide'
+    width = 256
+
+
+def test_round_size_rule():
+    from engine.play.expert import round_size
+    # No fan-out, or no rate yet: the deficit alone (today's behaviour).
+    assert round_size(5, 0, 0, 1) == 5
+    assert round_size(5, 0, 0, 256) == 5
+    assert round_size(0, 3, 10, 256) == 0
+    # Measured rate 1/8 with the even prior → (3+1)/(30+2) = 1/8: 5 wanted → 40.
+    assert round_size(5, 3, 30, 256) == 40
+    # Never fewer than the deficit (the even prior keeps a perfect rate just
+    # under 1, so one spare), never more than the width.
+    assert round_size(5, 30, 30, 256) == 6
+    assert round_size(90, 3, 30, 256) == 256
+    assert round_size(300, 3, 30, 256) == 300
+
+
+@pytest.mark.parametrize('strict', [False, True])
+def test_a_wide_backend_grades_bit_identically_in_fewer_rounds(strict, monkeypatch):
+    """Over-drawing changes how many layouts a round draws, not which: the
+    stream is examined in draw order either way, so the accepted layouts —
+    the first `n` consistent ones — and every grade are the same, and the
+    wide run draws them in fewer rounds."""
+    rounds = {'narrow': [], 'wide': []}
+    real = grader._sample_layouts
+
+    def counting(position, view, constraints, num_deals, rng):
+        rounds[current[0]].append(num_deals)
+        return real(position, view, constraints, num_deals, rng)
+    monkeypatch.setattr(grader, '_sample_layouts', counting)
+
+    current = ['narrow']
+    kw = dict(num_deals=12, seed=0, expert=ExpertSettings(strict=strict), decisions=[10, 12])
+    narrow = grader.grade_play(HANDS, 1, 'N', 'W', PLAY, 'W', memo=VerdictMemo(),
+                               judge_backend=WireBackend(), **kw)
+    current = ['wide']
+    wide = grader.grade_play(HANDS, 1, 'N', 'W', PLAY, 'W', memo=VerdictMemo(),
+                             judge_backend=WideBackend(), **kw)
+    assert stable(wide['decisions']) == stable(narrow['decisions'])
+    assert len(rounds['wide']) <= len(rounds['narrow'])
+    assert sum(rounds['wide']) >= sum(rounds['narrow'])
+    assert len(rounds['narrow']) > 1
+    # Strict rejects enough layouts on this fixture that the narrow run
+    # needs several rounds and the wide one fewer — the lever engaged.
+    # (Default mode accepts nearly everything on the trace, so its rounds
+    # never fall below the floor of five and the counts coincide.)
+    if strict:
+        assert len(rounds['wide']) < len(rounds['narrow'])

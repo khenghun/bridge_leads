@@ -298,3 +298,38 @@ falls back silently.
   log carries one `play worker fallback #1` warning (then every hundredth).
 - **P-1.5-5 [full] What's new.** The panel lists v1.5 *Expert opponents, at
   speed* with two *improved* entries above v1.4.
+
+## v1.6 — Fewer trips to the cloud, and seats side by side
+
+The two levers v1.5 left KIV: the expert filter's outer loop over-draws
+layouts to fill the fan-out (`expert.round_size`, driven by the backend's
+`width` = group × concurrency), and the frontend runs the seats of a pair
+or table concurrently (each seat's decisions still sequential). Neither
+moves a grade: the layouts are examined in draw order either way, and a
+seat's chain is untouched. What these checks guard is that the levers are
+on and that the grades did not move.
+
+- **P-1.6-1 [smoke] The width is on.** `curl /api/play/debug/judge` →
+  `width: 256` beside `group_size: 4`, `concurrency: 64`.
+- **P-1.6-2 [smoke] The probe grade is unchanged.** `python
+  scripts/probe_lambda.py --api https://bridge-play.icycookie.xyz` reads
+  exactly P-1.5-2's grade: **optimal, 7.825 / 7.825 tricks, best ♦6/♦3;
+  sampled 140, consistent 40**. The counters differ from P-1.5-2's by
+  design — the over-drawn rounds judge more and trip less: pinned on the
+  release run (prod, see the regression log row) as `invocations` and
+  `remote_items` there; `fallback_groups 0, sha_mismatch 0`.
+- **P-1.6-3 [smoke] Seats run side by side.** Board 7 (or any hand) →
+  **Whole table** → Analyze (plain is enough): the network log shows the
+  three seats' `/api/play/analyze` requests in flight at once, and all three
+  seat cards read *solving* together, then *done*. With Expert opponents on
+  the per-seat `decision k of n done` progress lines advance independently.
+- **P-1.6-4 [full] The sequential bench through Lambda, re-run.**
+  `bench_play.py docs/play/board7.lin --qx o7 --strict --deals 100 --api
+  https://bridge-play.icycookie.xyz` against a freshly restarted prod API,
+  gated with `compare_bench.py` against
+  `docs/play/bench/board7-o7-strict100-prod-lambda.json`: statuses and
+  sampled/consistent identical (the known −0.30-line flip on N T2 ♦5
+  allowed); wall clock per seat pinned in
+  `docs/play/bench/board7-o7-strict100-prod-lambda-v16.md` once run.
+- **P-1.6-5 [full] What's new.** The panel lists v1.6 *Fewer trips to the
+  cloud, and seats side by side* with two *improved* entries above v1.5.

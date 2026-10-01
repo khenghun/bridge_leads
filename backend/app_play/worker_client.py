@@ -63,6 +63,9 @@ class LambdaBackend:
         self.group_size = max(1, int(group_size))
         self.concurrency = max(1, int(concurrency))
         self.trace_slice = max(1, int(trace_slice))
+        # Judgements a wave can carry in one trip of the pool: the outer
+        # loop over-draws layouts to fill it (`expert.round_size`).
+        self.width = self.group_size * self.concurrency
         self.local = local
         self._client = client               # a boto3 Lambda client, or a stand-in
         self._client_lock = threading.Lock()
@@ -100,7 +103,7 @@ class LambdaBackend:
         with self._lock:
             return {'kind': self.kind, 'function': self.function,
                     'group_size': self.group_size, 'concurrency': self.concurrency,
-                    'trace_slice': self.trace_slice, **self.counters}
+                    'width': self.width, 'trace_slice': self.trace_slice, **self.counters}
 
     # --- one group / one slice ---------------------------------------------------
 

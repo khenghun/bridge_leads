@@ -291,6 +291,42 @@ After it, in order, the three items v1.4 left open:
    home for a per-decision manual re-grade button, which v1.4's ± band
    makes the case for.
 
+## v1.6 — Fewer trips to the cloud, and seats side by side (built 2026-10-01)
+
+Design: [`v1.6-wave-width-plan.md`](v1.6-wave-width-plan.md). The two
+levers v1.5 left KIV, built on the measurement the hand-off asked for.
+
+**Measured first (2026-10-01, `scripts/measure_waves.py`, board 7 strict
+at 100 deals, 4 DDS threads):** East's seat ran **207 outer rounds and
+611 judge waves for 5 746 judgements** — a mean wave of 9 judgements, a
+third of the waves four or fewer — and West's 253 rounds and 1 112 waves
+for 7 707. The worst decisions (E trick 5: 55 rounds, 343 waves; W trick
+7: 74 rounds, 434 waves, 320 of them ≤ 4 wide) are the ones whose
+acceptance rate is lowest: the outer loop drew only the deficit, so the
+tail of a decision was dozens of five-layout rounds, each a chain of
+waves two or three judgements wide, each wave an invoke round trip.
+
+1. **Wave width (engine).** `expert.round_size`: after the first round a
+   round draws what the measured acceptance rate (with an even prior) says
+   will fill the deficit, never fewer than the deficit and never more than
+   the backend's `width` beyond it — `LocalBackend.width = 1` (no
+   over-draw; the local path is byte-identical to v1.5) and
+   `LambdaBackend.width = group × concurrency` (256). The layouts are the
+   same stream examined in the same order, so the accepted set — the
+   first `n` consistent layouts — and every grade are unchanged;
+   `tests/test_play_wire.py` pins a wide backend bit-identical to a narrow
+   one and in fewer rounds. Only `traced`/`judged` (cost counters) move.
+2. **Seats side by side (frontend, decision 5 of the v1.5 plan in its
+   deterministic form).** `runAnalysis` runs the seats of a pair or table
+   concurrently; each seat's decisions stay one request at a time, because
+   a decision starts from the layouts its predecessor accepted
+   (`VerdictMemo.pool_before`) — running decisions of one seat in flight
+   would make that pool timing-dependent and the grade with it. The
+   server already copes: the memo is locked, DDS is behind its global
+   lock, the result cache dogpile-protects. Decisions-in-flight within a
+   seat stays KIV with a deterministic design sketched in the plan doc
+   (chunks that carry from the chunk's predecessor).
+
 ## Later
 
 - **BBO import by username** — a server-side fetch (`bridge_ai/bbo_hands.py`

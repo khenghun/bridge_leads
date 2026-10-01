@@ -1,0 +1,17 @@
+o7: 3N by N, seat E, 52 cards, strict 100 deals, DDS threads 4
+  j  T card     status   secs rounds waves  items w/round mean w max w  w<=4  samp kept judged  hits
+  0  1   H7       good    2.2      1     0      0     0.0    0.0     0     0   100  100      0     0
+  5  2   D3    optimal   79.4      8    24    488     3.0   20.3   100     6   247  100    488     0
+ 11  3   DQ    optimal  217.1     33   187   2153     5.7   11.5    99    92   908  100   2153    15
+ 12  4   HJ       good    0.1      0     0      0     0.0    0.0     0     0   100  100      0   586
+ 19  5   CK    optimal  124.3     55   343   2720     6.2    7.9    95   216  1665  100   2720   301
+ 20  6   H9    optimal    0.1      0     0      0     0.0    0.0     0     0   100  100      0   790
+ 27  7   SK    optimal   18.0     70    57    385     0.8    6.8    69    38  1870  100    385  3266
+ 28  8   ST    optimal    0.1      0     0      0     0.0    0.0     0     0   100  100      0  1083
+ 33  9   D9     forced    0.0      0     0      0     0.0    0.0     0     0     0    0      0     0
+ 37 10   C4    optimal    1.5     20     0      0     0.0    0.0     0     0  2000    0      0  2687
+ 41 11   C8    optimal    1.9     20     0      0     0.0    0.0     0     0  2000    0      0  2331
+ 47 12   CQ     forced    0.0      0     0      0     0.0    0.0     0     0     0    0      0     0
+ 48 13   S5     forced    0.0      0     0      0     0.0    0.0     0     0     0    0      0     0
+
+seat E: 444.7 s, 207 rounds, 611 waves, 5746 items

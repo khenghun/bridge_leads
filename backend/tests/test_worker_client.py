@@ -66,6 +66,8 @@ def test_judge_groups_items_and_returns_them_index_aligned():
     s = b.stats()
     assert s['invocations'] == len(fake.calls) and s['remote_items'] == len(items)
     assert s['fallback_groups'] == 0 and s['remote_seconds'] > 0
+    # The outer loop over-draws to this many judgements per wave.
+    assert b.width == 2 * b.concurrency and s['width'] == b.width
 
 
 def test_a_failed_group_is_judged_locally_and_the_rest_remotely():
