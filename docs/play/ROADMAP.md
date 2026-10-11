@@ -226,8 +226,8 @@ grades within noise of the laptop baseline (one known −0.30-line flip),
 declarer seat 148 s against 593 s prod-local and 162 s on the 16-thread
 laptop, but the defender seats 1.2–1.5× slower than the laptop — their
 outer loop draws only the deficit per round, so waves are ~2 judgements
-wide and the invoke round trip is paid per round. **KIV (built as v1.6,
-2026-10-01 — see below):** widening the waves (over-draw the deficit when acceptance is
+wide and the invoke round trip is paid per round. **Done as v1.6 (shipped
+2026-10-11 — see below):** widening the waves (over-draw the deficit when acceptance is
 low) — `G` tuning was ruled out by the bench (3.4 judgements per invoke,
 groups never fill) — and decision 5, 2–4 decisions in flight from the
 frontend, which is what turns "a decision in seconds" into "a seat in a
@@ -291,7 +291,7 @@ After it, in order, the three items v1.4 left open:
    home for a per-decision manual re-grade button, which v1.4's ± band
    makes the case for.
 
-## v1.6 — Fewer trips to the cloud, and seats side by side (shipped 2026-10-11)
+## v1.6 — Fewer trips to the cloud, and seats side by side ✅ (built 2026-10-01, shipped 2026-10-11)
 
 Design: [`v1.6-wave-width-plan.md`](v1.6-wave-width-plan.md). The two
 levers v1.5 left KIV, built on the measurement the hand-off asked for.
