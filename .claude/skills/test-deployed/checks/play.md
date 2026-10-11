@@ -316,8 +316,10 @@ on and that the grades did not move.
   exactly P-1.5-2's grade: **optimal, 7.825 / 7.825 tricks, best ♦6/♦3;
   sampled 140, consistent 40**. The counters differ from P-1.5-2's by
   design — the over-drawn rounds judge more and trip less: pinned on the
-  release run (prod, see the regression log row) as `invocations` and
-  `remote_items` there; `fallback_groups 0, sha_mismatch 0`.
+  first v1.6 prod run (2026-10-11, cold memo after the deploy) as
+  **invocations 82, remote_items 312** (v1.5 read 99 / 317), judged 312,
+  20.3 s; `fallback_groups 0, sha_mismatch 0`. A second run reads 0.1 s
+  from the cache with no counter movement.
 - **P-1.6-3 [smoke] Seats run side by side.** Board 7 (or any hand) →
   **Whole table** → Analyze (plain is enough): the network log shows the
   three seats' `/api/play/analyze` requests in flight at once, and all three

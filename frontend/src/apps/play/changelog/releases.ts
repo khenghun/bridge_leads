@@ -17,7 +17,7 @@ export { KIND_LABEL } from '../../../components/Changelog'
 export const RELEASES: Release[] = [
   {
     version: 'v1.6',
-    date: 'unreleased',
+    date: '2026-10-11',
     title: 'Fewer trips to the cloud, and seats side by side',
     summary:
       'Expert opponents makes far fewer round trips to the cloud side, and a '

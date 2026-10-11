@@ -291,7 +291,7 @@ After it, in order, the three items v1.4 left open:
    home for a per-decision manual re-grade button, which v1.4's ± band
    makes the case for.
 
-## v1.6 — Fewer trips to the cloud, and seats side by side (built and pushed 2026-10-01; deploy + prod bench pending)
+## v1.6 — Fewer trips to the cloud, and seats side by side (shipped 2026-10-11)
 
 Design: [`v1.6-wave-width-plan.md`](v1.6-wave-width-plan.md). The two
 levers v1.5 left KIV, built on the measurement the hand-off asked for.
@@ -330,12 +330,20 @@ waves two or three judgements wide, each wave an invoke round trip.
    seat stays KIV with a deterministic design sketched in the plan doc
    (chunks that carry from the chunk's predecessor).
 
-**Where it stands (end of session 2026-10-01):** commits `7cdfae6` and
-`c44c262` on origin main, images built by CI on push, **not deployed**.
-To release: dispatch `deploy.yml` with stack `play`, then run checks
-P-1.6-1..3 and the bench P-1.6-4 (the plan doc's *Hand-off* lists the
-exact commands and what to pin), date the `releases.ts` entry, add the
-regression-log row. Nothing in the lead stack changed.
+**Deployed 2026-10-11** (play stack from `03e7e88`). Smoke P-1.6-1..3
+pass: `debug/judge` reports `width 256`; the probe grade is exactly
+v1.5's (optimal 7.825/7.825, ♦6/♦3, sampled 140 / consistent 40) on 82
+invocations / 312 remote judgements against v1.5's 99 / 317; a whole-table
+run fires the three seats' requests together. **Bench P-1.6-4 (board 7
+strict, 100 deals, cold prod API):** N 148.3 → **89.3 s**, E 464.1 →
+**194.3 s**, W 403.7 → **187.5 s**, board 1 017.5 → **472.0 s (2.2×)**;
+`compare_bench.py` gate passed — statuses, IMP loss, `sampled` and
+`consistent` identical per seat, `judged` up 1–3 % as designed. Both
+defender seats now beat the 16-thread laptop (374 / 265 s). Numbers and
+counters in the plan doc's *Bench* section. Remaining: date the
+`releases.ts` entry (it also lacks the `unreleased: true` flag, so prod's
+panel currently shows *Latest* with a broken date), add the regression-log
+row, deploy `play` again. Nothing in the lead stack changed.
 
 ## Later
 
