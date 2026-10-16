@@ -95,7 +95,12 @@ cd /opt/bridge_leads
 
 (`/opt/kk_relay` is the KK Relay display — a static page in `kk_relay/` with
 its own workflow, `.github/workflows/kk-relay.yml`, and its own site block
-`kk-relay.icycookie.xyz` in the shared edge Caddyfile. It needs no `.env`.)
+`kk-relay.icycookie.xyz` in `deploy/edge/Caddyfile`. It needs no `.env`.)
+
+The shared edge needs its directory too, plus the docker network every stack
+joins: `sudo mkdir -p /opt/edge && sudo chown deploy:deploy /opt/edge &&
+docker network create edge`. Its files are then put there by the deploy
+workflow with `stack: edge` (`deploy/edge/README.md`).
 
 Copy `docker-compose.prod.yml` and `Caddyfile` from the repo into
 `/opt/bridge_leads/` (scp them, or just `git clone` and `cp` — the deploy

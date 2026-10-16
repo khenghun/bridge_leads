@@ -17,6 +17,7 @@ on:
           - lead
           - play
           - worker
+          - edge
         default: lead
       image_tag:
         description: "Image tag to deploy (a commit SHA for rollback, or latest)"
@@ -219,10 +220,10 @@ jobs:
       - uses: actions/checkout@v4
 
       # Keep the VPS copy of the compose file in sync with the repo. TLS/routing
-      # moved to the shared edge stack (/opt/edge, owned by the FBO repo's
-      # deploy/edge/) — no Caddyfile here anymore. Per-stack compose files live
-      # under deploy/<stack>/; strip_components flattens the repo path so the
-      # file lands as /opt/bridge_leads/docker-compose.prod.yml as before.
+      # live in the shared edge stack (/opt/edge, deploy/edge/ here, deployed by
+      # the deploy-edge job) — no Caddyfile in this stack. Per-stack compose
+      # files live under deploy/<stack>/; strip_components flattens the repo
+      # path so the file lands as /opt/bridge_leads/docker-compose.prod.yml.
       - name: Copy compose file to VPS
         uses: appleboy/scp-action@v1
         with:
@@ -285,3 +286,39 @@ jobs:
             IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml pull
             IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml up -d
             docker image prune -f
+
+  deploy-edge:
+    # The shared Caddy edge (deploy/edge/): TLS + per-hostname routing for
+    # every stack on the box. No image to build, so it needs nothing — copy
+    # the two files to /opt/edge, validate the Caddyfile inside the running
+    # container, and reload only if it validates, so a typo leaves the live
+    # config (and all three sites) untouched. Adding a hostname = DNS first,
+    # then a site block here, then this job (deploy/edge/README.md).
+    if: github.event_name == 'workflow_dispatch' && inputs.stack == 'edge'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy edge files to VPS
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "deploy/edge/Caddyfile,deploy/edge/compose.yaml"
+          strip_components: 2
+          target: /opt/edge
+
+      - name: Validate & reload Caddy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/edge
+            docker compose up -d
+            docker compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile
+            docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+            docker compose ps

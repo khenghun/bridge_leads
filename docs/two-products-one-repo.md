@@ -95,6 +95,15 @@ The backend image is shared because both apps sit on the same `engine/`;
 each stack pins its own tag of it, so their backend versions still move
 independently. Nothing else is shared at release time.
 
+## Also in the repo: the shared edge
+
+`deploy/edge/` (Caddyfile + compose) is the TLS/routing layer for every
+hostname on the VPS — the only container publishing 80/443; each stack joins
+the external `edge` network and gets a site block. It lived in the FBO repo
+while that project shared the box; FBO was retired on 2026-10-16 and the
+files moved here, deployed by `deploy.yml` with `stack: edge` (validate, then
+reload). `deploy/edge/README.md` has the runbook.
+
 ## Also in the repo: kk_relay (not a product)
 
 `kk_relay/` is a static page — the KK Relay bidding-system display, two files
@@ -104,7 +113,7 @@ shares nothing with the bridge products but the VPS, so it follows the
 (`ghcr.io/khenghun/kk_relay-frontend`), its own workflow
 (`.github/workflows/kk-relay.yml`, path-filtered to `kk_relay/**`, same
 dispatch gate), its own compose file (`deploy/kk_relay/`, `/opt/kk_relay`)
-and its own hostname (`kk-relay.icycookie.xyz`, site block in the FBO repo's
+and its own hostname (`kk-relay.icycookie.xyz`, site block in
 `deploy/edge/Caddyfile`). It is not in `deploy.yml`, has no `releases.ts`
 and no regression checks. The source book it was derived from and the
 scripts that need it stay out of the repo (`kk_relay/.gitignore`).

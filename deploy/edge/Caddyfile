@@ -1,0 +1,47 @@
+# The one Caddyfile for the shared edge (/opt/edge on the VPS). One site block
+# per app. Upstream names (bl-frontend, bp-backend, kk-frontend) are network
+# aliases each app's compose file sets on the external `edge` docker network —
+# never compose-internal service names.
+#
+# Source of truth is this file (deploy/edge/ in the bridge_leads repo; it moved
+# here from the retired FBO repo on 2026-10-16). Deploy it with the deploy
+# workflow, stack `edge`, which copies it to /opt/edge, validates it and
+# reloads Caddy — or by hand:
+#   docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+
+# bridge_leads (deploy/lead/, /opt/bridge_leads)
+bridge-leads.icycookie.xyz {
+	encode gzip
+
+	# Caddy owns all routing: /api goes straight to FastAPI, everything
+	# else to the nginx static server (its own /api proxy is then unused).
+	handle /api/* {
+		reverse_proxy bl-backend:8000
+	}
+
+	handle {
+		reverse_proxy bl-frontend:80
+	}
+}
+
+# bridge_play (deploy/play/, /opt/bridge_play). Same routing split as
+# bridge-leads. Analyze requests are minutes-long DDS batches; Caddy's
+# reverse_proxy has no read timeout by default, so none is set.
+bridge-play.icycookie.xyz {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy bp-backend:8000
+	}
+
+	handle {
+		reverse_proxy bp-frontend:80
+	}
+}
+
+# kk_relay (deploy/kk_relay/, /opt/kk_relay). A static page with no backend:
+# everything goes to its nginx container.
+kk-relay.icycookie.xyz {
+	encode gzip
+	reverse_proxy kk-frontend:80
+}

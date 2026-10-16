@@ -38,7 +38,7 @@ double-dummy: what was the best card given what that player could see?
   UI with Playwright.
 
 **To ship:** `deploy/play/` stack + `deploy-play` job (in repo), a domain,
-its DNS record, and the edge vhost in the FBO repo.
+its DNS record, and the edge vhost (then in the FBO repo; `deploy/edge/` here since 2026-10-16).
 
 ## Planned — the order and why
 

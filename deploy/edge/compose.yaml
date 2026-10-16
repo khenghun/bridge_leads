@@ -1,0 +1,32 @@
+# Shared Caddy edge for every app on the VPS.
+# Lives in this repo (deploy/edge/; moved here from the retired FBO repo
+# 2026-10-16), copied to /opt/edge on the VPS by the deploy workflow (stack `edge`). Caddy is the only
+# container publishing 80/443; each app joins the external `edge` docker network and gets
+# a site block in ./Caddyfile.
+#
+#   docker network create edge        # one-time, before first `up`
+#   cd /opt/edge && docker compose up -d
+name: edge
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # Let's Encrypt certs — must persist across restarts
+      - caddy_config:/config
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:

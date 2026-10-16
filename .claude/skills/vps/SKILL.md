@@ -12,7 +12,8 @@ docker compose projects, plus the shared TLS/routing edge stack:
 | --- | --- |
 | `/opt/bridge_leads` | lead/contract app — `docker-compose.prod.yml` + `.env` + `data/queries.db` |
 | `/opt/bridge_play` | play solver — same layout, own compose file and query log |
-| `/opt/edge` | Caddy edge (TLS, vhosts); **owned by the FBO repo's `deploy/edge/`**, not this one |
+| `/opt/edge` | Caddy edge (TLS, vhosts); source of truth `deploy/edge/` in this repo (since 2026-10-16; the FBO repo that owned it is retired), deployed by the deploy workflow's `stack: edge` |
+| `/opt/kk_relay` | KK Relay display — one static nginx container, own compose file, no `.env` |
 
 Deploys happen from GitHub Actions (`.github/workflows/deploy.yml`) over the
 same SSH access: `scp-action` copies the stack's compose file into `/opt/<stack>`,
@@ -48,8 +49,9 @@ package installs), say what you're about to run and why. Read-only inspection
 (`ls`, `docker ps`, `docker logs`, `df`, `cat` of a compose file) needs no
 ceremony. Never `docker compose down` a stack, delete `data/`, or touch
 `/opt/edge` unless the user asks for exactly that — `/opt/edge` in particular
-is managed from another repo and any edit here will be overwritten and may take
-both sites offline.
+is deployed from `deploy/edge/` (hand edits are overwritten by the next edge
+deploy) and a bad reload takes every site offline at once; prefer the
+`deploy-edge` job, which validates before reloading.
 
 Prefer one `ssh` call with a `set -e` script over many round-trips, and quote
 the remote script in single quotes so `$` expands on the box, not locally:

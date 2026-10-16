@@ -3,7 +3,7 @@
 #   docker compose -f docker-compose.prod.yml up -d
 #
 # Same shape as deploy/lead/: no published ports; the shared edge stack
-# (/opt/edge — source of truth: the FBO repo's deploy/edge/) reaches these
+# (/opt/edge — source of truth: deploy/edge/ in this repo) reaches these
 # containers over the external `edge` network via the bp-* aliases below, so
 # the play domain's vhost there must point at bp-frontend.
 #
