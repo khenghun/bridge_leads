@@ -17,7 +17,12 @@ services:
       - "443:443"
       - "443:443/udp" # HTTP/3
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The whole directory, not the single file: a single-file bind mount
+      # pins the inode, so a Caddyfile replaced by scp (the deploy-edge job)
+      # is invisible inside the container and `caddy reload` reports "config
+      # is unchanged" (bitten 2026-10-16). Caddy reads /etc/caddy/Caddyfile;
+      # compose.yaml being visible beside it is harmless.
+      - .:/etc/caddy:ro
       - caddy_data:/data # Let's Encrypt certs — must persist across restarts
       - caddy_config:/config
     networks:

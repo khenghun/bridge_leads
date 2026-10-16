@@ -37,6 +37,14 @@ containers (`/opt/fbo-test`, stopped since 2026-09-01) were left in place.
 
 The VPS copy is disposable; this repo is the source of truth.
 
+Gotcha (2026-10-16): the Caddyfile must reach the container through a
+**directory** mount (`.:/etc/caddy:ro`). The original single-file mount
+pinned the inode, so the file scp put in place was never seen inside the
+container and the reload said `config is unchanged` while the host file had
+the new block. If a reload ever claims no change after an edit, compare
+`docker compose exec caddy grep -c <host> /etc/caddy/Caddyfile` with the
+host file.
+
 ## Rebuilding the edge from nothing
 
 ```bash
