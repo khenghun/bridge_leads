@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KK Relay Explorer</title>
+<style>
+  :root {
+    --bg: #f6f4ee; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #d9d6cc;
+    --red: #c0392b; --black: #1d1d1b; --avail: #fff3c4; --avail-border: #e2b100;
+    --used: #e6e3da; --accent: #1f5f8b; --accent-ink: #ffffff; --leaf: #e7f5e9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1b19; --panel: #262623; --ink: #ecebe6; --muted: #a09e97; --line: #3b3a36;
+      --red: #ff6b5e; --black: #ecebe6; --avail: #4a3f10; --avail-border: #e2b100;
+      --used: #33332f; --accent: #6fb1e0; --accent-ink: #101010; --leaf: #1f3a24;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1b19; --panel: #262623; --ink: #ecebe6; --muted: #a09e97; --line: #3b3a36;
+    --red: #ff6b5e; --black: #ecebe6; --avail: #4a3f10; --avail-border: #e2b100;
+    --used: #33332f; --accent: #6fb1e0; --accent-ink: #101010; --leaf: #1f3a24;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 14px 16px 6px; }
+  header h1 { margin: 0; font-size: 20px; }
+  .hrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .theme { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .theme button { font: inherit; font-size: 12px; padding: 4px 10px; border: 0; background: var(--panel); color: var(--muted); cursor: pointer; }
+  .theme button + button { border-left: 1px solid var(--line); }
+  .theme button.on { background: var(--accent); color: var(--accent-ink); }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: 300px 260px 1fr; gap: 14px; padding: 10px 16px 24px; max-width: 1200px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+  /* bidding box */
+  .box { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+  .box button, .calls button {
+    font: inherit; font-size: 17px; font-weight: 600; padding: 7px 0; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--black); cursor: default; opacity: .38;
+  }
+  .box button .s.red { color: var(--red); }
+  .box button.avail { background: var(--avail); border-color: var(--avail-border); opacity: 1; cursor: pointer; }
+  .box button.avail:hover { outline: 2px solid var(--avail-border); }
+  .box button.used { background: var(--used); opacity: .9; text-decoration: line-through; }
+  .box button.asker { background: var(--used); opacity: .9; }
+  .calls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 8px; }
+  .calls button { font-size: 14px; }
+  .legend { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; border: 1px solid var(--line); }
+  .ctl { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .ctl button { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  .ctl button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  /* auction */
+  table.auction { width: 100%; border-collapse: collapse; font-size: 17px; }
+  table.auction th { font-size: 12px; color: var(--muted); text-align: left; padding: 2px 6px; border-bottom: 1px solid var(--line); }
+  table.auction td { padding: 4px 6px; }
+  table.auction td.cur { background: var(--avail); border-radius: 5px; }
+  sup { font-size: 10px; color: var(--accent); margin-left: 2px; }
+  .red { color: var(--red); }
+  ol.notes { margin: 10px 0 0; padding-left: 20px; font-size: 13px; }
+  ol.notes li { margin: 3px 0; }
+  ol.notes li.cur { font-weight: 600; }
+
+  /* meaning panel */
+  .options { list-style: none; margin: 0; padding: 0; }
+  .options li { display: flex; gap: 10px; align-items: baseline; padding: 6px 8px; border-radius: 7px; cursor: pointer; border: 1px solid transparent; }
+  .options li:hover { background: var(--avail); border-color: var(--avail-border); }
+  .options li .b { font-weight: 700; font-size: 17px; min-width: 46px; }
+  .options li.term { opacity: .6; }
+  .status { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .leaf { background: var(--leaf); border-radius: 9px; padding: 12px; margin-top: 6px; }
+  .leaf .shape { font-size: 30px; font-weight: 700; letter-spacing: .04em; }
+  .hand { font-size: 20px; line-height: 1.5; margin-top: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .hand .cnt { color: var(--muted); font-size: 13px; margin-left: 10px; font-family: system-ui, sans-serif; }
+  .small { font-size: 13px; color: var(--muted); }
+  .path { font-size: 13px; margin-top: 8px; }
+  .path b { font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <h1>KK Relay – shape-showing explorer</h1>
+    <div class="theme" role="group" aria-label="Colour theme">
+      <button data-theme="auto">Auto</button><button data-theme="light">Light</button><button data-theme="dark">Dark</button>
+    </div>
+  </div>
+  <p>Responder (East, "Teller") describes shape after a strong 1♣; opener (West, "Asker") relays with the next step. Click a highlighted bid in the box or the list. Source: McCallum &amp; Woolsey, <i>KK Relay</i>, Shape-Showing Summary and Generic Distribution Drills.</p>
+</header>
+<main>
+  <section>
+    <h2>Bidding box (Teller to call)</h2>
+    <div class="box" id="box"></div>
+    <div class="calls"><button>Pass</button><button>X</button><button>XX</button></div>
+    <div class="legend"><i style="background:var(--avail);border-color:var(--avail-border)"></i>available now &nbsp; <i style="background:var(--used)"></i>already used</div>
+    <div class="ctl">
+      <button id="undo">Undo</button>
+      <button id="reset">Reset</button>
+      <button id="random" class="primary">Random hand ▶</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Auction</h2>
+    <table class="auction"><thead><tr><th>West (Asker)</th><th>East (Teller)</th></tr></thead><tbody id="auction"></tbody></table>
+    <ol class="notes" id="notes"></ol>
+  </section>
+
+  <section>
+    <h2>Meaning</h2>
+    <div class="status" id="status"></div>
+    <div id="panel"></div>
+  </section>
+</main>
+<script>
+  // theme: 'auto' follows the system; 'light'/'dark' force it via data-theme on <html>
+  (function () {
+    let pref = 'auto'; try { pref = localStorage.getItem('kk-theme') || 'auto'; } catch (e) {}
+    function apply(p) {
+      if (p === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', p);
+      document.querySelectorAll('.theme button').forEach(b => b.classList.toggle('on', b.dataset.theme === p));
+    }
+    apply(pref);
+    document.querySelectorAll('.theme button').forEach(b => b.onclick = () => { pref = b.dataset.theme; try { localStorage.setItem('kk-theme', pref); } catch (e) {} apply(pref); });
+  })();
+</script>
+<script src="kkrelay.js"></script>
+<script>
+(function () {
+  const KK = window.KKRelay;
+  const tree = KK.buildTree();
+  const RED = { H: 1, D: 1 };
+  let path = [];            // Teller's chosen nodes
+
+  const $ = id => document.getElementById(id);
+  const bidHTML = b => { const { level, strain } = KK.parseBid(b); return level + '<span class="s ' + (RED[strain] ? 'red' : '') + '">' + KK.SYM[strain] + '</span>'; };
+  const cur = () => path.length ? path[path.length - 1] : tree;
+  const askerBids = () => ['1C'].concat(path.slice(0, -1).map(n => n.relay)); // relay after each teller bid except the last
+
+  // build the 35-button box once
+  const boxBtns = {};
+  for (let level = 1; level <= 7; level++) for (const s of KK.STRAINS) {
+    const b = level + s, el = document.createElement('button');
+    el.innerHTML = bidHTML(b); el.dataset.bid = b; el.onclick = () => choose(b);
+    $('box').appendChild(el); boxBtns[b] = el;
+  }
+
+  function choose(bid) {
+    const n = cur().children && cur().children.find(c => c.bid === bid);
+    if (!n) return;
+    path.push(n); render();
+  }
+  function render() {
+    const node = cur();
+    const avail = new Set((node.children || []).map(c => c.bid));
+    const used = new Set(path.map(n => n.bid));
+    const asked = new Set(askerBids().concat(node.children ? [node.relay || '1C'] : []));
+    for (const b in boxBtns) {
+      const el = boxBtns[b]; el.className = '';
+      if (avail.has(b)) el.classList.add('avail');
+      else if (used.has(b)) el.classList.add('used');
+      else if (asked.has(b)) el.classList.add('asker');
+    }
+    // auction table
+    const rows = []; const asker = askerBids();
+    for (let i = 0; i < path.length; i++) rows.push('<tr><td>' + bidHTML(asker[i]) + '</td><td' + (i === path.length - 1 ? ' class="cur"' : '') + '>' + bidHTML(path[i].bid) + '<sup>' + (i + 1) + '</sup></td></tr>');
+    if (node.children) rows.push('<tr><td>' + (path.length ? bidHTML(node.relay) : bidHTML('1C')) + '</td><td class="small">?</td></tr>');
+    $('auction').innerHTML = rows.join('');
+    $('notes').innerHTML = path.map((n, i) => '<li' + (i === path.length - 1 ? ' class="cur"' : '') + '>' + n.label + '</li>').join('');
+    // meaning panel
+    if (node.children) {
+      $('status').textContent = path.length ? 'Asker relays ' + KK.pretty(node.relay) + '. Teller’s options:' : 'West opens 1♣ (strong, artificial). East’s first-round responses:';
+      $('panel').innerHTML = '<ul class="options">' + node.children.map(c =>
+        '<li class="' + (c.terminal ? 'term' : '') + '" data-bid="' + c.bid + '"><span class="b">' + bidHTML(c.bid) + '</span><span>' + c.label + (c.shape ? '' : (c.terminal ? '' : ' …')) + '</span></li>').join('') + '</ul>';
+      $('panel').querySelectorAll('li').forEach(li => li.onclick = () => choose(li.dataset.bid));
+    } else if (node.shape) {
+      const c = node.counts;
+      $('status').textContent = 'Shape fully known after ' + KK.pretty(node.bid) + ' (the ESS call). Asker’s next step would be a Control Ask.';
+      $('panel').innerHTML = '<div class="leaf"><div class="small">Exactly (♠=♥=♦=♣)</div><div class="shape">' + node.shape + '</div>' +
+        '<div class="small">generic ' + node.generic + '</div><div class="hand">' +
+        KK.RANK.map(s => '<div><span class="' + (RED[s] ? 'red' : '') + '">' + KK.SYM[s] + '</span> ' + ('x'.repeat(c[s]) || '—') + '<span class="cnt">' + c[s] + '</span></div>').join('') + '</div></div>' +
+        '<div class="path"><b>Teller’s sequence:</b> ' + path.map(n => KK.pretty(n.bid)).join(' – ') + '</div>';
+    } else {
+      $('status').textContent = 'Outside the shape-showing structure.';
+      $('panel').innerHTML = '<div class="leaf">' + node.label + '</div>';
+    }
+  }
+
+  function randomLeafPath() {
+    let n = tree; const bids = [];
+    while (n.children) {
+      const opts = n.children.filter(c => !c.terminal);
+      n = opts[Math.floor(Math.random() * opts.length)]; bids.push(n.bid);
+    }
+    return bids;
+  }
+  $('undo').onclick = () => { path.pop(); render(); };
+  $('reset').onclick = () => { path = []; render(); };
+  $('random').onclick = () => { path = []; randomLeafPath().forEach(b => choose(b)); };
+  render();
+})();
+</script>
+</body>
+</html>

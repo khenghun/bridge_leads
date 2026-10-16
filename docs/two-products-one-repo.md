@@ -95,6 +95,20 @@ The backend image is shared because both apps sit on the same `engine/`;
 each stack pins its own tag of it, so their backend versions still move
 independently. Nothing else is shared at release time.
 
+## Also in the repo: kk_relay (not a product)
+
+`kk_relay/` is a static page — the KK Relay bidding-system display, two files
+(`index.html`, `kkrelay.js`) and a README that carries its own version. It
+shares nothing with the bridge products but the VPS, so it follows the
+*deploy apart* half of this design and none of the rest: its own nginx image
+(`ghcr.io/khenghun/kk_relay-frontend`), its own workflow
+(`.github/workflows/kk-relay.yml`, path-filtered to `kk_relay/**`, same
+dispatch gate), its own compose file (`deploy/kk_relay/`, `/opt/kk_relay`)
+and its own hostname (`kk-relay.icycookie.xyz`, site block in the FBO repo's
+`deploy/edge/Caddyfile`). It is not in `deploy.yml`, has no `releases.ts`
+and no regression checks. The source book it was derived from and the
+scripts that need it stay out of the repo (`kk_relay/.gitignore`).
+
 ## Milestone 1 — migrate the existing solver (zero behavior change)
 
 When this lands, the live site serves exactly what it serves today, from the

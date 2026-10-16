@@ -1,0 +1,24 @@
+# KK Relay display — production stack (Vultr VPS), deployed to /opt/kk_relay
+# (an optional .env there can pin IMAGE_TAG).
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# A static page, so one container and nothing else: no backend, no volumes,
+# no env. Same shape as deploy/lead/ and deploy/play/: no published ports;
+# the shared edge stack (/opt/edge — source of truth: the FBO repo's
+# deploy/edge/) reaches it over the external `edge` network via the alias
+# below, so the kk-relay.icycookie.xyz vhost there points at kk-frontend.
+# The image is built by CI (.github/workflows/kk-relay.yml).
+services:
+  frontend:
+    image: ghcr.io/khenghun/kk_relay-frontend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      edge:
+        aliases:
+          - kk-frontend
+
+networks:
+  edge:
+    external: true

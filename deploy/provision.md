@@ -88,10 +88,14 @@ step is required before the *first* deploy of each stack (the lead stack got it
 at initial provisioning; the play stack was added later and needs it too):
 
 ```bash
-sudo mkdir -p /opt/bridge_leads /opt/bridge_play
-sudo chown deploy:deploy /opt/bridge_leads /opt/bridge_play
+sudo mkdir -p /opt/bridge_leads /opt/bridge_play /opt/kk_relay
+sudo chown deploy:deploy /opt/bridge_leads /opt/bridge_play /opt/kk_relay
 cd /opt/bridge_leads
 ```
+
+(`/opt/kk_relay` is the KK Relay display — a static page in `kk_relay/` with
+its own workflow, `.github/workflows/kk-relay.yml`, and its own site block
+`kk-relay.icycookie.xyz` in the shared edge Caddyfile. It needs no `.env`.)
 
 Copy `docker-compose.prod.yml` and `Caddyfile` from the repo into
 `/opt/bridge_leads/` (scp them, or just `git clone` and `cp` — the deploy

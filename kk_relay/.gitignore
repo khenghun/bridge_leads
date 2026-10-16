@@ -1,0 +1,8 @@
+# kk_relay is derived from a copyrighted book. The book, its extracted text
+# and the dev-only scripts that need them stay on the local machine (the
+# source folder is C:/kh/bridge/KK_display); only index.html, kkrelay.js and
+# README.md are tracked and deployed.
+KKRelay.pdf
+extracted/
+verify.js
+extract_kkrelay.py
